@@ -1,0 +1,30 @@
+{
+  "name": "@mediescare/desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Mediescare desktop shell (Electron)",
+  "author": "Mediescare",
+  "main": "dist/main.cjs",
+  "scripts": {
+    "build": "node scripts/make-icons.mjs && node scripts/build.mjs",
+    "prepare:web": "node scripts/prepare-web.mjs",
+    "dev": "node scripts/make-icons.mjs && node scripts/build.mjs && node scripts/dev.mjs",
+    "package": "node scripts/make-icons.mjs && node scripts/build.mjs && node scripts/prepare-web.mjs && electron-builder --config electron-builder.yml --win",
+    "package:dir": "node scripts/make-icons.mjs && node scripts/build.mjs && node scripts/prepare-web.mjs && electron-builder --config electron-builder.yml --win --dir",
+    "smoke": "node scripts/smoke-packaged.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@mediescare/config": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.4",
+    "electron": "44.5.0",
+    "electron-builder": "^26.15.3",
+    "@napi-rs/canvas": "^1.0.9",
+    "esbuild": "^0.25.0",
+    "typescript": "~5.9.3",
+    "vitest": "^5.0.2"
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "name": "@mediescare/db",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./sqlite-schema": "./src/schema/sqlite.ts",
+    "./pg-schema": "./src/schema/pg.ts"
+  },
+  "scripts": {
+    "db:generate": "drizzle-kit generate --config drizzle.sqlite.config.ts && drizzle-kit generate --config drizzle.pg.config.ts",
+    "db:migrate": "node ../../scripts/electron-node.mjs --import tsx src/cli/migrate.ts",
+    "db:seed": "node ../../scripts/electron-node.mjs --import tsx src/cli/seed.ts",
+    "test": "node ../../scripts/electron-node.mjs ../../node_modules/vitest/vitest.mjs run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@mediescare/core": "workspace:*",
+    "@mediescare/sync": "workspace:*",
+    "@node-rs/argon2": "^2.2.1",
+    "better-sqlite3": "npm:better-sqlite3-multiple-ciphers@13.0.3",
+    "drizzle-orm": "^0.45.3",
+    "jose": "^6.2.12"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^9.6.0",
+    "@types/node": "^22.20.4",
+    "drizzle-kit": "^0.31.11",
+    "electron": "44.5.0",
+    "tsx": "^4.23.15",
+    "typescript": "~5.9.3",
+    "vitest": "^5.0.2"
+  }
+}

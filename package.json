@@ -1,0 +1,46 @@
+{
+  "name": "mediescare",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Mediescare: offline-first Pharmacy POS and Hospital Management System",
+  "packageManager": "pnpm@10.13.1",
+  "engines": {
+    "node": ">=22.12"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @mediescare/web dev",
+    "dev:desktop": "pnpm --filter @mediescare/desktop dev",
+    "build": "turbo run build",
+    "package": "pnpm --filter @mediescare/desktop package",
+    "db:generate": "pnpm --filter @mediescare/db db:generate",
+    "db:migrate": "pnpm --filter @mediescare/db db:migrate",
+    "db:seed": "pnpm --filter @mediescare/db db:seed",
+    "test": "turbo run test",
+    "test:e2e": "pnpm --filter @mediescare/desktop test:e2e",
+    "lint": "eslint .",
+    "typecheck": "turbo run typecheck",
+    "format": "prettier --write .",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,mjs,json,md,css}": "prettier --write"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.0",
+    "eslint": "^10.11.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.6.0",
+    "prettier": "^3.9.9",
+    "turbo": "^2.11.5",
+    "typescript": "~5.9.3",
+    "typescript-eslint": "^8.71.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "electron",
+      "esbuild",
+      "sharp",
+      "unrs-resolver"
+    ]
+  }
+}

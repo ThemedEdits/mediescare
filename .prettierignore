@@ -1,0 +1,11 @@
+node_modules
+.next
+.turbo
+dist
+out
+release
+coverage
+pnpm-lock.yaml
+packages/db/migrations
+docs/hcloud_screenshots.pdf
+build

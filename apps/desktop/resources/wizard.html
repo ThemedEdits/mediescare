@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src 'self' data:" />
+    <title>Mediescare setup</title>
+    <style>
+      :root { --primary: #1b709c; --primary-dark: #18638b; --border: #94a3b8; --text: #0f172a; --muted: #475569; }
+      * { box-sizing: border-box; }
+      body { margin: 0; font-family: 'Segoe UI', system-ui, sans-serif; color: var(--text); background: #fff; }
+      main { max-width: 520px; margin: 0 auto; padding: 32px 24px; }
+      h1 { font-size: 24px; margin: 0 0 4px; }
+      p.lead { color: var(--muted); margin: 0 0 24px; }
+      label.option { display: block; border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; margin-bottom: 12px; cursor: pointer; }
+      label.option:has(input:checked) { border-color: var(--primary); background: #ecf6fc; }
+      label.option strong { display: block; }
+      label.option span { color: var(--muted); font-size: 14px; }
+      input[type='text'] { width: 100%; height: 44px; border: 1px solid var(--border); border-radius: 6px; padding: 0 12px; font-size: 16px; }
+      #server-row { display: none; margin: 4px 0 16px; }
+      button { height: 44px; width: 100%; border: 0; border-radius: 6px; background: var(--primary); color: #fff; font-size: 16px; font-weight: 600; cursor: pointer; }
+      button:hover { background: var(--primary-dark); }
+      button:disabled { background: #cbd5e1; color: #64748b; cursor: not-allowed; }
+      #error { color: #b91c1c; min-height: 22px; margin: 8px 0; font-size: 14px; }
+      .note { font-size: 13px; color: var(--muted); margin-top: 16px; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Welcome to Mediescare</h1>
+      <p class="lead">How will this computer be used?</p>
+      <form id="form">
+        <label class="option">
+          <input type="radio" name="mode" value="single" checked />
+          <strong>Single PC</strong>
+          <span>One computer runs everything. Best for a small branch.</span>
+        </label>
+        <label class="option">
+          <input type="radio" name="mode" value="branch-server" />
+          <strong>Branch Server</strong>
+          <span>This computer stores the branch data. Other counters connect to it over the shop network.</span>
+        </label>
+        <label class="option">
+          <input type="radio" name="mode" value="terminal" />
+          <strong>Branch Terminal</strong>
+          <span>An extra counter that connects to the Branch Server.</span>
+        </label>
+        <div id="server-row">
+          <input type="text" id="server" placeholder="Server address, for example 192.168.1.10:3210" />
+        </div>
+        <div id="error" role="alert"></div>
+        <button type="submit" id="go">Continue</button>
+      </form>
+      <p class="note">You can change this later from the Mediescare settings. Nothing needs the internet to work.</p>
+    </main>
+    <script>
+      const form = document.getElementById('form');
+      const row = document.getElementById('server-row');
+      const err = document.getElementById('error');
+      const go = document.getElementById('go');
+      form.addEventListener('change', () => {
+        row.style.display = form.mode.value === 'terminal' ? 'block' : 'none';
+      });
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        err.textContent = '';
+        go.disabled = true;
+        const result = await window.mediescare.completeSetup({
+          mode: form.mode.value,
+          serverUrl: document.getElementById('server').value,
+        });
+        if (!result.ok) {
+          err.textContent = result.error || 'Could not save the setup';
+          go.disabled = false;
+        }
+      });
+    </script>
+  </body>
+</html>

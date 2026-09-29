@@ -1,0 +1,35 @@
+# dependencies and build output
+node_modules/
+.next/
+.turbo/
+dist/
+out/
+release/
+coverage/
+*.tsbuildinfo
+
+# secrets and local data (never commit real data)
+.env
+.env.*
+!.env.example
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+*.bak
+*.mcbak
+data/
+
+# reference material containing real names, phone numbers and emails
+docs/hcloud_screenshots.pdf
+
+# editor and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+.claude/settings.local.json
+
+# desktop packaging intermediates (icons, copied web build)
+apps/desktop/build/

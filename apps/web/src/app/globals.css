@@ -1,0 +1,19 @@
+@import 'tailwindcss';
+@import '@mediescare/config/tokens.css';
+
+html {
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-latin);
+  font-variant-numeric: tabular-nums;
+}
+
+html[dir='rtl'] {
+  font-family: var(--font-urdu);
+  line-height: 2;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-primary-500);
+  outline-offset: 2px;
+}

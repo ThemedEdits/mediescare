@@ -1,0 +1,33 @@
+{
+  "name": "@mediescare/web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "node ../../scripts/electron-node.mjs ../../node_modules/next/dist/bin/next dev --port 3210",
+    "build": "next build",
+    "start": "node ../../scripts/electron-node.mjs .next/standalone/apps/web/server.js",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@mediescare/config": "workspace:*",
+    "@mediescare/core": "workspace:*",
+    "@mediescare/db": "workspace:*",
+    "@mediescare/sync": "workspace:*",
+    "drizzle-orm": "^0.45.3",
+    "next": "^16.3.7",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.3",
+    "@types/node": "^22.20.4",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "postcss": "^8.5.28",
+    "tailwindcss": "^4.3.3",
+    "typescript": "~5.9.3",
+    "vitest": "^5.0.2"
+  }
+}

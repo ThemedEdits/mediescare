@@ -1,0 +1,35 @@
+appId: com.mediescare.app
+productName: Mediescare
+copyright: Mediescare
+directories:
+  output: ../../release
+  buildResources: build
+files:
+  - dist/**/*
+  - package.json
+# The web server and its native modules ship outside the asar archive: native .node files and
+# a child-process Node cannot be loaded from inside an archive.
+extraResources:
+  - from: build/web
+    to: web
+  - from: resources/wizard.html
+    to: wizard.html
+  - from: build/icons/icon.png
+    to: icon.png
+afterPack: scripts/after-pack.cjs
+asar: true
+# better-sqlite3 (SQLCipher fork) and @node-rs/argon2 are N-API modules with prebuilt binaries,
+# so nothing is compiled or rebuilt at packaging time (ADR-0007).
+npmRebuild: false
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  icon: build/icons/icon.ico
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  shortcutName: Mediescare
+  artifactName: Mediescare-Setup-${version}.${ext}
