@@ -38,6 +38,9 @@ importers:
       '@mediescare/config':
         specifier: workspace:*
         version: link:../../packages/config
+      '@mediescare/db':
+        specifier: workspace:*
+        version: link:../../packages/db
     devDependencies:
       '@napi-rs/canvas':
         specifier: ^1.0.9

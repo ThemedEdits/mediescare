@@ -32,7 +32,9 @@ export function createMainWindow(origin: string): BrowserWindow {
     if (/^https?:\/\//.test(url)) void shell.openExternal(url);
     return { action: 'deny' };
   });
-  session.defaultSession.setPermissionRequestHandler((_wc, _permission, callback) => callback(false));
+  session.defaultSession.setPermissionRequestHandler((_wc, _permission, callback) =>
+    callback(false),
+  );
 
   void win.loadURL(origin);
   return win;
@@ -58,8 +60,57 @@ export function createWizardWindow(htmlFile: string): BrowserWindow {
   return win;
 }
 
+export function createRestoreWindow(htmlFile: string, parent: BrowserWindow | null): BrowserWindow {
+  const win = new BrowserWindow({
+    width: 620,
+    height: 640,
+    parent: parent ?? undefined,
+    modal: parent !== null,
+    resizable: false,
+    title: `${APP_NAME}: restore from backup`,
+    icon: iconPath(),
+    backgroundColor: '#ffffff',
+    webPreferences: {
+      contextIsolation: true,
+      sandbox: true,
+      nodeIntegration: false,
+      preload: preloadPath(),
+    },
+  });
+  win.setMenuBarVisibility(false);
+  void win.loadFile(htmlFile);
+  return win;
+}
+
+export function buildAppMenu(items: { restore: () => void; openBackups: () => void }): void {
+  Menu.setApplicationMenu(
+    Menu.buildFromTemplate([
+      {
+        label: 'Data',
+        submenu: [
+          { label: 'Restore from backup…', click: items.restore },
+          { label: 'Open backup folder', click: items.openBackups },
+          { type: 'separator' },
+          { role: 'quit', label: 'Quit' },
+        ],
+      },
+      {
+        label: 'View',
+        submenu: [
+          { role: 'reload' },
+          { role: 'togglefullscreen' },
+          { role: 'resetZoom' },
+          { role: 'zoomIn' },
+          { role: 'zoomOut' },
+        ],
+      },
+    ]),
+  );
+}
+
 export function showFatal(win: BrowserWindow, title: string, detail: string): void {
-  const esc = (s: string) => s.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c] as string);
+  const esc = (s: string) =>
+    s.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c] as string);
   const html = `<meta charset="utf-8"><body style="font-family:Segoe UI,sans-serif;max-width:560px;margin:48px auto;color:#0f172a">
     <h1 style="font-size:22px">${esc(title)}</h1><p style="color:#475569">${esc(detail)}</p></body>`;
   void win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);

@@ -14,6 +14,8 @@ extraResources:
     to: web
   - from: resources/wizard.html
     to: wizard.html
+  - from: resources/restore.html
+    to: restore.html
   - from: build/icons/icon.png
     to: icon.png
 afterPack: scripts/after-pack.cjs

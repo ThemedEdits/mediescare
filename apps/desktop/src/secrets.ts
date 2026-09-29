@@ -24,9 +24,25 @@ const unseal = (blob: string): string => safeStorage.decryptString(Buffer.from(b
  * (Windows DPAPI via Electron safeStorage), so the files are useless if copied to another PC or user.
  * Fails closed: without OS encryption the app refuses to create a database key.
  */
+export function replaceDbKey(userData: string, dbKeyHex: string): void {
+  // After restoring on a different PC: protect the restored database key with this PC's OS store.
+  const current = loadOrCreateSecrets(userData);
+  const stored: StoredSecrets = {
+    v: 1,
+    dbKey: seal(dbKeyHex),
+    sessionSecret: seal(current.sessionSecret),
+  };
+  const file = join(userData, 'secrets.json');
+  const tmp = `${file}.tmp`;
+  writeFileSync(tmp, JSON.stringify(stored), { encoding: 'utf8', mode: 0o600 });
+  renameSync(tmp, file);
+}
+
 export function loadOrCreateSecrets(userData: string): Secrets {
   if (!safeStorage.isEncryptionAvailable()) {
-    throw new Error('OS secure storage is not available on this machine, so the database key cannot be protected.');
+    throw new Error(
+      'OS secure storage is not available on this machine, so the database key cannot be protected.',
+    );
   }
   const file = join(userData, 'secrets.json');
   if (existsSync(file)) {
@@ -37,7 +53,11 @@ export function loadOrCreateSecrets(userData: string): Secrets {
     dbKeyHex: randomBytes(32).toString('hex'),
     sessionSecret: randomBytes(48).toString('base64url'),
   };
-  const stored: StoredSecrets = { v: 1, dbKey: seal(secrets.dbKeyHex), sessionSecret: seal(secrets.sessionSecret) };
+  const stored: StoredSecrets = {
+    v: 1,
+    dbKey: seal(secrets.dbKeyHex),
+    sessionSecret: seal(secrets.sessionSecret),
+  };
   mkdirSync(dirname(file), { recursive: true });
   const tmp = `${file}.tmp`;
   writeFileSync(tmp, JSON.stringify(stored), { encoding: 'utf8', mode: 0o600 });

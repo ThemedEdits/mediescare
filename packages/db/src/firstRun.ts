@@ -43,7 +43,13 @@ export function hlcDeviceId(deviceId: string): string {
 }
 
 export function isInitialized(db: Db): boolean {
-  return (db.select({ n: count() }).from(tenants).get()?.n ?? 0) > 0;
+  try {
+    return (db.select({ n: count() }).from(tenants).get()?.n ?? 0) > 0;
+  } catch (error) {
+    // A brand-new database has no tables yet (migrations have not run): not initialised.
+    if (error instanceof Error && /no such table/i.test(error.message)) return false;
+    throw error;
+  }
 }
 
 export class AlreadyInitializedError extends Error {
@@ -67,7 +73,14 @@ export function runFirstRunSetup(db: Db, input: FirstRunInput): FirstRunResult {
   const clock = new HybridLogicalClock(hlcDeviceId(deviceId));
   const storeId = newId();
   const adminId = newId();
-  const ctx: WriteContext = { tenantId, branchId, deviceId, userId: adminId, clock, now: input.now };
+  const ctx: WriteContext = {
+    tenantId,
+    branchId,
+    deviceId,
+    userId: adminId,
+    clock,
+    now: input.now,
+  };
   const nowIso = (input.now ? input.now() : new Date()).toISOString();
   const sync = () => ({ createdAt: nowIso, updatedAt: nowIso, hlc: clock.tick(), version: 1 });
 
@@ -80,27 +93,56 @@ export function runFirstRunSetup(db: Db, input: FirstRunInput): FirstRunResult {
     emit('tenants', tenantId, tenantRow);
 
     const branchRow = {
-      id: branchId, tenantId, code: input.branchCode, name: input.branchName,
-      isHeadOffice: input.isHeadOffice, address: null, licenceNo: null, ntn: null,
-      timezone: 'Asia/Karachi', status: 'active', ...sync(),
+      id: branchId,
+      tenantId,
+      code: input.branchCode,
+      name: input.branchName,
+      isHeadOffice: input.isHeadOffice,
+      address: null,
+      licenceNo: null,
+      ntn: null,
+      timezone: 'Asia/Karachi',
+      status: 'active',
+      ...sync(),
     };
     tx.insert(branches).values(branchRow).run();
     emit('branches', branchId, branchRow);
 
-    const storeRow = { id: storeId, tenantId, branchId, kind: 'main', name: 'Main Store', ...sync() };
+    const storeRow = {
+      id: storeId,
+      tenantId,
+      branchId,
+      kind: 'main',
+      name: 'Main Store',
+      ...sync(),
+    };
     tx.insert(stores).values(storeRow).run();
     emit('stores', storeId, storeRow);
 
     const deviceRow = {
-      id: deviceId, tenantId, branchId, name: input.deviceName, role: 'server',
-      tokenHash: null, certFingerprint: null, lastSeenAt: null, revokedAt: null, ...sync(),
+      id: deviceId,
+      tenantId,
+      branchId,
+      name: input.deviceName,
+      role: 'server',
+      tokenHash: null,
+      certFingerprint: null,
+      lastSeenAt: null,
+      revokedAt: null,
+      ...sync(),
     };
     tx.insert(devices).values(deviceRow).run();
     emit('devices', deviceId, deviceRow);
 
     // Permission catalogue (code-defined, identical on every install).
     tx.insert(permissions)
-      .values(ALL_PERMISSIONS.map((key) => ({ key, module: key.split('.')[0] as string, description: null })))
+      .values(
+        ALL_PERMISSIONS.map((key) => ({
+          key,
+          module: key.split('.')[0] as string,
+          description: null,
+        })),
+      )
       .run();
 
     // Default roles and their grants.
@@ -110,22 +152,44 @@ export function runFirstRunSetup(db: Db, input: FirstRunInput): FirstRunResult {
       const roleId = newId();
       roleIds.set(code, roleId);
       const roleRow = {
-        id: roleId, tenantId, code, name: def.name, isSystem: true,
-        discountLimitBp: def.limits.discountLimitBp, refundLimitMinor: def.limits.refundLimitMinor,
-        priceOverrideLimitBp: def.limits.priceOverrideLimitBp, ...sync(),
+        id: roleId,
+        tenantId,
+        code,
+        name: def.name,
+        isSystem: true,
+        discountLimitBp: def.limits.discountLimitBp,
+        refundLimitMinor: def.limits.refundLimitMinor,
+        priceOverrideLimitBp: def.limits.priceOverrideLimitBp,
+        ...sync(),
       };
       tx.insert(roles).values(roleRow).run();
       tx.insert(rolePermissions)
-        .values(def.permissions.map((permissionKey) => ({ roleId, permissionKey, fieldRules: null })))
+        .values(
+          def.permissions.map((permissionKey) => ({ roleId, permissionKey, fieldRules: null })),
+        )
         .run();
       emit('roles', roleId, { ...roleRow, permissions: def.permissions });
     }
 
     const adminRow = {
-      id: adminId, tenantId, username: input.admin.username, fullName: input.admin.fullName,
-      email: null, phone: null, passwordHash: input.admin.passwordHash, pinHash: null,
-      totpSecretEnc: null, language: 'en', status: 'active', mustChangePassword: false,
-      failedLogins: 0, lockedUntil: null, lastLoginAt: null, priorityModules: null, deletedAt: null, ...sync(),
+      id: adminId,
+      tenantId,
+      username: input.admin.username,
+      fullName: input.admin.fullName,
+      email: null,
+      phone: null,
+      passwordHash: input.admin.passwordHash,
+      pinHash: null,
+      totpSecretEnc: null,
+      language: 'en',
+      status: 'active',
+      mustChangePassword: false,
+      failedLogins: 0,
+      lockedUntil: null,
+      lastLoginAt: null,
+      priorityModules: null,
+      deletedAt: null,
+      ...sync(),
     };
     tx.insert(users).values(adminRow).run();
     emit('users', adminId, adminRow);
@@ -143,12 +207,20 @@ export function runFirstRunSetup(db: Db, input: FirstRunInput): FirstRunResult {
       action: 'system.first_run',
       entityType: 'tenant',
       entityId: tenantId,
-      newValue: { branchCode: input.branchCode, isHeadOffice: input.isHeadOffice, admin: input.admin.username },
+      newValue: {
+        branchCode: input.branchCode,
+        isHeadOffice: input.isHeadOffice,
+        admin: input.admin.username,
+      },
     });
   });
 
   // Confirm what was stored, and report the numbering format the branch will use.
-  const stored = db.select({ code: branches.code }).from(branches).where(eq(branches.id, branchId)).get();
+  const stored = db
+    .select({ code: branches.code })
+    .from(branches)
+    .where(eq(branches.id, branchId))
+    .get();
   return {
     tenantId,
     branchId,

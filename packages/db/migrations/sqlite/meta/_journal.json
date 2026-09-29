@@ -15,6 +15,13 @@
       "when": 1790721717586,
       "tag": "0001_immutable_audit_log",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1790724738223,
+      "tag": "0002_overrides_and_session_method",
+      "breakpoints": true
     }
   ]
 }

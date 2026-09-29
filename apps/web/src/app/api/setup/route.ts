@@ -1,17 +1,30 @@
 import { z } from 'zod';
-import { checkPasswordPolicy, hashPassword, isInitialized, runFirstRunSetup } from '@mediescare/db';
+import {
+  checkPasswordPolicy,
+  hashPassword,
+  isInitialized,
+  issueRecoveryKey,
+  runFirstRunSetup,
+} from '@mediescare/db';
 import { json, publicRoute } from '@/server/guard';
-import { getDb } from '@/server/runtime';
+import { getDb, getRuntime } from '@/server/runtime';
 
 export const dynamic = 'force-dynamic';
 
 const Body = z.object({
   tenantName: z.string().trim().min(2).max(120),
-  branchCode: z.string().regex(/^[A-Z][A-Z0-9]{1,7}$/, 'Use 2-8 capital letters or digits, starting with a letter'),
+  branchCode: z
+    .string()
+    .regex(/^[A-Z][A-Z0-9]{1,7}$/, 'Use 2-8 capital letters or digits, starting with a letter'),
   branchName: z.string().trim().min(2).max(120),
   isHeadOffice: z.boolean(),
   admin: z.object({
-    username: z.string().trim().min(3).max(40).regex(/^[a-z0-9._-]+$/, 'Lowercase letters, digits, dot, dash, underscore'),
+    username: z
+      .string()
+      .trim()
+      .min(3)
+      .max(40)
+      .regex(/^[a-z0-9._-]+$/, 'Lowercase letters, digits, dot, dash, underscore'),
     fullName: z.string().trim().min(2).max(120),
     password: z.string().min(1).max(200),
   }),
@@ -40,5 +53,11 @@ export const POST = publicRoute(async (request) => {
       passwordHash: await hashPassword(body.admin.password),
     },
   });
-  return json({ ok: true, branchId: result.branchId, sampleDocNo: result.sampleDocNo }, 201);
+  // Shown to the owner exactly once. Only the wrapped database key is stored (ADR-0001).
+  const runtime = getRuntime();
+  const recoveryKey = issueRecoveryKey(runtime.dataDir, runtime.dbKeyHex);
+  return json(
+    { ok: true, branchId: result.branchId, sampleDocNo: result.sampleDocNo, recoveryKey },
+    201,
+  );
 });

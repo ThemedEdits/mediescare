@@ -10,7 +10,9 @@ const standalone = join(web, '.next/standalone');
 const out = join(root, 'build/web');
 
 if (!existsSync(join(standalone, 'apps/web/server.js'))) {
-  throw new Error('Run "pnpm --filter @mediescare/web build" first: .next/standalone/apps/web/server.js is missing.');
+  throw new Error(
+    'Run "pnpm --filter @mediescare/web build" first: .next/standalone/apps/web/server.js is missing.',
+  );
 }
 
 rmSync(out, { recursive: true, force: true });
@@ -18,7 +20,12 @@ mkdirSync(out, { recursive: true });
 cpSync(standalone, out, { recursive: true, dereference: true });
 // Next.js does not copy static assets into standalone output by default.
 cpSync(join(web, '.next/static'), join(out, 'apps/web/.next/static'), { recursive: true });
-if (existsSync(join(web, 'public'))) cpSync(join(web, 'public'), join(out, 'apps/web/public'), { recursive: true });
+if (existsSync(join(web, 'public')))
+  cpSync(join(web, 'public'), join(out, 'apps/web/public'), { recursive: true });
+// Restore tool: runs on Electron's Node from this folder, so it finds the same native modules.
+cpSync(join(root, 'dist/restore-cli.cjs'), join(out, 'restore-cli.cjs'));
 // Migrations are read from disk at start-up.
-cpSync(join(root, '../../packages/db/migrations'), join(out, 'packages/db/migrations'), { recursive: true });
+cpSync(join(root, '../../packages/db/migrations'), join(out, 'packages/db/migrations'), {
+  recursive: true,
+});
 console.log(`Prepared ${out}`);

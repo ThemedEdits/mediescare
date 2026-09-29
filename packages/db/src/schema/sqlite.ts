@@ -3,7 +3,14 @@
  * Conventions (docs/phase0/data-model.md §1): UUIDv7 text ids, snake_case columns, UTC ISO-8601
  * text timestamps, integer minor units for money, `hlc` + `version` on synced rows.
  */
-import { index, integer, primaryKey, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
+import {
+  index,
+  integer,
+  primaryKey,
+  sqliteTable,
+  text,
+  uniqueIndex,
+} from 'drizzle-orm/sqlite-core';
 
 const syncCols = () => ({
   createdAt: text('created_at').notNull(),
@@ -23,7 +30,9 @@ export const branches = sqliteTable(
   'branches',
   {
     id: text('id').primaryKey(),
-    tenantId: text('tenant_id').notNull().references(() => tenants.id),
+    tenantId: text('tenant_id')
+      .notNull()
+      .references(() => tenants.id),
     code: text('code').notNull(),
     name: text('name').notNull(),
     isHeadOffice: integer('is_head_office', { mode: 'boolean' }).notNull().default(false),
@@ -39,8 +48,12 @@ export const branches = sqliteTable(
 
 export const stores = sqliteTable('stores', {
   id: text('id').primaryKey(),
-  tenantId: text('tenant_id').notNull().references(() => tenants.id),
-  branchId: text('branch_id').notNull().references(() => branches.id),
+  tenantId: text('tenant_id')
+    .notNull()
+    .references(() => tenants.id),
+  branchId: text('branch_id')
+    .notNull()
+    .references(() => branches.id),
   kind: text('kind').notNull(), // main | counter | cold_room | quarantine | damaged | expired | in_transit
   name: text('name').notNull(),
   ...syncCols(),
@@ -48,8 +61,12 @@ export const stores = sqliteTable('stores', {
 
 export const devices = sqliteTable('devices', {
   id: text('id').primaryKey(),
-  tenantId: text('tenant_id').notNull().references(() => tenants.id),
-  branchId: text('branch_id').notNull().references(() => branches.id),
+  tenantId: text('tenant_id')
+    .notNull()
+    .references(() => tenants.id),
+  branchId: text('branch_id')
+    .notNull()
+    .references(() => branches.id),
   name: text('name').notNull(),
   role: text('role').notNull(), // server | terminal | standby
   tokenHash: text('token_hash'),
@@ -63,7 +80,9 @@ export const users = sqliteTable(
   'users',
   {
     id: text('id').primaryKey(),
-    tenantId: text('tenant_id').notNull().references(() => tenants.id),
+    tenantId: text('tenant_id')
+      .notNull()
+      .references(() => tenants.id),
     username: text('username').notNull(),
     fullName: text('full_name').notNull(),
     email: text('email'),
@@ -73,7 +92,9 @@ export const users = sqliteTable(
     totpSecretEnc: text('totp_secret_enc'),
     language: text('language').notNull().default('en'),
     status: text('status').notNull().default('active'), // active | disabled
-    mustChangePassword: integer('must_change_password', { mode: 'boolean' }).notNull().default(false),
+    mustChangePassword: integer('must_change_password', { mode: 'boolean' })
+      .notNull()
+      .default(false),
     failedLogins: integer('failed_logins').notNull().default(0),
     lockedUntil: text('locked_until'),
     lastLoginAt: text('last_login_at'),
@@ -88,7 +109,9 @@ export const roles = sqliteTable(
   'roles',
   {
     id: text('id').primaryKey(),
-    tenantId: text('tenant_id').notNull().references(() => tenants.id),
+    tenantId: text('tenant_id')
+      .notNull()
+      .references(() => tenants.id),
     code: text('code').notNull(),
     name: text('name').notNull(),
     isSystem: integer('is_system', { mode: 'boolean' }).notNull().default(false),
@@ -109,8 +132,12 @@ export const permissions = sqliteTable('permissions', {
 export const rolePermissions = sqliteTable(
   'role_permissions',
   {
-    roleId: text('role_id').notNull().references(() => roles.id),
-    permissionKey: text('permission_key').notNull().references(() => permissions.key),
+    roleId: text('role_id')
+      .notNull()
+      .references(() => roles.id),
+    permissionKey: text('permission_key')
+      .notNull()
+      .references(() => permissions.key),
     fieldRules: text('field_rules'), // JSON
   },
   (t) => [primaryKey({ columns: [t.roleId, t.permissionKey] })],
@@ -119,15 +146,21 @@ export const rolePermissions = sqliteTable(
 export const userRoles = sqliteTable(
   'user_roles',
   {
-    userId: text('user_id').notNull().references(() => users.id),
-    roleId: text('role_id').notNull().references(() => roles.id),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id),
+    roleId: text('role_id')
+      .notNull()
+      .references(() => roles.id),
   },
   (t) => [primaryKey({ columns: [t.userId, t.roleId] })],
 );
 
 export const userBranches = sqliteTable('user_branches', {
   id: text('id').primaryKey(),
-  userId: text('user_id').notNull().references(() => users.id),
+  userId: text('user_id')
+    .notNull()
+    .references(() => users.id),
   branchId: text('branch_id').references(() => branches.id), // null when all_branches
   allBranches: integer('all_branches', { mode: 'boolean' }).notNull().default(false),
   ...syncCols(),
@@ -138,9 +171,12 @@ export const sessions = sqliteTable(
   'sessions',
   {
     id: text('id').primaryKey(),
-    userId: text('user_id').notNull().references(() => users.id),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id),
     deviceId: text('device_id'),
     branchId: text('branch_id'),
+    authMethod: text('auth_method').notNull().default('password'), // password | pin (PIN sessions are limited to POS)
     createdAt: text('created_at').notNull(),
     lastSeenAt: text('last_seen_at').notNull(),
     expiresAt: text('expires_at').notNull(),
@@ -151,15 +187,27 @@ export const sessions = sqliteTable(
 
 export const overrideEvents = sqliteTable('override_events', {
   id: text('id').primaryKey(),
-  tenantId: text('tenant_id').notNull().references(() => tenants.id),
-  branchId: text('branch_id').notNull().references(() => branches.id),
-  requestedBy: text('requested_by').notNull().references(() => users.id),
-  approvedBy: text('approved_by').notNull().references(() => users.id),
+  tenantId: text('tenant_id')
+    .notNull()
+    .references(() => tenants.id),
+  branchId: text('branch_id')
+    .notNull()
+    .references(() => branches.id),
+  requestedBy: text('requested_by')
+    .notNull()
+    .references(() => users.id),
+  approvedBy: text('approved_by')
+    .notNull()
+    .references(() => users.id),
   kind: text('kind').notNull(), // discount | refund | override_price | void | backdate
   reference: text('reference'),
   amountMinor: integer('amount_minor'),
   reason: text('reason'),
   at: text('at').notNull(),
+  // A manager override is valid for one action within a short window (permissions-matrix.md §6).
+  expiresAt: text('expires_at'),
+  consumedAt: text('consumed_at'),
+  consumedReference: text('consumed_reference'),
   hlc: text('hlc').notNull(),
 });
 
@@ -167,7 +215,9 @@ export const settings = sqliteTable(
   'settings',
   {
     id: text('id').primaryKey(),
-    tenantId: text('tenant_id').notNull().references(() => tenants.id),
+    tenantId: text('tenant_id')
+      .notNull()
+      .references(() => tenants.id),
     scope: text('scope').notNull(), // tenant | branch
     scopeId: text('scope_id').notNull(),
     key: text('key').notNull(),
@@ -181,8 +231,12 @@ export const featureFlags = sqliteTable(
   'feature_flags',
   {
     id: text('id').primaryKey(),
-    tenantId: text('tenant_id').notNull().references(() => tenants.id),
-    branchId: text('branch_id').notNull().references(() => branches.id),
+    tenantId: text('tenant_id')
+      .notNull()
+      .references(() => tenants.id),
+    branchId: text('branch_id')
+      .notNull()
+      .references(() => branches.id),
     module: text('module').notNull(),
     enabled: integer('enabled', { mode: 'boolean' }).notNull().default(true),
     ...syncCols(),
@@ -195,8 +249,12 @@ export const auditLog = sqliteTable(
   'audit_log',
   {
     id: text('id').primaryKey(),
-    tenantId: text('tenant_id').notNull().references(() => tenants.id),
-    branchId: text('branch_id').notNull().references(() => branches.id),
+    tenantId: text('tenant_id')
+      .notNull()
+      .references(() => tenants.id),
+    branchId: text('branch_id')
+      .notNull()
+      .references(() => branches.id),
     seq: integer('seq').notNull(),
     userId: text('user_id'),
     deviceId: text('device_id'),
@@ -210,7 +268,10 @@ export const auditLog = sqliteTable(
     hash: text('hash').notNull(),
     hlc: text('hlc').notNull(),
   },
-  (t) => [uniqueIndex('audit_log_branch_seq_uq').on(t.branchId, t.seq), index('audit_log_at_idx').on(t.at)],
+  (t) => [
+    uniqueIndex('audit_log_branch_seq_uq').on(t.branchId, t.seq),
+    index('audit_log_at_idx').on(t.at),
+  ],
 );
 
 /** Local only: durable change queue. Rows are inserted in the same transaction as the change. */
@@ -235,7 +296,10 @@ export const syncOutbox = sqliteTable(
     error: text('error'),
     createdAt: text('created_at').notNull(),
   },
-  (t) => [uniqueIndex('sync_outbox_seq_uq').on(t.seq), index('sync_outbox_pending_idx').on(t.ackAt, t.nextAttemptAt)],
+  (t) => [
+    uniqueIndex('sync_outbox_seq_uq').on(t.seq),
+    index('sync_outbox_pending_idx').on(t.ackAt, t.nextAttemptAt),
+  ],
 );
 
 /** Local only: per entity type pull position. */
@@ -255,8 +319,12 @@ export const docCounters = sqliteTable(
   'doc_counters',
   {
     id: text('id').primaryKey(),
-    tenantId: text('tenant_id').notNull().references(() => tenants.id),
-    branchId: text('branch_id').notNull().references(() => branches.id),
+    tenantId: text('tenant_id')
+      .notNull()
+      .references(() => tenants.id),
+    branchId: text('branch_id')
+      .notNull()
+      .references(() => branches.id),
     docType: text('doc_type').notNull(),
     nextNo: integer('next_no').notNull().default(1),
     blockEnd: integer('block_end').notNull().default(0),

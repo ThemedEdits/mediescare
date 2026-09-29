@@ -19,6 +19,7 @@
     "test:e2e": "pnpm --filter @mediescare/desktop test:e2e",
     "lint": "eslint .",
     "typecheck": "turbo run typecheck",
+    "verify:packaged": "node scripts/verify-packaged.mjs",
     "format": "prettier --write .",
     "prepare": "husky"
   },

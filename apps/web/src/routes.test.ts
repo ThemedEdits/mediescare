@@ -12,7 +12,16 @@ function routeFiles(dir: string): string[] {
 }
 
 /** Routes that are intentionally reachable without a permission. Adding one here needs a review. */
-const OPEN_ROUTES = new Set(['health', 'setup', 'auth/login', 'auth/logout', 'me']);
+const OPEN_ROUTES = new Set([
+  'health',
+  'setup',
+  'auth/login',
+  'auth/logout',
+  'auth/pin-login',
+  'auth/change-password',
+  'overrides',
+  'me',
+]);
 
 describe('API routes are guarded (CLAUDE.md §4.2: authorize every action)', () => {
   const files = routeFiles(apiDir);
@@ -22,14 +31,18 @@ describe('API routes are guarded (CLAUDE.md §4.2: authorize every action)', () 
   });
 
   for (const file of files) {
-    const name = relative(apiDir, file).replace(/\\/g, '/').replace(/\/route\.ts$/, '');
+    const name = relative(apiDir, file)
+      .replace(/\\/g, '/')
+      .replace(/\/route\.ts$/, '');
     const source = readFileSync(file, 'utf8');
 
     it(`${name} declares its access rule`, () => {
       if (OPEN_ROUTES.has(name)) {
         expect(source).toMatch(/publicRoute\(/);
       } else {
-        expect(source, 'protected routes must use withPermission(<permission>, ...)').toMatch(/withPermission\('[a-z_]+\.[a-z_]+\.[a-z_]+'/);
+        expect(source, 'protected routes must use withPermission(<permission>, ...)').toMatch(
+          /withPermission\('[a-z_]+\.[a-z_]+\.[a-z_]+'/,
+        );
       }
     });
 
@@ -39,7 +52,11 @@ describe('API routes are guarded (CLAUDE.md §4.2: authorize every action)', () 
   }
 
   it('every open route is really in the allowlist (no stale entries)', () => {
-    const names = files.map((f) => relative(apiDir, f).replace(/\\/g, '/').replace(/\/route\.ts$/, ''));
+    const names = files.map((f) =>
+      relative(apiDir, f)
+        .replace(/\\/g, '/')
+        .replace(/\/route\.ts$/, ''),
+    );
     for (const open of OPEN_ROUTES) expect(names).toContain(open);
   });
 });

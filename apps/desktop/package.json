@@ -16,7 +16,8 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@mediescare/config": "workspace:*"
+    "@mediescare/config": "workspace:*",
+    "@mediescare/db": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^22.20.4",

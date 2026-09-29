@@ -1,11 +1,18 @@
 import { join } from 'node:path';
-import { app, BrowserWindow, dialog, ipcMain } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron';
 import { APP_ID, APP_NAME, DEFAULT_PORT, type RuntimeMode } from '@mediescare/config';
 import { loadConfig, normaliseServerUrl, saveConfig, type DesktopConfig } from './config';
 import { migrationsDir, resourcePath, serverJs } from './paths';
 import { loadOrCreateSecrets } from './secrets';
 import { pickPort, ServerProcess, waitForHealth } from './server';
-import { createMainWindow, createWizardWindow, removeAppMenu, showFatal } from './window';
+import { openRestoreWindow } from './restore';
+import {
+  buildAppMenu,
+  createMainWindow,
+  createWizardWindow,
+  removeAppMenu,
+  showFatal,
+} from './window';
 
 app.setName(APP_NAME);
 if (process.platform === 'win32') app.setAppUserModelId(APP_ID);
@@ -21,21 +28,26 @@ function runWizard(userData: string): Promise<DesktopConfig> {
   return new Promise((resolve) => {
     const wizard = createWizardWindow(resourcePath('wizard.html'));
     let done = false;
-    ipcMain.handle('wizard:complete', (event, choice: { mode: RuntimeMode; serverUrl?: string }) => {
-      if (event.sender !== wizard.webContents) return { ok: false, error: 'Unexpected sender' };
-      try {
-        if (!['single', 'branch-server', 'terminal'].includes(choice.mode)) throw new Error('Choose how this PC is used');
-        const config: DesktopConfig = { mode: choice.mode, port: DEFAULT_PORT };
-        if (choice.mode === 'terminal') config.serverUrl = normaliseServerUrl(choice.serverUrl ?? '');
-        saveConfig(userData, config);
-        done = true;
-        wizard.close();
-        resolve(config);
-        return { ok: true };
-      } catch (error) {
-        return { ok: false, error: error instanceof Error ? error.message : 'Invalid choice' };
-      }
-    });
+    ipcMain.handle(
+      'wizard:complete',
+      (event, choice: { mode: RuntimeMode; serverUrl?: string }) => {
+        if (event.sender !== wizard.webContents) return { ok: false, error: 'Unexpected sender' };
+        try {
+          if (!['single', 'branch-server', 'terminal'].includes(choice.mode))
+            throw new Error('Choose how this PC is used');
+          const config: DesktopConfig = { mode: choice.mode, port: DEFAULT_PORT };
+          if (choice.mode === 'terminal')
+            config.serverUrl = normaliseServerUrl(choice.serverUrl ?? '');
+          saveConfig(userData, config);
+          done = true;
+          wizard.close();
+          resolve(config);
+          return { ok: true };
+        } catch (error) {
+          return { ok: false, error: error instanceof Error ? error.message : 'Invalid choice' };
+        }
+      },
+    );
     wizard.on('closed', () => {
       if (!done) app.quit();
     });
@@ -72,6 +84,13 @@ async function start(): Promise<void> {
     await waitForHealth(origin, config.mode === 'terminal' ? 8_000 : 45_000);
     mainWindow = createMainWindow(origin);
     running = true;
+    if (config.mode !== 'terminal') {
+      // Terminals hold no data, so only servers get the restore and backup-folder menu.
+      buildAppMenu({
+        restore: () => openRestoreWindow(userData, server, mainWindow),
+        openBackups: () => void shell.openPath(join(userData, 'backups')),
+      });
+    }
   } catch (error) {
     const detail = error instanceof Error ? error.message : 'Unknown error';
     const win = new BrowserWindow({ width: 640, height: 420, title: APP_NAME });
@@ -101,10 +120,16 @@ if (!app.requestSingleInstanceLock()) {
       mainWindow.focus();
     }
   });
-  app.whenReady().then(start).catch((error: unknown) => {
-    dialog.showErrorBox(`${APP_NAME} failed to start`, error instanceof Error ? error.message : String(error));
-    app.quit();
-  });
+  app
+    .whenReady()
+    .then(start)
+    .catch((error: unknown) => {
+      dialog.showErrorBox(
+        `${APP_NAME} failed to start`,
+        error instanceof Error ? error.message : String(error),
+      );
+      app.quit();
+    });
   app.on('window-all-closed', () => {
     if (running) app.quit();
   });

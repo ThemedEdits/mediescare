@@ -1,10 +1,13 @@
-import { and, eq, isNull } from 'drizzle-orm';
+import { and, eq, isNull, ne } from 'drizzle-orm';
 import { jwtVerify, SignJWT } from 'jose';
 import { newId } from '@mediescare/sync';
 import type { DbOrTx } from '../client';
 import { sessions } from '../schema/sqlite';
 
 export const DEFAULT_IDLE_MS = 30 * 60 * 1000;
+/** PIN sessions are for the POS counter: they lock after 5 idle minutes (permissions-matrix.md §7). */
+export const PIN_IDLE_MS = 5 * 60 * 1000;
+export type AuthMethod = 'password' | 'pin';
 export const SESSION_COOKIE = 'mediescare_session';
 
 const encode = (secret: string) => new TextEncoder().encode(secret);
@@ -15,7 +18,11 @@ export interface SessionClaims {
 }
 
 /** Signed cookie value (HS256). The server-side row is the authority, so sessions are revocable. */
-export async function signSessionToken(claims: SessionClaims, secret: string, ttlSeconds = 12 * 3600): Promise<string> {
+export async function signSessionToken(
+  claims: SessionClaims,
+  secret: string,
+  ttlSeconds = 12 * 3600,
+): Promise<string> {
   return new SignJWT({ sid: claims.sid })
     .setProtectedHeader({ alg: 'HS256' })
     .setSubject(claims.uid)
@@ -24,7 +31,10 @@ export async function signSessionToken(claims: SessionClaims, secret: string, tt
     .sign(encode(secret));
 }
 
-export async function verifySessionToken(token: string, secret: string): Promise<SessionClaims | null> {
+export async function verifySessionToken(
+  token: string,
+  secret: string,
+): Promise<SessionClaims | null> {
   try {
     const { payload } = await jwtVerify(token, encode(secret), { algorithms: ['HS256'] });
     if (typeof payload.sid !== 'string' || typeof payload.sub !== 'string') return null;
@@ -40,6 +50,7 @@ export interface CreateSessionInput {
   deviceId: string | null;
   now: Date;
   ttlMs?: number;
+  authMethod?: AuthMethod;
 }
 
 export function createSession(tx: DbOrTx, input: CreateSessionInput): string {
@@ -51,6 +62,7 @@ export function createSession(tx: DbOrTx, input: CreateSessionInput): string {
       userId: input.userId,
       branchId: input.branchId,
       deviceId: input.deviceId,
+      authMethod: input.authMethod ?? 'password',
       createdAt: nowIso,
       lastSeenAt: nowIso,
       expiresAt: new Date(input.now.getTime() + (input.ttlMs ?? 12 * 3600 * 1000)).toISOString(),
@@ -64,10 +76,15 @@ export function createSession(tx: DbOrTx, input: CreateSessionInput): string {
  * A valid check also slides the idle timer forward.
  */
 export function touchSession(tx: DbOrTx, sid: string, now: Date, idleMs = DEFAULT_IDLE_MS) {
-  const row = tx.select().from(sessions).where(and(eq(sessions.id, sid), isNull(sessions.revokedAt))).get();
+  const row = tx
+    .select()
+    .from(sessions)
+    .where(and(eq(sessions.id, sid), isNull(sessions.revokedAt)))
+    .get();
   if (!row) return null;
   if (new Date(row.expiresAt) <= now) return null;
-  if (now.getTime() - new Date(row.lastSeenAt).getTime() > idleMs) return null;
+  const limit = row.authMethod === 'pin' ? Math.min(idleMs, PIN_IDLE_MS) : idleMs;
+  if (now.getTime() - new Date(row.lastSeenAt).getTime() > limit) return null;
   tx.update(sessions).set({ lastSeenAt: now.toISOString() }).where(eq(sessions.id, sid)).run();
   return row;
 }
@@ -80,5 +97,20 @@ export function revokeAllSessionsForUser(tx: DbOrTx, userId: string, now: Date):
   tx.update(sessions)
     .set({ revokedAt: now.toISOString() })
     .where(and(eq(sessions.userId, userId), isNull(sessions.revokedAt)))
+    .run();
+}
+
+/** Sign a user out everywhere except the session they are using now (after a password change). */
+export function revokeOtherSessions(
+  tx: DbOrTx,
+  userId: string,
+  keepSessionId: string,
+  now: Date,
+): void {
+  tx.update(sessions)
+    .set({ revokedAt: now.toISOString() })
+    .where(
+      and(eq(sessions.userId, userId), ne(sessions.id, keepSessionId), isNull(sessions.revokedAt)),
+    )
     .run();
 }

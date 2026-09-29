@@ -3,7 +3,17 @@
  * Mirrors sqlite.ts table for table and column for column (parity.test.ts enforces it).
  * Timestamps stay ISO-8601 text in both dialects so events replay byte-for-byte.
  */
-import { bigint, boolean, index, integer, pgTable, primaryKey, text, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
+import {
+  bigint,
+  boolean,
+  index,
+  integer,
+  pgTable,
+  primaryKey,
+  text,
+  uniqueIndex,
+  uuid,
+} from 'drizzle-orm/pg-core';
 
 const syncCols = () => ({
   createdAt: text('created_at').notNull(),
@@ -23,7 +33,9 @@ export const branches = pgTable(
   'branches',
   {
     id: uuid('id').primaryKey(),
-    tenantId: uuid('tenant_id').notNull().references(() => tenants.id),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenants.id),
     code: text('code').notNull(),
     name: text('name').notNull(),
     isHeadOffice: boolean('is_head_office').notNull().default(false),
@@ -39,8 +51,12 @@ export const branches = pgTable(
 
 export const stores = pgTable('stores', {
   id: uuid('id').primaryKey(),
-  tenantId: uuid('tenant_id').notNull().references(() => tenants.id),
-  branchId: uuid('branch_id').notNull().references(() => branches.id),
+  tenantId: uuid('tenant_id')
+    .notNull()
+    .references(() => tenants.id),
+  branchId: uuid('branch_id')
+    .notNull()
+    .references(() => branches.id),
   kind: text('kind').notNull(),
   name: text('name').notNull(),
   ...syncCols(),
@@ -48,8 +64,12 @@ export const stores = pgTable('stores', {
 
 export const devices = pgTable('devices', {
   id: uuid('id').primaryKey(),
-  tenantId: uuid('tenant_id').notNull().references(() => tenants.id),
-  branchId: uuid('branch_id').notNull().references(() => branches.id),
+  tenantId: uuid('tenant_id')
+    .notNull()
+    .references(() => tenants.id),
+  branchId: uuid('branch_id')
+    .notNull()
+    .references(() => branches.id),
   name: text('name').notNull(),
   role: text('role').notNull(),
   tokenHash: text('token_hash'),
@@ -63,7 +83,9 @@ export const users = pgTable(
   'users',
   {
     id: uuid('id').primaryKey(),
-    tenantId: uuid('tenant_id').notNull().references(() => tenants.id),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenants.id),
     username: text('username').notNull(),
     fullName: text('full_name').notNull(),
     email: text('email'),
@@ -88,7 +110,9 @@ export const roles = pgTable(
   'roles',
   {
     id: uuid('id').primaryKey(),
-    tenantId: uuid('tenant_id').notNull().references(() => tenants.id),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenants.id),
     code: text('code').notNull(),
     name: text('name').notNull(),
     isSystem: boolean('is_system').notNull().default(false),
@@ -109,8 +133,12 @@ export const permissions = pgTable('permissions', {
 export const rolePermissions = pgTable(
   'role_permissions',
   {
-    roleId: uuid('role_id').notNull().references(() => roles.id),
-    permissionKey: text('permission_key').notNull().references(() => permissions.key),
+    roleId: uuid('role_id')
+      .notNull()
+      .references(() => roles.id),
+    permissionKey: text('permission_key')
+      .notNull()
+      .references(() => permissions.key),
     fieldRules: text('field_rules'),
   },
   (t) => [primaryKey({ columns: [t.roleId, t.permissionKey] })],
@@ -119,15 +147,21 @@ export const rolePermissions = pgTable(
 export const userRoles = pgTable(
   'user_roles',
   {
-    userId: uuid('user_id').notNull().references(() => users.id),
-    roleId: uuid('role_id').notNull().references(() => roles.id),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id),
+    roleId: uuid('role_id')
+      .notNull()
+      .references(() => roles.id),
   },
   (t) => [primaryKey({ columns: [t.userId, t.roleId] })],
 );
 
 export const userBranches = pgTable('user_branches', {
   id: uuid('id').primaryKey(),
-  userId: uuid('user_id').notNull().references(() => users.id),
+  userId: uuid('user_id')
+    .notNull()
+    .references(() => users.id),
   branchId: uuid('branch_id').references(() => branches.id),
   allBranches: boolean('all_branches').notNull().default(false),
   ...syncCols(),
@@ -135,15 +169,26 @@ export const userBranches = pgTable('user_branches', {
 
 export const overrideEvents = pgTable('override_events', {
   id: uuid('id').primaryKey(),
-  tenantId: uuid('tenant_id').notNull().references(() => tenants.id),
-  branchId: uuid('branch_id').notNull().references(() => branches.id),
-  requestedBy: uuid('requested_by').notNull().references(() => users.id),
-  approvedBy: uuid('approved_by').notNull().references(() => users.id),
+  tenantId: uuid('tenant_id')
+    .notNull()
+    .references(() => tenants.id),
+  branchId: uuid('branch_id')
+    .notNull()
+    .references(() => branches.id),
+  requestedBy: uuid('requested_by')
+    .notNull()
+    .references(() => users.id),
+  approvedBy: uuid('approved_by')
+    .notNull()
+    .references(() => users.id),
   kind: text('kind').notNull(),
   reference: text('reference'),
   amountMinor: bigint('amount_minor', { mode: 'number' }),
   reason: text('reason'),
   at: text('at').notNull(),
+  expiresAt: text('expires_at'),
+  consumedAt: text('consumed_at'),
+  consumedReference: text('consumed_reference'),
   hlc: text('hlc').notNull(),
 });
 
@@ -151,7 +196,9 @@ export const settings = pgTable(
   'settings',
   {
     id: uuid('id').primaryKey(),
-    tenantId: uuid('tenant_id').notNull().references(() => tenants.id),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenants.id),
     scope: text('scope').notNull(),
     scopeId: text('scope_id').notNull(),
     key: text('key').notNull(),
@@ -165,8 +212,12 @@ export const featureFlags = pgTable(
   'feature_flags',
   {
     id: uuid('id').primaryKey(),
-    tenantId: uuid('tenant_id').notNull().references(() => tenants.id),
-    branchId: uuid('branch_id').notNull().references(() => branches.id),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenants.id),
+    branchId: uuid('branch_id')
+      .notNull()
+      .references(() => branches.id),
     module: text('module').notNull(),
     enabled: boolean('enabled').notNull().default(true),
     ...syncCols(),
@@ -178,8 +229,12 @@ export const auditLog = pgTable(
   'audit_log',
   {
     id: uuid('id').primaryKey(),
-    tenantId: uuid('tenant_id').notNull().references(() => tenants.id),
-    branchId: uuid('branch_id').notNull().references(() => branches.id),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenants.id),
+    branchId: uuid('branch_id')
+      .notNull()
+      .references(() => branches.id),
     seq: bigint('seq', { mode: 'number' }).notNull(),
     userId: text('user_id'),
     deviceId: text('device_id'),
@@ -193,7 +248,10 @@ export const auditLog = pgTable(
     hash: text('hash').notNull(),
     hlc: text('hlc').notNull(),
   },
-  (t) => [uniqueIndex('audit_log_branch_seq_uq').on(t.branchId, t.seq), index('audit_log_at_idx').on(t.at)],
+  (t) => [
+    uniqueIndex('audit_log_branch_seq_uq').on(t.branchId, t.seq),
+    index('audit_log_at_idx').on(t.at),
+  ],
 );
 
 export const syncInboxSeen = pgTable('sync_inbox_seen', {
@@ -205,8 +263,12 @@ export const docCounters = pgTable(
   'doc_counters',
   {
     id: uuid('id').primaryKey(),
-    tenantId: uuid('tenant_id').notNull().references(() => tenants.id),
-    branchId: uuid('branch_id').notNull().references(() => branches.id),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenants.id),
+    branchId: uuid('branch_id')
+      .notNull()
+      .references(() => branches.id),
     docType: text('doc_type').notNull(),
     nextNo: bigint('next_no', { mode: 'number' }).notNull().default(1),
     blockEnd: bigint('block_end', { mode: 'number' }).notNull().default(0),

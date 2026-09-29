@@ -49,7 +49,9 @@ export async function waitForHealth(url: string, timeoutMs: number): Promise<voi
     }
     await new Promise((r) => setTimeout(r, 250));
   }
-  throw new Error(`The local server did not become ready within ${timeoutMs / 1000}s (${lastError})`);
+  throw new Error(
+    `The local server did not become ready within ${timeoutMs / 1000}s (${lastError})`,
+  );
 }
 
 /**
@@ -112,5 +114,20 @@ export class ServerProcess {
     this.stopping = true;
     this.child?.kill();
     this.log?.end();
+  }
+
+  /** Stop the server and wait until the process has exited, so its files are released. */
+  async stopAndWait(timeoutMs = 10_000): Promise<void> {
+    const child = this.child;
+    this.stopping = true;
+    if (!child) return;
+    await new Promise<void>((resolve) => {
+      const timer = setTimeout(resolve, timeoutMs);
+      child.once('exit', () => {
+        clearTimeout(timer);
+        resolve();
+      });
+      child.kill();
+    });
   }
 }
