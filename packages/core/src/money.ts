@@ -37,7 +37,9 @@ function toSafeNumber(value: bigint): number {
 export function lineAmountMinor(qtyBase: number, rateUnitMicro: number): number {
   assertInt(qtyBase, 'qtyBase');
   assertInt(rateUnitMicro, 'rateUnitMicro');
-  return toSafeNumber(divRoundHalfUp(BigInt(qtyBase) * BigInt(rateUnitMicro), BigInt(MICRO_PER_PAISA)));
+  return toSafeNumber(
+    divRoundHalfUp(BigInt(qtyBase) * BigInt(rateUnitMicro), BigInt(MICRO_PER_PAISA)),
+  );
 }
 
 /** Amount x basis points, rounded once to paisa (tax, discount percentage, WHT). */
@@ -114,4 +116,28 @@ export function parseMoneyToMinor(text: string): number {
 /** Parse a per-unit rate such as "6.2500" into micro-PKR (up to six decimals). */
 export function parseRateToMicro(text: string): number {
   return parseDecimal(text, 6, 1_000_000n);
+}
+
+/**
+ * Split a tax-inclusive amount into the part without tax and the tax itself.
+ * The net part is rounded once (half up) and the tax is the remainder, so net + tax always equals the amount.
+ */
+export function extractInclusiveTax(
+  amountMinor: number,
+  bp: number,
+): { netMinor: number; taxMinor: number } {
+  assertInt(amountMinor, 'amountMinor');
+  assertInt(bp, 'bp');
+  const net = toSafeNumber(
+    divRoundHalfUp(BigInt(amountMinor) * BigInt(BP_DENOMINATOR), BigInt(BP_DENOMINATOR + bp)),
+  );
+  return { netMinor: net, taxMinor: amountMinor - net };
+}
+
+/** Round a paisa amount to a multiple of `unitMinor` (100 = whole rupee), half up. Returns the rounded amount. */
+export function roundMinorTo(amountMinor: number, unitMinor: number): number {
+  assertInt(amountMinor, 'amountMinor');
+  assertInt(unitMinor, 'unitMinor');
+  if (unitMinor <= 0) throw new RangeError('unitMinor must be positive');
+  return toSafeNumber(divRoundHalfUp(BigInt(amountMinor), BigInt(unitMinor)) * BigInt(unitMinor));
 }
