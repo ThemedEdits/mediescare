@@ -773,7 +773,14 @@ try {
       (await admin.put('/api/settings/pos', { settings: { 'pos.rounding': 'rupee' } })).data
         .settings['pos.rounding'] === 'rupee',
   );
-  for (const path of ['/purchasing', '/reports', '/stock-take', '/settings']) {
+  for (const path of [
+    '/purchasing',
+    '/reports',
+    '/stock-take',
+    '/settings',
+    '/transfers',
+    '/branches',
+  ]) {
     const p = await admin.get(path);
     check(`page ${path} renders`, p.status === 200 && p.data.raw.includes('Mediescare'));
   }
@@ -809,6 +816,44 @@ try {
   check(
     'the POS lookups carry the print settings for cashiers',
     (await counter.get('/api/lookups')).data.settings['print.copies'] === 2,
+  );
+
+  // --- multi-branch: transfers, branches, ledger check ---
+  const ledgerCheck = await admin.get('/api/stock/ledger-check');
+  check(
+    'the stock ledger check passes on real data',
+    ledgerCheck.status === 200 && ledgerCheck.data.ok === true,
+    JSON.stringify(Object.keys(ledgerCheck.data)),
+  );
+  check('a cashier cannot see transfers', (await counter.get('/api/transfers')).status === 403);
+  check(
+    'admin lists transfers and requisitions',
+    (await admin.get('/api/transfers')).status === 200 &&
+      (await admin.get('/api/requisitions')).status === 200,
+  );
+  const branchList = await admin.get('/api/branches');
+  check(
+    'the branch list shows this branch as Head Office',
+    branchList.status === 200 && JSON.stringify(branchList.data).includes('SMK01'),
+    JSON.stringify(branchList.data).slice(0, 200),
+  );
+  check(
+    'a cashier cannot create a branch enrollment code',
+    (
+      await counter.post('/api/branches/enrollment-codes', {
+        branchCode: 'KHI02',
+        branchName: 'Branch 2',
+      })
+    ).status === 403,
+  );
+  check(
+    'without a cloud connection an enrollment code is refused politely',
+    (
+      await admin.post('/api/branches/enrollment-codes', {
+        branchCode: 'KHI02',
+        branchName: 'Branch 2',
+      })
+    ).status >= 400,
   );
 
   // --- sync status and terminal pairing ---

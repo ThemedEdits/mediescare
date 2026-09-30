@@ -189,6 +189,12 @@ test('set up, stock an item, and sell it through the real POS', async () => {
   await page.getByRole('link', { name: 'Reports' }).click();
   await expect(page.getByRole('heading', { name: /Reports/ })).toBeVisible();
 
+  // --- multi-branch screens open ---
+  await page.getByRole('link', { name: 'Transfers' }).click();
+  await expect(page.getByRole('heading', { name: 'Transfers' })).toBeVisible();
+  await page.getByRole('link', { name: 'Branches' }).click();
+  await expect(page.getByRole('heading', { name: 'Branches' })).toBeVisible();
+
   // --- settings: change and save ---
   await page.getByRole('link', { name: 'Settings' }).click();
   await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible();
