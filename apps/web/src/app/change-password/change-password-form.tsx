@@ -3,16 +3,17 @@
 import { useState, type FormEvent } from 'react';
 import { Field, PrimaryButton } from '@/components/field';
 import { api } from '@/components/ui';
+import { useT } from '@/i18n/client';
 
 export function ChangePasswordForm() {
+  const t = useT();
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const f = new FormData(event.currentTarget);
-    if (f.get('newPassword') !== f.get('confirm'))
-      return setError('The new passwords do not match');
+    if (f.get('newPassword') !== f.get('confirm')) return setError(t('changePassword.mismatch'));
     setBusy(true);
     setError(null);
     try {
@@ -21,29 +22,29 @@ export function ChangePasswordForm() {
       });
       window.location.assign('/');
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not change the password');
+      setError(e instanceof Error ? e.message : t('changePassword.failed'));
       setBusy(false);
     }
   }
 
   return (
-    <form onSubmit={onSubmit} className="space-y-4" aria-label="Change password">
+    <form onSubmit={onSubmit} className="space-y-4" aria-label={t('changePassword.titleChange')}>
       <Field
-        label="Current (or temporary) password"
+        label={t('changePassword.current')}
         name="currentPassword"
         type="password"
         autoComplete="current-password"
         required
       />
       <Field
-        label="New password (10+ characters)"
+        label={t('changePassword.new')}
         name="newPassword"
         type="password"
         autoComplete="new-password"
         required
       />
       <Field
-        label="Confirm new password"
+        label={t('changePassword.confirm')}
         name="confirm"
         type="password"
         autoComplete="new-password"
@@ -55,7 +56,7 @@ export function ChangePasswordForm() {
         </p>
       ) : null}
       <PrimaryButton type="submit" disabled={busy}>
-        {busy ? 'Saving…' : 'Save new password'}
+        {busy ? t('changePassword.saving') : t('changePassword.save')}
       </PrimaryButton>
     </form>
   );

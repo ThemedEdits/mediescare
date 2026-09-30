@@ -1,6 +1,9 @@
 'use client';
 
+import { useT } from '@/i18n/client';
+
 export function SignOutButton() {
+  const t = useT();
   return (
     <button
       type="button"
@@ -10,7 +13,7 @@ export function SignOutButton() {
         window.location.assign('/login');
       }}
     >
-      Sign out
+      {t('auth.signOut')}
     </button>
   );
 }

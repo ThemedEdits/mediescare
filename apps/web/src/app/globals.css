@@ -90,3 +90,47 @@ html[dir='rtl'] {
   }
 }
 /* ---- end of Reports hub print rules ---- */
+
+/* ---- i18n: Urdu font (bundled, works offline) and RTL rules ---- */
+/* Noto Nastaliq Urdu, SIL OFL 1.1 (public/fonts/OFL-NotoNastaliqUrdu.txt). The Arabic-script range only,
+   so Latin letters and digits keep the Latin font and stay Western in every language. */
+@font-face {
+  font-family: 'Noto Nastaliq Urdu';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/noto-nastaliq-urdu-arabic-400-normal.woff2') format('woff2');
+  unicode-range:
+    U+0600-06FF, U+0750-077F, U+0870-088E, U+0890-0891, U+0897-08E1, U+08E3-08FF, U+200C-200E,
+    U+2010-2011, U+204F, U+2E41, U+FB50-FDFF, U+FE70-FE74, U+FE76-FEFC;
+}
+@font-face {
+  font-family: 'Noto Nastaliq Urdu';
+  font-style: normal;
+  font-weight: 500 700;
+  font-display: swap;
+  src: url('/fonts/noto-nastaliq-urdu-arabic-700-normal.woff2') format('woff2');
+  unicode-range:
+    U+0600-06FF, U+0750-077F, U+0870-088E, U+0890-0891, U+0897-08E1, U+08E3-08FF, U+200C-200E,
+    U+2010-2011, U+204F, U+2E41, U+FB50-FDFF, U+FE70-FE74, U+FE76-FEFC;
+}
+
+/* Nastaliq has tall ascenders and deep descenders: it needs generous line height or lines collide. */
+html[lang='ur'],
+html[dir='rtl'] {
+  font-family: 'Noto Nastaliq Urdu', var(--font-latin);
+  line-height: 2.1;
+}
+html[lang='ur'] :is(button, input, select, textarea, th, td, label, a) {
+  line-height: 2;
+}
+/* Fixed-height controls (h-10, h-11) must not clip the taller Urdu glyphs. */
+html[lang='ur'] :is(button, input, select) {
+  padding-block: 0.125rem;
+}
+/* Digits, credentials and codes are always left-to-right Western text. */
+html[dir='rtl'] :is(input[type='number'], input[type='password'], input[type='email'], code, kbd) {
+  direction: ltr;
+  text-align: start;
+}
+/* ---- end of i18n rules ---- */
