@@ -1,4 +1,5 @@
 import {
+  allBranchSettings,
   getWalkinCustomerId,
   listCategories,
   listManufacturers,
@@ -22,5 +23,7 @@ export const GET = withPermission('pharmacy.item.view', (_request, auth) => {
     racks: listRacks(db, ctx.branchId),
     paymentModes: listPaymentModes(db, ctx.tenantId),
     walkinCustomerId: getWalkinCustomerId(db, ctx.tenantId),
+    rounding: allBranchSettings(db, ctx)['pos.rounding'],
+    invoiceNote: allBranchSettings(db, ctx)['pos.invoice_note'],
   });
 });

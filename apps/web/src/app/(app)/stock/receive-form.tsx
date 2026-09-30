@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { unitRateFromPack } from '@mediescare/core/money';
 import { lineAmountMinor } from '@mediescare/core/money';
 import { api, Button, ErrorText, inputClass, Modal, NameDialog, useAsync } from '@/components/ui';
-import { pkr, tryMicro, tryMinor } from '@/lib/format';
+import { pkr, rate, tryMicro, tryMinor } from '@/lib/format';
 
 interface Supplier {
   id: string;
@@ -33,21 +33,69 @@ interface Line {
 
 const key = () => Math.random().toString(36).slice(2, 9);
 
+/** An approved purchase order being received: its supplier and what is still outstanding. */
+export interface ReceivePo {
+  id: string;
+  docNo: string;
+  supplierId: string;
+  lines: {
+    itemId: string;
+    itemName: string;
+    unitId: string;
+    factorToBase: number;
+    remainingBase: number;
+    unitPriceMicro: number;
+  }[];
+}
+
 /** Goods receipt ("Add stock"): supplier, invoice details, one row per item with batch, expiry and cost. */
 export function ReceiveForm({
   canAddSupplier,
+  po,
   onClose,
   onSaved,
 }: {
   canAddSupplier: boolean;
+  /** Receive against this purchase order: supplier and quantities come from it. */
+  po?: ReceivePo;
   onClose: () => void;
   onSaved: (docNo: string) => void;
 }) {
   const suppliers = useAsync(() => api<{ suppliers: Supplier[] }>('/api/suppliers'));
-  const [supplierId, setSupplierId] = useState('');
+  const [supplierId, setSupplierId] = useState(po?.supplierId ?? '');
   const [invNo, setInvNo] = useState('');
   const [invDate, setInvDate] = useState('');
   const [lines, setLines] = useState<Line[]>([]);
+
+  useEffect(() => {
+    if (!po) return;
+    let alive = true;
+    Promise.all(
+      po.lines
+        .filter((l) => l.remainingBase > 0)
+        .map(async (l): Promise<Line> => {
+          const r = await api<{ item: ItemUnits }>(`/api/items/${l.itemId}`);
+          return {
+            key: key(),
+            item: { id: r.item.id, name: r.item.name, units: r.item.units },
+            unitId: l.unitId,
+            qty: String(Math.ceil(l.remainingBase / l.factorToBase)),
+            bonus: '0',
+            batchNo: '',
+            expiry: '',
+            price: rate(l.unitPriceMicro),
+          };
+        }),
+    )
+      .then((rows) => alive && setLines(rows))
+      .catch(
+        (e: unknown) =>
+          alive && setError(e instanceof Error ? e.message : 'Could not load the order'),
+      );
+    return () => {
+      alive = false;
+    };
+  }, [po]);
   const [discount, setDiscount] = useState('');
   const [salesTax, setSalesTax] = useState('');
   const [advTax, setAdvTax] = useState('');
@@ -123,6 +171,7 @@ export function ReceiveForm({
       const r = await api<{ docNo: string }>('/api/grns', {
         body: {
           supplierId,
+          poId: po?.id ?? null,
           supplierInvoiceNo: invNo || null,
           supplierInvoiceDate: invDate || null,
           discountMinor: m(discount),
@@ -153,7 +202,7 @@ export function ReceiveForm({
 
   const cell = 'h-9 rounded-[6px] border border-slate-400 bg-white px-2 text-sm';
   return (
-    <Modal title="Add stock (goods receipt)" onClose={onClose} wide>
+    <Modal title={po ? `Receive ${po.docNo}` : 'Add stock (goods receipt)'} onClose={onClose} wide>
       <div className="space-y-4">
         <div className="grid gap-3 sm:grid-cols-4">
           <label className="text-sm sm:col-span-2">
@@ -163,6 +212,7 @@ export function ReceiveForm({
                 aria-label="Supplier"
                 className={`${inputClass} flex-1`}
                 value={supplierId}
+                disabled={Boolean(po)}
                 onChange={(e) => setSupplierId(e.target.value)}
               >
                 <option value="">Choose…</option>
@@ -172,7 +222,7 @@ export function ReceiveForm({
                   </option>
                 ))}
               </select>
-              {canAddSupplier ? (
+              {canAddSupplier && !po ? (
                 <Button
                   type="button"
                   variant="outline"

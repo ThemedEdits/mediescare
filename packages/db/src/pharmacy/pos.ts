@@ -11,7 +11,6 @@ import {
   type BillDiscount,
   type BillTotals,
   type PricedLine,
-  type Rounding,
   type StockBatch,
   type TenderedPayment,
 } from '@mediescare/core';
@@ -40,6 +39,7 @@ import {
   shifts,
   stockMovements,
 } from '../schema/sqlite-all';
+import { getPosRounding } from '../settings';
 import { branchToday, nextDocNo } from './common';
 import { getBatchStock, postMovement, type PostedMovement } from './stock';
 
@@ -230,7 +230,6 @@ export interface CreateSaleInput {
   discountOverrideId?: string;
   /** Manager approval for a changed price or a price below cost. */
   priceOverrideId?: string;
-  rounding?: Rounding;
 }
 
 export interface SaleLineResult {
@@ -488,7 +487,7 @@ export function createSale(db: Db, ctx: WriteContext, input: CreateSaleInput): S
       bill = computeBill({
         lines: priced,
         billDiscount: input.billDiscount,
-        rounding: input.rounding,
+        rounding: getPosRounding(tx, ctx),
       });
     } catch (e) {
       throw new DomainError('INVALID', (e as Error).message);

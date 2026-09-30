@@ -39,3 +39,54 @@ html[dir='rtl'] {
     margin: 4mm;
   }
 }
+
+/* ---- Printed documents (purchase order, supplier statement): print only #doc-print on A4. ---- */
+@media print {
+  #doc-print,
+  #doc-print * {
+    visibility: visible;
+  }
+  #doc-print {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+  }
+}
+
+/* ---- Reports hub: print only the open report (#report-print). Page size is set by the page (A4 landscape). ---- */
+@media print {
+  #report-print,
+  #report-print * {
+    visibility: visible;
+  }
+  #report-print {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    font-size: 10px;
+  }
+  #report-print .report-scroll {
+    max-height: none;
+    overflow: visible;
+    border: 0;
+  }
+  #report-print thead {
+    display: table-header-group;
+    position: static;
+  }
+  #report-print tfoot {
+    display: table-row-group;
+  }
+  #report-print tr {
+    break-inside: avoid;
+  }
+  #report-print .opacity-60 {
+    opacity: 1;
+  }
+  .no-print {
+    display: none !important;
+  }
+}
+/* ---- end of Reports hub print rules ---- */

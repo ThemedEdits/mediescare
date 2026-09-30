@@ -20,7 +20,7 @@ export const CATALOGUE = {
     sync: ['view', 'create', 'edit'],
   },
   pharmacy: {
-    item: [...CRUD, 'export', 'view_cost'],
+    item: [...CRUD, 'export', 'import', 'view_cost'],
     price: ['view', 'edit', 'approve', 'override_price'],
     sale: [
       'view',

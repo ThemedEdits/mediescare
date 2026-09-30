@@ -260,6 +260,7 @@ export const grns = sqliteTable(
     supplierId: text('supplier_id')
       .notNull()
       .references(() => suppliers.id),
+    poId: text('po_id'),
     supplierInvoiceNo: text('supplier_invoice_no'),
     supplierInvoiceDate: text('supplier_invoice_date'),
     discountMinor: integer('discount_minor').notNull().default(0),

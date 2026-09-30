@@ -39,6 +39,7 @@ export const ItemBody = z.object({
 
 export const GrnBody = z.object({
   supplierId: z.string().min(1),
+  poId: z.string().min(1).nullish(),
   supplierInvoiceNo: z.string().trim().max(60).nullish(),
   supplierInvoiceDate: z
     .string()
@@ -114,5 +115,35 @@ export const SaleBody = z.object({
   note: z.string().trim().max(300).optional(),
   discountOverrideId: z.string().optional(),
   priceOverrideId: z.string().optional(),
-  rounding: z.enum(['none', 'rupee', 'half_rupee']).optional(),
+});
+
+export const PoBody = z.object({
+  supplierId: z.string().min(1),
+  expectedDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .nullish(),
+  note: z.string().trim().max(500).nullish(),
+  lines: z
+    .array(
+      z.object({
+        itemId: z.string().min(1),
+        unitId: z.string().min(1),
+        qty: int.min(1),
+        unitPriceMicro: int.min(0),
+      }),
+    )
+    .min(1)
+    .max(500),
+});
+
+export const PoUpdateBody = PoBody.extend({ expectedVersion: int.min(1) });
+
+export const SupplierPaymentBody = z.object({
+  supplierId: z.string().min(1),
+  amountMinor: int.min(1),
+  modeId: z.string().min(1),
+  grnId: z.string().min(1).nullish(),
+  reference: z.string().trim().max(80).optional(),
+  note: z.string().trim().max(300).optional(),
 });

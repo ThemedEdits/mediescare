@@ -144,4 +144,48 @@ test('set up, stock an item, and sell it through the real POS', async () => {
   await expect(page.getByRole('row', { name: /E2E Paracetamol 500mg/ })).toContainText('470');
   await page.getByRole('link', { name: 'Dashboard' }).click();
   await expect(page.getByText('PKR 75.00')).toBeVisible(); // sales today: 25 + 50
+
+  // --- purchasing: order -> approve -> receive against it -> bill -> pay the supplier ---
+  await page.getByRole('link', { name: 'Purchasing' }).click();
+  await page.getByRole('button', { name: 'New purchase order' }).click();
+  await page.getByLabel('Supplier', { exact: true }).selectOption({ label: 'E2E Distributor' });
+  await page.getByLabel('Add item').fill('E2E Para');
+  await page.getByRole('button', { name: /E2E Paracetamol 500mg/ }).click();
+  await page.getByLabel('Quantity', { exact: true }).fill('10');
+  await page.getByLabel('Price per unit').fill('18');
+  await expect(page.getByTestId('po-total')).toHaveText('PKR 180.00');
+  await page.getByRole('button', { name: 'Save as draft' }).click();
+  await expect(page.getByRole('status')).toContainText('E2E01-PO-000001');
+  await page.getByRole('row', { name: /E2E01-PO-000001/ }).click();
+  const poDialog = page.getByRole('dialog', { name: /Purchase order E2E01-PO-000001/ });
+  await poDialog.getByRole('button', { name: 'Approve' }).click();
+  await poDialog.getByRole('button', { name: 'Receive goods' }).click();
+  const receive = page.getByRole('dialog', { name: /Receive E2E01-PO-000001/ });
+  await expect(receive.getByLabel('Quantity', { exact: true })).toHaveValue('10');
+  await receive.getByLabel('Batch number').fill('E2E-B2');
+  await receive.getByLabel('Expiry date').fill('2029-12-31');
+  await expect(receive.getByTestId('grn-total')).toHaveText('PKR 180.00');
+  await receive.getByRole('button', { name: 'Receive stock' }).click();
+  await expect(page.getByRole('status')).toContainText('E2E01-GRN-000002');
+  await page
+    .getByRole('dialog', { name: /Purchase order E2E01-PO-000001/ })
+    .getByRole('button', { name: 'Close' })
+    .click();
+  await expect(page.getByRole('row', { name: /E2E01-PO-000001/ })).toContainText('received');
+
+  await page.getByRole('tab', { name: 'Supplier bills' }).click();
+  await expect(page.getByRole('row', { name: /E2E01-GRN-000002/ })).toContainText('180.00');
+  await page.getByRole('tab', { name: 'Suppliers & payments' }).click();
+  await page.getByRole('row', { name: /E2E Distributor/ }).click();
+  const account = page.getByRole('dialog', { name: /E2E Distributor · account/ });
+  await expect(account.getByTestId('ledger-balance')).toHaveText('PKR 1,080.00'); // 900 + 180
+  await account.getByRole('button', { name: 'Record payment' }).click();
+  await page.getByLabel('Payment amount').fill('180');
+  await page.getByRole('button', { name: 'Save payment' }).click();
+  await expect(account.getByTestId('ledger-balance')).toHaveText('PKR 900.00');
+  await account.getByRole('button', { name: 'Close' }).click();
+
+  // --- reports hub opens ---
+  await page.getByRole('link', { name: 'Reports' }).click();
+  await expect(page.getByRole('heading', { name: /Reports/ })).toBeVisible();
 });

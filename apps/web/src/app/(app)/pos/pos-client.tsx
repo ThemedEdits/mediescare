@@ -37,6 +37,7 @@ interface Lookups {
   units: { id: string; name: string }[];
   paymentModes: PaymentMode[];
   walkinCustomerId: string | null;
+  rounding: 'none' | 'rupee' | 'half_rupee';
 }
 
 type Dialog =
@@ -210,13 +211,14 @@ export function PosClient({
         bill: computeBill({
           lines: priced,
           billDiscount: bp > 0 ? { kind: 'percent', bp } : undefined,
+          rounding: lookups.data?.rounding ?? 'rupee',
         }),
         priced,
       };
     } catch (e) {
       return { error: e instanceof Error ? e.message : 'Check the quantities and prices' };
     }
-  }, [lines, billDiscPct]);
+  }, [lines, billDiscPct, lookups.data?.rounding]);
 
   const grand = calc && 'bill' in calc ? calc.bill.grandTotalMinor : 0;
   const settlement = useMemo(() => {
@@ -750,6 +752,9 @@ export function PosClient({
             ) : null}
             {calc && 'bill' in calc && calc.bill.taxMinor > 0 ? (
               <Line label="Tax" value={pkr(calc.bill.taxMinor)} />
+            ) : null}
+            {calc && 'bill' in calc && calc.bill.roundingMinor !== 0 ? (
+              <Line label="Rounding" value={pkr(calc.bill.roundingMinor)} />
             ) : null}
             <div className="mt-2 border-t border-border pt-2">
               <p className="text-xs uppercase text-muted">Grand total (PKR)</p>

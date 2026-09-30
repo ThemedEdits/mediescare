@@ -5,6 +5,7 @@ import { loadConfig, normaliseServerUrl, saveConfig, type DesktopConfig } from '
 import { migrationsDir, resourcePath, serverJs } from './paths';
 import { loadOrCreateSecrets } from './secrets';
 import { pickPort, ServerProcess, waitForHealth } from './server';
+import { registerPrintHandlers } from './print';
 import { openRestoreWindow } from './restore';
 import {
   buildAppMenu,
@@ -83,6 +84,7 @@ async function start(): Promise<void> {
     }
     await waitForHealth(origin, config.mode === 'terminal' ? 8_000 : 45_000);
     mainWindow = createMainWindow(origin);
+    registerPrintHandlers(origin);
     running = true;
     if (config.mode !== 'terminal') {
       // Terminals hold no data, so only servers get the restore and backup-folder menu.

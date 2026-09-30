@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useState, type FormEvent } from 'react';
 import { unitRateFromPack } from '@mediescare/core/money';
 import {
@@ -67,10 +68,12 @@ interface ItemDetail {
 
 export function ItemsClient({
   canCreate,
+  canImport,
   canEdit,
   canSeeCost,
 }: {
   canCreate: boolean;
+  canImport: boolean;
   canEdit: boolean;
   canSeeCost: boolean;
 }) {
@@ -119,6 +122,14 @@ export function ItemsClient({
             <option value="in">In stock</option>
             <option value="low">Low stock</option>
           </select>
+          {canImport ? (
+            <Link
+              href="/items/import"
+              className="inline-flex h-10 items-center rounded-[6px] border border-primary-600 px-4 text-sm font-semibold text-primary-600 hover:bg-primary-50"
+            >
+              Import from Excel
+            </Link>
+          ) : null}
           {canCreate ? <Button onClick={() => setEditing('new')}>Add item</Button> : null}
         </div>
       </div>

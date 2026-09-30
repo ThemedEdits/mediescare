@@ -87,6 +87,7 @@ function client() {
     get: (p) => call('GET', p),
     post: (p, b = {}) => call('POST', p, b),
     put: (p, b) => call('PUT', p, b),
+    cookie: () => cookie,
   };
 }
 
@@ -621,6 +622,256 @@ try {
     const p = await admin.get(path);
     check(`page ${path} renders`, p.status === 200 && p.data.raw.includes('Mediescare'));
   }
+
+  // --- purchasing: orders, bills, supplier payments, ledger ---
+  check('the default rounding setting is whole rupees', lk.rounding === 'rupee');
+  const poBody = {
+    supplierId: supplier.data.id,
+    expectedDate: '2030-01-15',
+    lines: [{ itemId: item.data.id, unitId: unit('Strip'), qty: 20, unitPriceMicro: 18_000_000 }],
+  };
+  check(
+    'a cashier cannot create a purchase order',
+    (await counter.post('/api/purchase-orders', poBody)).status === 403,
+  );
+  const po = await admin.post('/api/purchase-orders', poBody);
+  check(
+    'admin creates a draft purchase order',
+    po.status === 201 && /^SMK01-PO-\d{6}$/.test(po.data.docNo),
+    po.data.docNo,
+  );
+  const poGet = async () => (await admin.get(`/api/purchase-orders/${po.data.id}`)).data.order;
+  check(
+    'the order totals 360.00',
+    (await poGet()).subTotalMinor === 36_000 && (await poGet()).status === 'draft',
+  );
+  check(
+    'a draft order cannot be received',
+    (
+      await admin.post('/api/grns', {
+        supplierId: supplier.data.id,
+        poId: po.data.id,
+        lines: [grnLine({ batchNo: 'PO0', qty: 1 })],
+      })
+    ).status === 409,
+  );
+  check(
+    'a cashier cannot approve an order',
+    (await counter.post(`/api/purchase-orders/${po.data.id}/approve`)).status === 403,
+  );
+  check(
+    'admin approves the order',
+    (await admin.post(`/api/purchase-orders/${po.data.id}/approve`)).status === 200,
+  );
+  check(
+    'approving twice is refused',
+    (await admin.post(`/api/purchase-orders/${po.data.id}/approve`)).status === 409,
+  );
+  const part = await admin.post('/api/grns', {
+    supplierId: supplier.data.id,
+    poId: po.data.id,
+    lines: [grnLine({ batchNo: 'PO1', qty: 5 })],
+  });
+  check(
+    'receiving part of the order marks it partial',
+    part.status === 201 && (await poGet()).status === 'partial',
+  );
+  const rest = await admin.post('/api/grns', {
+    supplierId: supplier.data.id,
+    poId: po.data.id,
+    lines: [grnLine({ batchNo: 'PO2', qty: 15 })],
+  });
+  check(
+    'receiving the rest completes the order and links both bills',
+    rest.status === 201 &&
+      (await poGet()).status === 'received' &&
+      (await poGet()).receipts.length === 2,
+  );
+  const suggestions = await admin.get('/api/purchase-orders/suggestions');
+  check(
+    'low-stock suggestions respond',
+    suggestions.status === 200 && Array.isArray(suggestions.data.suggestions),
+  );
+
+  const ledgerOf = async () => (await admin.get(`/api/suppliers/${supplier.data.id}/ledger`)).data;
+  const before = (await ledgerOf()).ledger.balanceMinor;
+  const bill = await admin.post('/api/grns', {
+    supplierId: supplier.data.id,
+    supplierInvoiceNo: 'SM-INV-1',
+    supplierInvoiceDate: '2026-01-10',
+    discountMinor: 500,
+    salesTaxMinor: 300,
+    freightMinor: 200,
+    whtMinor: 100,
+    lines: [grnLine({ batchNo: 'BILL1', qty: 10 })],
+  });
+  check(
+    'a bill with tax, discount and freight totals 180.00 (Goods - Discount + Tax + Freight)',
+    bill.status === 201 && bill.data.totalMinor === 18_000,
+  );
+  const afterBill = await ledgerOf();
+  check(
+    'the supplier ledger owes the bill less withholding tax (179.00)',
+    afterBill.ledger.balanceMinor === before + 17_900,
+  );
+  check(
+    'the open bills list shows the new bill at 179.00',
+    afterBill.openBills.find((b) => b.grnId === bill.data.id)?.outstandingMinor === 17_900,
+  );
+  const pay = (amountMinor, extra = {}) =>
+    admin.post('/api/supplier-payments', {
+      supplierId: supplier.data.id,
+      grnId: bill.data.id,
+      amountMinor,
+      modeId: mode('cash'),
+      ...extra,
+    });
+  check(
+    'a cashier cannot pay a supplier',
+    (
+      await counter.post('/api/supplier-payments', {
+        supplierId: supplier.data.id,
+        amountMinor: 1,
+        modeId: mode('cash'),
+      })
+    ).status === 403,
+  );
+  check('a part payment is recorded', (await pay(10_000)).status === 201);
+  const over = await pay(8_000);
+  check('paying more than the bill still owes is refused', over.status >= 400 && over.status < 500);
+  check('the rest of the bill is paid', (await pay(7_900, { reference: 'CHQ-1' })).status === 201);
+  const settled = await ledgerOf();
+  check(
+    'the ledger is back to the earlier balance and no bills are left open for it',
+    settled.ledger.balanceMinor === before &&
+      !settled.openBills.some((b) => b.grnId === bill.data.id),
+  );
+  check(
+    'ageing buckets add up to the balance',
+    Object.values(settled.ledger.aging).reduce((a, b) => a + b, 0) === settled.ledger.balanceMinor,
+  );
+  check(
+    'the bills list filters by supplier invoice number',
+    (await admin.get('/api/grns?q=SM-INV-1')).data.total === 1,
+  );
+  check(
+    'the supplier balances list responds',
+    (await admin.get('/api/suppliers/balances?onlyOwing=1')).data.balances.some(
+      (b) => b.supplierId === supplier.data.id,
+    ),
+  );
+  check(
+    'a cashier cannot read supplier ledgers',
+    (await counter.get(`/api/suppliers/${supplier.data.id}/ledger`)).status === 403,
+  );
+  const setRounding = await admin.put('/api/settings/pos', { rounding: 'none' });
+  check(
+    'admin can change the rounding setting and back',
+    setRounding.status === 200 &&
+      (await admin.put('/api/settings/pos', { rounding: 'rupee' })).data.settings[
+        'pos.rounding'
+      ] === 'rupee',
+  );
+  for (const path of ['/purchasing', '/reports']) {
+    const p = await admin.get(path);
+    check(`page ${path} renders`, p.status === 200 && p.data.raw.includes('Mediescare'));
+  }
+
+  // --- Excel/CSV item import ---
+  const tpl = await fetch(`${base()}/api/imports/items/template`, {
+    headers: { Cookie: admin.cookie() },
+  });
+  const tplBytes = Buffer.from(await tpl.arrayBuffer());
+  check(
+    'the import template downloads as a real .xlsx file',
+    tpl.status === 200 && tplBytes.subarray(0, 2).toString() === 'PK',
+  );
+  const csv = [
+    'Item Name,Barcode,Category,Retail Price',
+    'Smoke Import Alpha 10mg,8969000000011,Tablets,12.50',
+    'Smoke Import Beta Syrup,8969000000028,Syrups,150',
+    ',8969000000035,Tablets,10',
+  ].join('\n');
+  const upload = async (cookie) => {
+    /* global FormData, Blob */
+    const form = new FormData();
+    form.append('file', new Blob([csv], { type: 'text/csv' }), 'items.csv');
+    const res = await fetch(`${base()}/api/imports/items/preview`, {
+      method: 'POST',
+      headers: { Cookie: cookie },
+      body: form,
+    });
+    return { status: res.status, data: await res.json() };
+  };
+  check('a cashier cannot import items', (await upload(counter.cookie())).status === 403);
+  const prev = await upload(admin.cookie());
+  check(
+    'preview validates the file: 2 rows ready, 1 skipped for a missing name, nothing written yet',
+    prev.status === 201 &&
+      prev.data.summary.willImport === 2 &&
+      prev.data.summary.skippedWithErrors === 1,
+    JSON.stringify(prev.data.summary ?? prev.data),
+  );
+  check(
+    'no item exists before the commit',
+    (await admin.get('/api/items?q=Smoke%20Import')).data.rows.length === 0,
+  );
+  const started = await admin.post(`/api/imports/items/${prev.data.importId}`, {
+    action: 'commit',
+    importStock: false,
+  });
+  check('commit starts in the background', started.status === 202);
+  let jobState = started.data;
+  for (let i = 0; i < 100 && jobState.status !== 'done' && jobState.status !== 'failed'; i++) {
+    await new Promise((r) => setTimeout(r, 200));
+    jobState = (await admin.get(`/api/imports/items/${prev.data.importId}`)).data;
+  }
+  check(
+    'the import finishes and created 2 items',
+    jobState.status === 'done' && jobState.result?.created === 2,
+    JSON.stringify(jobState.result ?? jobState.error),
+  );
+  check(
+    'imported items are searchable',
+    (await admin.get('/api/items?q=Smoke%20Import')).data.rows.length === 2,
+  );
+  const reimport = await upload(admin.cookie());
+  check(
+    'importing the same file again creates nothing new (already exist)',
+    reimport.data.summary.willImport === 0 && reimport.data.summary.alreadyExist === 2,
+  );
+  const issueCsv = await fetch(`${base()}/api/imports/items/${prev.data.importId}/report`, {
+    headers: { Cookie: admin.cookie() },
+  });
+  check(
+    'the issue report downloads as CSV',
+    issueCsv.status === 200 && /csv/.test(issueCsv.headers.get('content-type') ?? ''),
+  );
+
+  // --- reports ---
+  const reportList = await admin.get('/api/reports');
+  check(
+    'the report hub lists the reports for the admin',
+    reportList.status === 200 && reportList.data.reports.length >= 10,
+  );
+  const daily = await admin.get('/api/reports/sales-daily');
+  check('the daily sales report runs', daily.status === 200 && Array.isArray(daily.data.rows));
+  const pl = await admin.get('/api/reports/profit-loss');
+  check('admin can run the profit report', pl.status === 200);
+  check(
+    'a cashier is refused the profit report',
+    (await counter.get('/api/reports/profit-loss')).status === 403,
+  );
+  const xlsxRes = await fetch(`${base()}/api/reports/stock-valuation/export`, {
+    headers: { Cookie: admin.cookie() },
+  });
+  const xlsxBytes = Buffer.from(await xlsxRes.arrayBuffer());
+  check(
+    'the Excel export is a real .xlsx file',
+    xlsxRes.status === 200 &&
+      /spreadsheetml/.test(xlsxRes.headers.get('content-type') ?? '') &&
+      xlsxBytes.subarray(0, 2).toString() === 'PK',
+  );
 
   // --- backups ---
   const created = await admin.post('/api/backups');

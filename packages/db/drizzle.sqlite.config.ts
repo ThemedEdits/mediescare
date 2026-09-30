@@ -6,6 +6,7 @@ export default defineConfig({
     './src/schema/sqlite.ts',
     './src/schema/sqlite-pharmacy.ts',
     './src/schema/sqlite-compliance.ts',
+    './src/schema/sqlite-purchasing.ts',
   ],
   out: './migrations/sqlite',
 });

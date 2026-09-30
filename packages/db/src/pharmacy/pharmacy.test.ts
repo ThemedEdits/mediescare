@@ -17,6 +17,7 @@ import {
 } from '../schema/sqlite-all';
 import { createTestEnv, type TestEnv } from '../test-helpers';
 import { setPin } from '../users';
+import { getPosRounding, setSetting } from '../settings';
 import {
   createItem,
   rebuildItemSearch,
@@ -170,6 +171,8 @@ beforeEach(async () => {
     }),
   ]);
   cashierShift = openShift(env.db, env.ctx(cashier), { floatMinor: 500_000 }).id;
+  // Most tests check exact paisa amounts. The default (nearest rupee) has its own tests below.
+  setSetting(env.db, env.ctx(admin), 'pos.rounding', 'none');
   void manager;
 });
 afterEach(() => env.cleanup());
@@ -798,14 +801,14 @@ describe('sale', () => {
     });
   });
 
-  it('applies tax and rounding from settings on the bill', () => {
+  it('applies tax and the rupee rounding setting on the bill', () => {
+    setSetting(env.db, env.ctx(admin), 'pos.rounding', 'rupee');
     const before = getItem(env.db, env.setup.tenantId, para);
     updateItem(env.db, env.ctx(admin), para, {
       ...itemInput({ taxBp: 1_800 }),
       expectedVersion: before.version,
     });
     const res = sell({
-      rounding: 'rupee',
       lines: [{ itemId: para, unitId: unitId.strip as string, qty: 3 }],
       payments: [{ modeId: modeId.cash as string, amountMinor: 10_000 }],
     });
@@ -844,6 +847,28 @@ describe('sale', () => {
         ?.payloadJson ?? '{}',
     ) as { lines: unknown[]; payments: unknown[]; movements: unknown[] };
     expect(one.lines.length && one.payments.length && one.movements.length).toBeTruthy();
+  });
+});
+
+describe('rounding setting', () => {
+  it('defaults to the nearest whole rupee for a branch that never changed it, and can be changed', async () => {
+    const fresh = await createTestEnv();
+    try {
+      expect(getPosRounding(fresh.db, fresh.ctx(fresh.setup.adminUserId))).toBe('rupee');
+      setSetting(fresh.db, fresh.ctx(fresh.setup.adminUserId), 'pos.rounding', 'half_rupee');
+      expect(getPosRounding(fresh.db, fresh.ctx(fresh.setup.adminUserId))).toBe('half_rupee');
+      expect(() =>
+        setSetting(fresh.db, fresh.ctx(fresh.setup.adminUserId), 'pos.rounding', 'banana'),
+      ).toThrow();
+    } finally {
+      fresh.cleanup();
+    }
+  });
+
+  it('rounds a sale total to the rupee and records the rounding on its own line', () => {
+    setSetting(env.db, env.ctx(admin), 'pos.rounding', 'rupee');
+    const res = sell({ billDiscount: { kind: 'percent', bp: 500 } }); // 50.00 - 2.50 = 47.50 -> 48.00
+    expect(res).toMatchObject({ discountMinor: 250, roundingMinor: 50, grandTotalMinor: 4_800 });
   });
 });
 

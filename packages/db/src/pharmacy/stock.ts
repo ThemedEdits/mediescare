@@ -19,6 +19,8 @@ import {
   grns,
   itemUnits,
   items,
+  poLines,
+  purchaseOrders,
   stockMovements,
   stores,
   suppliers,
@@ -155,6 +157,8 @@ export interface GrnLineInput {
 
 export interface GrnInput {
   supplierId: string;
+  /** Receive against an approved purchase order; its delivered quantities and status are updated. */
+  poId?: string | null;
   supplierInvoiceNo?: string | null;
   supplierInvoiceDate?: string | null;
   discountMinor?: number;
@@ -202,6 +206,20 @@ export function receiveGrn(db: Db, ctx: WriteContext, input: GrnInput): GrnResul
       .where(and(eq(suppliers.id, input.supplierId), eq(suppliers.tenantId, ctx.tenantId)))
       .get();
     if (!supplier) throw new DomainError('INVALID', 'Choose a supplier');
+    const po = input.poId
+      ? tx
+          .select()
+          .from(purchaseOrders)
+          .where(and(eq(purchaseOrders.id, input.poId), eq(purchaseOrders.branchId, ctx.branchId)))
+          .get()
+      : undefined;
+    if (input.poId) {
+      if (!po) throw new DomainError('INVALID', 'Purchase order not found');
+      if (po.supplierId !== supplier.id)
+        throw new DomainError('INVALID', 'This purchase order belongs to another supplier');
+      if (po.status !== 'approved' && po.status !== 'partial')
+        throw new DomainError('CONFLICT', `A ${po.status} purchase order cannot be received`);
+    }
     const today = branchToday(tx, ctx);
     const now = isoNow(ctx);
     const grnId = newId();
@@ -358,6 +376,7 @@ export function receiveGrn(db: Db, ctx: WriteContext, input: GrnInput): GrnResul
       branchId: ctx.branchId,
       docNo,
       supplierId: supplier.id,
+      poId: po?.id ?? null,
       supplierInvoiceNo: input.supplierInvoiceNo ?? null,
       supplierInvoiceDate: input.supplierInvoiceDate ?? null,
       discountMinor: discount,
@@ -384,6 +403,7 @@ export function receiveGrn(db: Db, ctx: WriteContext, input: GrnInput): GrnResul
       op: 'insert',
       payload: { ...header, lines: linePayload, movements },
     });
+    if (po) applyReceiptToPo(tx, ctx, po, linePayload);
     appendAudit(tx, ctx, {
       action: 'grn.create',
       entityType: 'grn',
@@ -391,6 +411,55 @@ export function receiveGrn(db: Db, ctx: WriteContext, input: GrnInput): GrnResul
       newValue: { docNo, supplierId: supplier.id, lines: linePayload.length, totalMinor: total },
     });
     return { id: grnId, docNo, subTotalMinor: subTotal, totalMinor: total, lines: result };
+  });
+}
+
+/** Count what arrived against the order's lines (oldest line first) and move the order to partial or received. */
+function applyReceiptToPo(
+  tx: DbOrTx,
+  ctx: WriteContext,
+  po: typeof purchaseOrders.$inferSelect,
+  received: (typeof grnLines.$inferInsert)[],
+): void {
+  const lines = tx
+    .select()
+    .from(poLines)
+    .where(eq(poLines.poId, po.id))
+    .orderBy(poLines.lineNo)
+    .all();
+  for (const r of received) {
+    const matching = lines.filter((x) => x.itemId === r.itemId);
+    let left = r.qtyBase;
+    for (const l of matching) {
+      if (left <= 0) break;
+      const take = Math.min(left, Math.max(0, l.orderedBase - l.receivedBase));
+      l.receivedBase += take;
+      left -= take;
+    }
+    // Delivery above the ordered amount is still recorded, on the last matching line.
+    const last = matching[matching.length - 1];
+    if (left > 0 && last) last.receivedBase += left;
+  }
+  for (const l of lines)
+    tx.update(poLines).set({ receivedBase: l.receivedBase }).where(eq(poLines.id, l.id)).run();
+  const complete = lines.every((l) => l.receivedBase >= l.orderedBase);
+  const change = {
+    status: complete ? 'received' : 'partial',
+    version: po.version + 1,
+    updatedAt: isoNow(ctx),
+    hlc: ctx.clock.tick(),
+  };
+  tx.update(purchaseOrders).set(change).where(eq(purchaseOrders.id, po.id)).run();
+  recordChange(tx, ctx, {
+    entityType: 'purchase_orders',
+    entityId: po.id,
+    op: 'update',
+    payload: {
+      id: po.id,
+      ...change,
+      baseVersion: po.version,
+      receivedBase: lines.map((l) => ({ id: l.id, receivedBase: l.receivedBase })),
+    },
   });
 }
 
@@ -520,7 +589,7 @@ export function listStock(
   const needsAllStock = Boolean(filter.lowOnly || filter.onlyInStock);
   const pageItems = needsAllStock
     ? sql`items i`
-    : sql`(SELECT * FROM items i WHERE ${itemWhere} ORDER BY i.name LIMIT ${pageSize} OFFSET ${offset}) i`;
+    : sql`(SELECT *, count(*) OVER () AS total_count FROM items i WHERE ${itemWhere} ORDER BY i.name LIMIT ${pageSize} OFFSET ${offset}) i`;
 
   const stockSums = sql`
     FROM ${pageItems}
@@ -536,10 +605,6 @@ export function listStock(
         : sql``
     }`;
 
-  const total = needsAllStock
-    ? (db.get<{ n: number }>(sql`SELECT count(*) AS n FROM (SELECT i.id ${stockSums})`)?.n ?? 0)
-    : (db.get<{ n: number }>(sql`SELECT count(*) AS n FROM items i WHERE ${itemWhere}`)?.n ?? 0);
-
   const rows = db.all<{
     id: string;
     sku: string;
@@ -551,6 +616,7 @@ export function listStock(
     reorder: number;
     nearest: string | null;
     value_micro: number;
+    total_count: number | null;
   }>(sql`
     SELECT i.id, i.sku, i.name, i.generic_name,
       COALESCE(SUM(m.qty_base), 0) AS onhand,
@@ -559,9 +625,18 @@ export function listStock(
       i.reorder_level_base AS reorder,
       MIN(CASE WHEN b.expiry_date >= ${today} AND m.qty_base > 0 THEN b.expiry_date END) AS nearest,
       COALESCE(SUM(m.qty_base * m.unit_cost_micro), 0) AS value_micro
+      ${needsAllStock ? sql`, 0 AS total_count` : sql`, i.total_count AS total_count`}
     ${stockSums}
     ORDER BY i.name
     ${needsAllStock ? sql`LIMIT ${pageSize} OFFSET ${offset}` : sql``}`);
+
+  // The page query counts all matches in the same pass (window function), so a search is not run twice.
+  // An empty page (past the end) has nothing to carry the count, so it is counted on its own.
+  const total = needsAllStock
+    ? (db.get<{ n: number }>(sql`SELECT count(*) AS n FROM (SELECT i.id ${stockSums})`)?.n ?? 0)
+    : (rows[0]?.total_count ??
+      db.get<{ n: number }>(sql`SELECT count(*) AS n FROM items i WHERE ${itemWhere}`)?.n ??
+      0);
 
   return {
     total: Number(total),

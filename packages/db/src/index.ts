@@ -27,3 +27,7 @@ export * from './pharmacy/stock';
 export * from './pharmacy/pos';
 export * from './pharmacy/lookups';
 export * from './maintenance';
+export * from './reports';
+export * from './imports';
+export * from './settings';
+export * from './purchasing';

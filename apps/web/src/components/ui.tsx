@@ -196,11 +196,13 @@ export const inputClass =
 export function NameDialog({
   title,
   label,
+  submitLabel = 'Add',
   onSubmit,
   onClose,
 }: {
   title: string;
   label: string;
+  submitLabel?: string;
   onSubmit: (value: string) => Promise<void>;
   onClose: () => void;
 }) {
@@ -239,7 +241,7 @@ export function NameDialog({
             Cancel
           </Button>
           <Button type="submit" disabled={busy || value.trim().length < 1}>
-            {busy ? 'Saving…' : 'Add'}
+            {busy ? 'Saving…' : submitLabel}
           </Button>
         </div>
       </form>
