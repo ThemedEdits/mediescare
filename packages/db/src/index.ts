@@ -33,3 +33,4 @@ export * from './settings';
 export * from './purchasing';
 export * from './pharmacy/stocktake';
 export * from './sync';
+export * from './inventory';

@@ -9,6 +9,7 @@ export default defineConfig({
     './src/schema/sqlite-purchasing.ts',
     './src/schema/sqlite-inventory.ts',
     './src/schema/sqlite-sync.ts',
+    './src/schema/sqlite-transfers.ts',
   ],
   out: './migrations/sqlite',
 });

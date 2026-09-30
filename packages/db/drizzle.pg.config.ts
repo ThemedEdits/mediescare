@@ -9,6 +9,7 @@ export default defineConfig({
     './src/schema/pg-purchasing.ts',
     './src/schema/pg-inventory.ts',
     './src/schema/pg-sync.ts',
+    './src/schema/pg-transfers.ts',
   ],
   out: './migrations/pg',
 });
