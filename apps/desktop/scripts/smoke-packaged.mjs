@@ -342,6 +342,286 @@ try {
     ).status === 401,
   );
 
+  // --- pharmacy: items, goods receipt, shift, sale, returns ---
+  const lk = (await admin.get('/api/lookups')).data;
+  const unit = (name) => lk.units.find((u) => u.name === name).id;
+  const mode = (kind) => lk.paymentModes.find((m) => m.kind === kind).id;
+  check(
+    'default units, payment modes and a walk-in customer exist',
+    lk.units.length >= 6 && lk.paymentModes.length >= 4 && !!lk.walkinCustomerId,
+  );
+  const itemBody = {
+    name: 'Smoke Paracetamol 500mg',
+    genericName: 'Paracetamol',
+    baseUnitId: unit('Tablet'),
+    units: [
+      { unitId: unit('Tablet'), factorToBase: 1 },
+      { unitId: unit('Strip'), factorToBase: 10, isDefaultSale: true, isDefaultPurchase: true },
+    ],
+    barcodes: ['8961001234567'],
+    retailRateUnitMicro: 2_500_000,
+  };
+  const item = await admin.post('/api/items', itemBody);
+  check('admin creates an item with units and a barcode', item.status === 201);
+  check(
+    'duplicate barcode is refused',
+    (await admin.post('/api/items', { ...itemBody, name: 'Copy' })).status === 409,
+  );
+  const supplier = await admin.post('/api/suppliers', { name: 'Smoke Distributor' });
+  check('admin adds a supplier', supplier.status === 201);
+  const grnLine = (over) => ({
+    itemId: item.data.id,
+    unitId: unit('Strip'),
+    qty: 50,
+    batchNo: 'S1',
+    expiryDate: '2029-12-31',
+    unitPriceMicro: 18_000_000,
+    ...over,
+  });
+  check(
+    'expired stock cannot be received',
+    (
+      await admin.post('/api/grns', {
+        supplierId: supplier.data.id,
+        lines: [grnLine({ expiryDate: '2020-01-01' })],
+      })
+    ).status === 409,
+  );
+  const grn = await admin.post('/api/grns', {
+    supplierId: supplier.data.id,
+    lines: [grnLine({}), grnLine({ batchNo: 'S2', expiryDate: '2030-06-30', qty: 100 })],
+  });
+  check(
+    'goods receipt creates batches and a numbered document',
+    grn.status === 201 && /^SMK01-GRN-\d{6}$/.test(grn.data.docNo),
+    grn.data.docNo,
+  );
+  const stockAll = await admin.get('/api/stock?q=smoke');
+  check(
+    'stock list shows 1,500 tablets on hand from the ledger',
+    stockAll.data.rows[0].onHandBase === 1500 && stockAll.data.rows[0].costValueMinor > 0,
+  );
+
+  const counter = client();
+  const cashierPassword = 'cashier-New-Password-55';
+  check(
+    'cashier signs in again with the new password',
+    (
+      await counter.post('/api/auth/login', {
+        username: 'smoke.cashier',
+        password: cashierPassword,
+      })
+    ).status === 200,
+  );
+  check(
+    'a cashier cannot sell without an open shift',
+    (
+      await counter.post('/api/sales', {
+        idempotencyKey: 'noshift-000001',
+        lines: [{ itemId: item.data.id, unitId: unit('Strip'), qty: 1 }],
+        payments: [{ modeId: mode('cash'), amountMinor: 5000 }],
+      })
+    ).status === 409,
+  );
+  check(
+    'cashier opens a shift with an opening float',
+    (await counter.post('/api/shifts/open', { floatMinor: 500_000 })).status === 201,
+  );
+  const search = await counter.get('/api/pos/search?q=8961001234567');
+  check(
+    'scanning the barcode finds the item first, with batches and stock',
+    search.data.hits[0]?.matchedByBarcode === true &&
+      search.data.hits[0].sellableBase === 1500 &&
+      search.data.hits[0].batches.length === 2,
+  );
+  check(
+    'the cashier response contains no cost fields',
+    !JSON.stringify(search.data).includes('costUnitMicro'),
+  );
+  const typed = await counter.get('/api/pos/search?q=paracet');
+  check(
+    'typing part of the name finds the item (full-text search)',
+    typed.data.hits[0]?.id === item.data.id,
+  );
+
+  const saleBody = (over = {}) => ({
+    idempotencyKey: `smoke-sale-${Math.random().toString(36).slice(2)}`,
+    lines: [{ itemId: item.data.id, unitId: unit('Strip'), qty: 2 }],
+    payments: [{ modeId: mode('cash'), amountMinor: 10_000 }],
+    ...over,
+  });
+  const first = saleBody();
+  const sale1 = await counter.post('/api/sales', first);
+  check(
+    'sale saves: total 50.00, change 50.00, first-expiry batch used',
+    sale1.status === 201 &&
+      sale1.data.grandTotalMinor === 5000 &&
+      sale1.data.changeMinor === 5000 &&
+      /^SMK01-INV-000001$/.test(sale1.data.docNo),
+    sale1.data.docNo,
+  );
+  check(
+    'the cashier sale response hides cost and profit',
+    sale1.data.costMinor === undefined && sale1.data.profitMinor === undefined,
+  );
+  const again = await counter.post('/api/sales', first);
+  check(
+    'retrying the same request returns the same sale, not a second one',
+    again.status === 200 && again.data.id === sale1.data.id && again.data.replay === true,
+  );
+  const after = await admin.get('/api/stock?q=smoke');
+  check('stock came down by exactly 20 tablets', after.data.rows[0].onHandBase === 1480);
+  check(
+    'selling more than is in stock is refused',
+    (
+      await counter.post(
+        '/api/sales',
+        saleBody({
+          lines: [{ itemId: item.data.id, unitId: unit('Strip'), qty: 400 }],
+          payments: [{ modeId: mode('cash'), amountMinor: 9_999_999 }],
+        }),
+      )
+    ).status === 409,
+  );
+  const bigDiscount = await counter.post(
+    '/api/sales',
+    saleBody({ billDiscount: { kind: 'percent', bp: 1000 } }),
+  );
+  check(
+    'a 10% discount needs a manager (cashier limit is 5%)',
+    bigDiscount.status === 403 &&
+      bigDiscount.data.error.code === 'OVERRIDE_REQUIRED' &&
+      bigDiscount.data.error.details.kind === 'discount',
+  );
+  const ovr = await counter.post('/api/overrides', {
+    approverUsername: 'smoke.manager',
+    approverPin: '482913',
+    kind: 'discount',
+    percentBp: 1000,
+  });
+  const discounted = await counter.post(
+    '/api/sales',
+    saleBody({
+      billDiscount: { kind: 'percent', bp: 1000 },
+      discountOverrideId: ovr.data.overrideId,
+    }),
+  );
+  check(
+    'with the manager PIN the discounted sale saves',
+    discounted.status === 201 && discounted.data.grandTotalMinor === 4500,
+  );
+  check(
+    'the manager approval cannot be used twice',
+    (
+      await counter.post(
+        '/api/sales',
+        saleBody({
+          billDiscount: { kind: 'percent', bp: 1000 },
+          discountOverrideId: ovr.data.overrideId,
+        }),
+      )
+    ).status === 403,
+  );
+
+  const salesAdmin = (await admin.get('/api/sales')).data;
+  check(
+    'admin sees the sales and their cost and profit',
+    salesAdmin.total === 2 && salesAdmin.rows[0].costMinor > 0,
+  );
+  const detail = await admin.get(`/api/sales/${sale1.data.id}`);
+  check(
+    'sale detail shows profit to a role that may see it',
+    detail.data.sale.profitMinor === 1400 && detail.data.sale.costMinor === 3600,
+  );
+  const dash = await admin.get('/api/dashboard');
+  check(
+    'dashboard totals match: 2 sales, 95.00 revenue',
+    dash.data.salesCount === 2 &&
+      dash.data.revenueMinor === 9500 &&
+      dash.data.grossProfitMinor > 0 &&
+      dash.data.costValueMinor > 0,
+  );
+  const dashCashier = await counter.get('/api/dashboard');
+  check(
+    'the cashier dashboard has no profit or stock value',
+    dashCashier.status === 200 &&
+      dashCashier.data.grossProfitMinor === undefined &&
+      dashCashier.data.costValueMinor === undefined &&
+      dashCashier.data.revenueMinor === 9500,
+  );
+
+  const voidTry = await counter.post(`/api/sales/${discounted.data.id}/void`, {
+    reason: 'Customer left',
+  });
+  check(
+    'a cashier cannot void without a manager',
+    voidTry.status === 403 && voidTry.data.error.code === 'OVERRIDE_REQUIRED',
+  );
+  const ovrVoid = await counter.post('/api/overrides', {
+    approverUsername: 'smoke.manager',
+    approverPin: '482913',
+    kind: 'void',
+    reason: 'Customer left',
+    amountMinor: 4500,
+  });
+  check(
+    'with a manager PIN the sale is voided and stock returns',
+    (
+      await counter.post(`/api/sales/${discounted.data.id}/void`, {
+        reason: 'Customer left',
+        overrideId: ovrVoid.data.overrideId,
+      })
+    ).status === 200 && (await admin.get('/api/stock?q=smoke')).data.rows[0].onHandBase === 1480,
+  );
+  const lineId = (await admin.get(`/api/sales/${sale1.data.id}`)).data.sale.lines[0].id;
+  const ret = await counter.post(`/api/sales/${sale1.data.id}/return`, {
+    lines: [{ saleLineId: lineId, qtyBase: 10, restock: true }],
+    reasonCode: 'wrong_item',
+    refundModeId: mode('cash'),
+  });
+  check(
+    'a partial return refunds in proportion and restocks',
+    ret.status === 201 &&
+      ret.data.refundMinor === 2500 &&
+      (await admin.get('/api/stock?q=smoke')).data.rows[0].onHandBase === 1490,
+  );
+  check(
+    'returning more than was sold is refused',
+    (
+      await counter.post(`/api/sales/${sale1.data.id}/return`, {
+        lines: [{ saleLineId: lineId, qtyBase: 11, restock: true }],
+        reasonCode: 'wrong_item',
+        refundModeId: mode('cash'),
+      })
+    ).status === 400,
+  );
+  const holdId = (await counter.post('/api/holds', { label: 'Smoke hold', payload: { lines: [] } }))
+    .data.id;
+  check(
+    'a held cart can be listed and resumed by the branch',
+    (await admin.get('/api/holds')).data.holds.length === 1 &&
+      (await admin.get(`/api/holds/${holdId}`)).status === 200,
+  );
+  check(
+    'a missed sale can be recorded',
+    (await counter.post('/api/missed-sales', { itemText: 'Some syrup', qty: 2 })).status === 201,
+  );
+  const closed = await counter.post('/api/shifts/close', {
+    shiftId: (await counter.get('/api/shifts/current')).data.shift.id,
+    countedCashMinor: 502_000,
+  });
+  check(
+    'shift closes with a blind count: expected 5,025.00 (float + sale - refund), variance -5.00',
+    closed.status === 200 &&
+      closed.data.expectedCashMinor === 502_500 &&
+      closed.data.varianceMinor === -500,
+    JSON.stringify(closed.data),
+  );
+  for (const path of ['/items', '/stock', '/sales', '/pos']) {
+    const p = await admin.get(path);
+    check(`page ${path} renders`, p.status === 200 && p.data.raw.includes('Mediescare'));
+  }
+
   // --- backups ---
   const created = await admin.post('/api/backups');
   check(

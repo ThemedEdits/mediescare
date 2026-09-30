@@ -16,7 +16,8 @@
     "db:migrate": "node ../../scripts/electron-node.mjs --import tsx src/cli/migrate.ts",
     "db:seed": "node ../../scripts/electron-node.mjs --import tsx src/cli/seed.ts",
     "test": "node ../../scripts/electron-node.mjs ../../node_modules/vitest/vitest.mjs run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "bench": "node ../../scripts/electron-node.mjs --import tsx src/cli/bench.ts"
   },
   "dependencies": {
     "@mediescare/core": "workspace:*",

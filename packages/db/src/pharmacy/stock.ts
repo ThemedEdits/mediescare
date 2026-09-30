@@ -23,7 +23,7 @@ import {
   stores,
   suppliers,
 } from '../schema/sqlite-all';
-import { branchToday, nextDocNo } from './common';
+import { branchToday, ftsQuery, nextDocNo } from './common';
 
 export interface BatchStock extends StockBatch {
   itemId: string;
@@ -497,7 +497,13 @@ export interface StockFilter {
   pageSize?: number;
 }
 
-/** Stock per item for the branch: on hand, expired, sellable, reorder flag. One query, server-side paging. */
+/**
+ * Stock per item for the branch: on hand, expired, sellable, reorder flag. Server-side paging.
+ *
+ * Fast path (no stock-based filter): the page of items is chosen first, then stock is summed for just
+ * those rows, so the cost does not grow with the catalogue (100k+ SKUs). Filters that depend on the
+ * stock figures (low stock, only in stock) must look at every item and are reserved for reports.
+ */
 export function listStock(
   db: Db,
   ctx: WriteContext,
@@ -506,20 +512,34 @@ export function listStock(
   const today = branchToday(db, ctx);
   const pageSize = Math.min(Math.max(filter.pageSize ?? 25, 1), 200);
   const offset = (Math.max(filter.page ?? 1, 1) - 1) * pageSize;
-  const like = filter.q?.trim() ? `%${filter.q.trim().replace(/[%_]/g, '')}%` : null;
+  // Text search goes through the full-text index (words and prefixes), not a LIKE scan of the catalogue.
+  const match = ftsQuery(filter.q ?? '');
+  const itemWhere = sql`i.tenant_id = ${ctx.tenantId} AND i.deleted_at IS NULL AND i.is_active = 1
+    ${match ? sql`AND i.id IN (SELECT item_id FROM items_fts WHERE items_fts MATCH ${match})` : sql``}`;
 
-  const base = sql`
-    FROM items i
+  const needsAllStock = Boolean(filter.lowOnly || filter.onlyInStock);
+  const pageItems = needsAllStock
+    ? sql`items i`
+    : sql`(SELECT * FROM items i WHERE ${itemWhere} ORDER BY i.name LIMIT ${pageSize} OFFSET ${offset}) i`;
+
+  const stockSums = sql`
+    FROM ${pageItems}
     LEFT JOIN stock_movements m ON m.item_id = i.id AND m.branch_id = ${ctx.branchId}
     LEFT JOIN batches b ON b.id = m.batch_id
-    WHERE i.tenant_id = ${ctx.tenantId} AND i.deleted_at IS NULL AND i.is_active = 1
-      ${like ? sql`AND (i.name LIKE ${like} OR i.generic_name LIKE ${like} OR i.sku LIKE ${like})` : sql``}
+    ${needsAllStock ? sql`WHERE ${itemWhere}` : sql``}
     GROUP BY i.id
-    HAVING 1 = 1
+    ${
+      needsAllStock
+        ? sql`HAVING 1 = 1
       ${filter.onlyInStock ? sql`AND COALESCE(SUM(m.qty_base), 0) > 0` : sql``}
-      ${filter.lowOnly ? sql`AND COALESCE(SUM(CASE WHEN b.expiry_date >= ${today} AND b.is_blocked = 0 THEN m.qty_base ELSE 0 END), 0) <= i.reorder_level_base` : sql``}`;
+      ${filter.lowOnly ? sql`AND COALESCE(SUM(CASE WHEN b.expiry_date >= ${today} AND b.is_blocked = 0 THEN m.qty_base ELSE 0 END), 0) <= i.reorder_level_base` : sql``}`
+        : sql``
+    }`;
 
-  const totalRow = db.get<{ n: number }>(sql`SELECT count(*) AS n FROM (SELECT i.id ${base})`);
+  const total = needsAllStock
+    ? (db.get<{ n: number }>(sql`SELECT count(*) AS n FROM (SELECT i.id ${stockSums})`)?.n ?? 0)
+    : (db.get<{ n: number }>(sql`SELECT count(*) AS n FROM items i WHERE ${itemWhere}`)?.n ?? 0);
+
   const rows = db.all<{
     id: string;
     sku: string;
@@ -539,12 +559,12 @@ export function listStock(
       i.reorder_level_base AS reorder,
       MIN(CASE WHEN b.expiry_date >= ${today} AND m.qty_base > 0 THEN b.expiry_date END) AS nearest,
       COALESCE(SUM(m.qty_base * m.unit_cost_micro), 0) AS value_micro
-    ${base}
+    ${stockSums}
     ORDER BY i.name
-    LIMIT ${pageSize} OFFSET ${offset}`);
+    ${needsAllStock ? sql`LIMIT ${pageSize} OFFSET ${offset}` : sql``}`);
 
   return {
-    total: totalRow?.n ?? 0,
+    total: Number(total),
     rows: rows.map((r) => ({
       itemId: r.id,
       sku: r.sku,

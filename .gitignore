@@ -33,3 +33,7 @@ Thumbs.db
 
 # desktop packaging intermediates (icons, copied web build)
 apps/desktop/build/
+
+# Playwright output
+test-results/
+playwright-report/

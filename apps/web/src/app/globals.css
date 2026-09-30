@@ -17,3 +17,25 @@ html[dir='rtl'] {
   outline: 2px solid var(--color-primary-500);
   outline-offset: 2px;
 }
+
+/* 80 mm receipt: when printing, show only the receipt. */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #receipt,
+  #receipt * {
+    visibility: visible;
+  }
+  #receipt {
+    display: block !important;
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 80mm;
+  }
+  @page {
+    size: 80mm auto;
+    margin: 4mm;
+  }
+}

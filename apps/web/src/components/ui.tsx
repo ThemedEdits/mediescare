@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, type ButtonHTMLAttributes, type ReactNode } from 'react';
+import { useEffect, useState, type ComponentProps, type ReactNode } from 'react';
 
 /** fetch wrapper for the app's own API. Throws an Error with a message safe to show to the user. */
 export async function api<T = unknown>(
@@ -16,6 +16,7 @@ export async function api<T = unknown>(
     error?: {
       code?: string;
       message?: string;
+      details?: unknown;
       problems?: string[];
       issues?: { message: string }[];
     };
@@ -25,14 +26,30 @@ export async function api<T = unknown>(
       window.location.assign('/login');
     if (res.status === 428) window.location.assign('/change-password');
     const e = data.error;
-    throw new Error(
+    throw new ApiError(
       e?.message ??
         e?.problems?.join('. ') ??
         e?.issues?.map((i) => i.message).join('. ') ??
         `Something went wrong (${res.status})`,
+      e?.code ?? 'ERROR',
+      res.status,
+      e?.details,
     );
   }
   return data as T;
+}
+
+/** Error from the app's own API. `code` and `details` let screens react, for example to ask for a manager PIN. */
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    public readonly code: string,
+    public readonly status: number,
+    public readonly details?: unknown,
+  ) {
+    super(message);
+    this.name = 'ApiError';
+  }
 }
 
 type Variant = 'primary' | 'outline' | 'danger' | 'ghost';
@@ -49,7 +66,7 @@ export function Button({
   variant = 'primary',
   className = '',
   ...rest
-}: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: Variant }) {
+}: ComponentProps<'button'> & { variant?: Variant }) {
   return (
     <button
       {...rest}
@@ -174,3 +191,58 @@ export function useAsync<T>(load: () => Promise<T>, deps: unknown[] = []) {
 
 export const inputClass =
   'h-10 w-full rounded-[6px] border border-slate-400 bg-white px-3 text-sm text-slate-900 focus:border-primary-600 disabled:bg-slate-100';
+
+/** Small "type a name" dialog. Replaces window.prompt(), which Electron does not support. */
+export function NameDialog({
+  title,
+  label,
+  onSubmit,
+  onClose,
+}: {
+  title: string;
+  label: string;
+  onSubmit: (value: string) => Promise<void>;
+  onClose: () => void;
+}) {
+  const [value, setValue] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  return (
+    <Modal title={title} onClose={onClose}>
+      <form
+        className="space-y-3"
+        onSubmit={async (e) => {
+          e.preventDefault();
+          setBusy(true);
+          setError(null);
+          try {
+            await onSubmit(value.trim());
+          } catch (err) {
+            setError(err instanceof Error ? err.message : 'Could not save');
+            setBusy(false);
+          }
+        }}
+      >
+        <label className="block text-sm">
+          {label}
+          <input
+            autoFocus
+            className={`${inputClass} mt-1`}
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            required
+          />
+        </label>
+        <ErrorText message={error} />
+        <div className="flex justify-end gap-2">
+          <Button type="button" variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit" disabled={busy || value.trim().length < 1}>
+            {busy ? 'Saving…' : 'Add'}
+          </Button>
+        </div>
+      </form>
+    </Modal>
+  );
+}

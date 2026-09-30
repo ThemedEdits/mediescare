@@ -13,17 +13,19 @@
     "package:dir": "node scripts/make-icons.mjs && node scripts/build.mjs && node scripts/prepare-web.mjs && electron-builder --config electron-builder.yml --win --dir",
     "smoke": "node scripts/smoke-packaged.mjs",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@mediescare/config": "workspace:*",
     "@mediescare/db": "workspace:*"
   },
   "devDependencies": {
+    "@napi-rs/canvas": "^1.0.9",
+    "@playwright/test": "^1.63.0",
     "@types/node": "^22.20.4",
     "electron": "44.5.0",
     "electron-builder": "^26.15.3",
-    "@napi-rs/canvas": "^1.0.9",
     "esbuild": "^0.25.0",
     "typescript": "~5.9.3",
     "vitest": "^5.0.2"

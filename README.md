@@ -2,20 +2,17 @@
 
 Offline-first Pharmacy POS and Hospital Management System for Windows. One codebase (TypeScript): Next.js UI and API, Electron desktop shell, encrypted SQLite at each branch, PostgreSQL in the cloud.
 
-Project rules live in [CLAUDE.md](CLAUDE.md). The product brief is [docs/MASTER_PROMPT.md](docs/MASTER_PROMPT.md). Phase 0 design documents are in [docs/phase0/](docs/phase0/) and decisions in [docs/adr/](docs/adr/).
+Project rules live in [CLAUDE.md](CLAUDE.md). The product brief is [docs/MASTER_PROMPT.md](docs/MASTER_PROMPT.md). Design documents are in [docs/phase0/](docs/phase0/), decisions in [docs/adr/](docs/adr/), and progress in [docs/phase1-status.md](docs/phase1-status.md) and [docs/phase2-status.md](docs/phase2-status.md).
 
-## Status
+## What works today
 
-Phase 1 (foundation) is in progress. What works today:
+- **Foundation:** encrypted SQLite (SQLCipher, WAL), hash-chained audit log, sync outbox with retry, Drizzle schemas for SQLite and Postgres kept in parity.
+- **Safety:** verified encrypted backups (daily, retention, before upgrades, export to a drive), recovery key, restore on a new PC with only the recovery key.
+- **People:** users, roles and permissions screens, temporary passwords, quick-PIN counter login, single-use manager PIN approvals, per-role discount, refund and price limits.
+- **Pharmacy (Phase 2 slice):** item master with units and barcodes, batches and expiry, append-only stock ledger, goods receipt, stock adjustments, keyboard-first POS (barcode scan, first-expiry-first batches, expired stock blocked, split payments, hold and recall, missed sales, controlled-drug register), shifts with blind cash count, sales list, void and returns, dashboard.
+- **Packaging:** Windows installer, a packaged-app smoke test (87 checks), a real-window UI test, and a 100,000-item performance benchmark.
 
-- Monorepo with `core`, `sync`, `db`, `config` packages, the web app and the desktop shell.
-- Encrypted SQLite (SQLCipher, WAL), Drizzle schemas for SQLite and Postgres with a parity test.
-- First-run setup, argon2id login with lockout, revocable sessions, RBAC with the default roles, field-level cost/profit hiding.
-- Hash-chained audit log (append-only, database triggers), sync outbox and push worker with retry and backoff.
-- Electron shell: first-run mode wizard, local server launcher, OS-protected secrets, locked-down window.
-- Windows package and a packaged-app smoke test.
-
-Not built yet: items, POS, purchasing (Phase 2), LAN terminals and cloud sync (Phase 3), i18n/Urdu, backup and restore, roles/users screens. See [docs/phase0/phase1-plan.md](docs/phase0/phase1-plan.md).
+Not built yet: purchase orders and returns, supplier payments and ledgers, reports hub, thermal (ESC/POS) printing, Urdu and i18n, multi-branch transfers, LAN terminals and cloud sync, HR and finance, hospital modules. See the status documents.
 
 ## Requirements
 
@@ -34,13 +31,9 @@ pnpm dev:desktop          # desktop shell against the built web app
 pnpm package              # Windows installer (NSIS) into ./release
 pnpm db:generate          # drizzle-kit: SQLite and Postgres migrations
 pnpm db:migrate | db:seed # local database (needs MEDIESCARE_DB_KEY, see .env.example)
-```
-
-Packaged-app smoke test (launches the real app with a throwaway data folder):
-
-```bash
-pnpm --filter @mediescare/desktop package:dir
-pnpm --filter @mediescare/desktop smoke
+pnpm bench                # 100,000-item performance benchmark (search, stock list, invoice save)
+pnpm verify:packaged      # build, package and run the 87-check packaged-app smoke test
+pnpm test:e2e             # real-window UI test against the packaged app (run verify:packaged first)
 ```
 
 ### Why database tests run on Electron's Node
@@ -51,12 +44,12 @@ The database driver is a native module. It works in Electron 44 (Node 24) but cr
 
 ```
 apps/web       Next.js app: UI, route handlers (thin: validate, authorise, one transaction)
-apps/desktop   Electron main and preload, server launcher, packaging, smoke test
-packages/core  pure domain logic: money, permissions, document numbers, audit hash chain
-packages/db    Drizzle schemas (sqlite + pg), migrations, encrypted client, auth, audit, outbox
+apps/desktop   Electron main and preload, server launcher, restore tool, packaging, smoke and UI tests
+packages/core  pure domain logic: money, permissions, stock (FEFO, expiry), sales totals, numbering, audit chain
+packages/db    Drizzle schemas (sqlite + pg), migrations, encrypted client, auth, backup, catalogue, stock, POS
 packages/sync  HLC, UUIDv7, outbox types, backoff, CloudAdapter interface
 packages/config brand constants and design tokens
-docs/          brief, Phase 0 design, ADRs, branding
+docs/          brief, Phase 0 design, ADRs, status, branding
 ```
 
 ## Data and privacy

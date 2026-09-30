@@ -43,6 +43,13 @@
       "when": 1790725815387,
       "tag": "0005_narcotic_register",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1790762017241,
+      "tag": "0006_perf_indexes",
+      "breakpoints": true
     }
   ]
 }

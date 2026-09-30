@@ -26,3 +26,4 @@ export * from './pharmacy/catalog';
 export * from './pharmacy/stock';
 export * from './pharmacy/pos';
 export * from './pharmacy/lookups';
+export * from './maintenance';

@@ -68,3 +68,16 @@ export function nextDocNo(tx: DbOrTx, ctx: WriteContext, type: DocType): string 
 export function asRangeMessage(error: unknown): string {
   return error instanceof Error ? error.message : 'Invalid value';
 }
+
+/**
+ * Turn what a person typed into a safe full-text query: up to six words, each matched as a prefix, all
+ * required. Punctuation and search operators are removed, so user input can never break the query.
+ */
+export function ftsQuery(text: string): string | null {
+  const tokens = text
+    .split(/\s+/)
+    .map((t) => t.replace(/[^\p{L}\p{N}]/gu, ''))
+    .filter(Boolean)
+    .slice(0, 6);
+  return tokens.length ? tokens.map((t) => `"${t}"*`).join(' AND ') : null;
+}

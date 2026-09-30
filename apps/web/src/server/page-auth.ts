@@ -78,6 +78,10 @@ export interface NavItem {
 export function navFor(auth: PageAuth): NavItem[] {
   const items: (NavItem & { permission?: PermissionKey; adminOnly?: boolean })[] = [
     { href: '/', label: 'Dashboard' },
+    { href: '/pos', label: 'POS', permission: 'pharmacy.sale.create' },
+    { href: '/sales', label: 'Sales', permission: 'pharmacy.sale.view' },
+    { href: '/items', label: 'Items', permission: 'pharmacy.item.view' },
+    { href: '/stock', label: 'Stock', permission: 'inventory.stock.view' },
     { href: '/users', label: 'Users', permission: 'admin.user.view', adminOnly: true },
     { href: '/roles', label: 'Roles', permission: 'admin.role.view', adminOnly: true },
     { href: '/backups', label: 'Backups', permission: 'admin.backup.view', adminOnly: true },

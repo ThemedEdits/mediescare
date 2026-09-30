@@ -21,7 +21,8 @@
     "typecheck": "turbo run typecheck",
     "verify:packaged": "node scripts/verify-packaged.mjs",
     "format": "prettier --write .",
-    "prepare": "husky"
+    "prepare": "husky",
+    "bench": "pnpm --filter @mediescare/db bench"
   },
   "lint-staged": {
     "*.{ts,tsx,js,mjs,json,md,css}": "prettier --write"

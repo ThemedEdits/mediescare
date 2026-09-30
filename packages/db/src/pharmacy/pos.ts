@@ -234,6 +234,7 @@ export interface CreateSaleInput {
 }
 
 export interface SaleLineResult {
+  id: string;
   lineNo: number;
   itemId: string;
   name: string;
@@ -316,6 +317,7 @@ function loadSale(db: DbOrTx, saleId: string): SaleResult {
     costMinor: s.costMinor,
     profitMinor: ls.reduce((sum, l) => sum + (l.l.netMinor - l.l.taxMinor - l.l.costMinor), 0),
     lines: ls.map(({ l, name }) => ({
+      id: l.id,
       lineNo: l.lineNo,
       itemId: l.itemId,
       name,
@@ -678,6 +680,7 @@ export function createSale(db: Db, ctx: WriteContext, input: CreateSaleInput): S
         });
       }
       lineResults.push({
+        id: lineId,
         lineNo: i + 1,
         itemId: p.input.itemId,
         name: p.itemName,

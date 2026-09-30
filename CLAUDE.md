@@ -28,24 +28,25 @@ If code and docs disagree, stop and ask. If a requirement is unclear or missing,
 
 Speed is the priority, so use one language (TypeScript) and one main framework.
 
-| Layer | Choice |
-|---|---|
-| App framework | **Next.js (App Router)** + **TypeScript (strict)**, latest stable at scaffold time; `output: "standalone"` |
-| UI | **Tailwind CSS** + **shadcn/ui** (Radix), **lucide-react** icons, **TanStack Table** (data grids), **TanStack Query** (client cache) |
-| Forms/validation | **React Hook Form** + **Zod** (shared schemas client/server) |
-| i18n | **next-intl** (or i18next) for English/Urdu, RTL for Urdu, Urdu font (Noto Nastaliq Urdu) |
-| Desktop shell | **Electron** + **electron-builder** (Windows NSIS installer primary; mac/linux optional), auto-updater |
-| Local DB | **SQLite** (WAL mode) via **better-sqlite3** + **Drizzle ORM** + drizzle-kit migrations; encrypt at rest (SQLCipher build or OS-level, decide in ADR) |
-| Cloud DB | **PostgreSQL** (Supabase / Neon / VPS, provider must be swappable) via Drizzle |
-| Auth | Custom, offline-capable: **argon2** password hashing, signed session cookies (**jose**), PIN login for POS, optional TOTP 2FA. No auth provider that needs internet |
-| Realtime (LAN) | Server-Sent Events or WebSocket from the branch server so terminals see stock/hold-invoice changes live |
-| Printing | ESC/POS thermal (58/80 mm) via node lib in Electron main; A4/A5 PDF via `@react-pdf/renderer` or headless print; barcode labels |
-| Charts | Recharts (or Tremor) |
-| Exports | `exceljs` (Excel), PDF via print pipeline |
-| Testing | **Vitest** (unit/integration), **Playwright** (E2E, incl. Electron), sync chaos tests |
-| Tooling | **pnpm** workspaces + **Turborepo**, ESLint, Prettier, Husky + lint-staged, Conventional Commits |
+| Layer            | Choice                                                                                                                                                              |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| App framework    | **Next.js (App Router)** + **TypeScript (strict)**, latest stable at scaffold time; `output: "standalone"`                                                          |
+| UI               | **Tailwind CSS** + **shadcn/ui** (Radix), **lucide-react** icons, **TanStack Table** (data grids), **TanStack Query** (client cache)                                |
+| Forms/validation | **React Hook Form** + **Zod** (shared schemas client/server)                                                                                                        |
+| i18n             | **next-intl** (or i18next) for English/Urdu, RTL for Urdu, Urdu font (Noto Nastaliq Urdu)                                                                           |
+| Desktop shell    | **Electron** + **electron-builder** (Windows NSIS installer primary; mac/linux optional), auto-updater                                                              |
+| Local DB         | **SQLite** (WAL mode) via **better-sqlite3** + **Drizzle ORM** + drizzle-kit migrations; encrypt at rest (SQLCipher build or OS-level, decide in ADR)               |
+| Cloud DB         | **PostgreSQL** (Supabase / Neon / VPS, provider must be swappable) via Drizzle                                                                                      |
+| Auth             | Custom, offline-capable: **argon2** password hashing, signed session cookies (**jose**), PIN login for POS, optional TOTP 2FA. No auth provider that needs internet |
+| Realtime (LAN)   | Server-Sent Events or WebSocket from the branch server so terminals see stock/hold-invoice changes live                                                             |
+| Printing         | ESC/POS thermal (58/80 mm) via node lib in Electron main; A4/A5 PDF via `@react-pdf/renderer` or headless print; barcode labels                                     |
+| Charts           | Recharts (or Tremor)                                                                                                                                                |
+| Exports          | `exceljs` (Excel), PDF via print pipeline                                                                                                                           |
+| Testing          | **Vitest** (unit/integration), **Playwright** (E2E, incl. Electron), sync chaos tests                                                                               |
+| Tooling          | **pnpm** workspaces + **Turborepo**, ESLint, Prettier, Husky + lint-staged, Conventional Commits                                                                    |
 
 Rules for the stack:
+
 - Do **not** add Prisma, Redux, NextAuth/Clerk/Supabase-Auth, Firebase, or any service that breaks offline mode.
 - Before adding any dependency: check it works offline, is maintained, and has a Windows build. Prefer fewer dependencies.
 - Native modules (better-sqlite3, serial/USB printer libs) must be rebuilt for Electron (`electron-rebuild` / electron-builder `npmRebuild`). Always test the **packaged** installer, not only `dev`.
@@ -54,6 +55,7 @@ Rules for the stack:
 ## 4. Architecture (offline-first, multi-user, multi-branch)
 
 ### 4.1 One codebase, several runtime modes
+
 The same Next.js app runs in different modes, selected by `MEDIESCARE_MODE`:
 
 - `single` — one PC runs Electron + embedded Next.js server + SQLite (small branch).
@@ -64,6 +66,7 @@ The same Next.js app runs in different modes, selected by `MEDIESCARE_MODE`:
 Installer first-run wizard asks: Single PC / Branch Server / Branch Terminal, then activation and branch binding. Windows firewall rule for the branch server port must be handled/explained.
 
 ### 4.2 Repository layout
+
 ```
 mediescare/
   CLAUDE.md
@@ -81,11 +84,13 @@ mediescare/
     sync/                   # outbox, pull/push, HLC, conflict rules, cloud adapter
     config/                 # tsconfig, eslint, tailwind tokens
 ```
+
 - Business rules live in `packages/core` (pure, heavily unit-tested), never inside React components or route handlers.
 - Route handlers / server actions are thin: validate (Zod) → authorize (RBAC) → call core/db in a **transaction** → write audit + outbox → respond.
 - Keep SQLite and Postgres schemas in parity: a test must fail if a table/column exists in one and not the other.
 
 ### 4.3 Data and sync rules (non-negotiable)
+
 1. **IDs:** UUIDv7/ULID primary keys everywhere. No auto-increment IDs.
 2. **Timestamps:** store UTC; use a **Hybrid Logical Clock** for ordering synced records. Tolerate device clock skew.
 3. **Outbox:** every write also appends to `sync_outbox` in the **same transaction**. Push is idempotent and retried with backoff. Pull uses per-entity cursors. Provide initial-sync, delta-sync, and resync/repair tools.
@@ -99,6 +104,7 @@ mediescare/
 11. Every offline feature must work with zero internet. The POS must **never** await the network.
 
 ### 4.4 Multi-user on one branch
+
 - All terminals talk to the branch server (SQLite WAL, single writer process, short transactions, `busy_timeout` set). Use optimistic locking (`version` column) on editable master data.
 - Stock deduction at POS happens server-side inside the sale transaction (FEFO batch allocation); reject the sale if stock is insufficient, unless negative-stock is explicitly enabled for that item/branch.
 - Hold invoices and open carts are stored server-side so any terminal can resume them.
@@ -168,6 +174,8 @@ pnpm db:seed             # fake demo data (100k SKUs option)
 pnpm test                # vitest
 pnpm test:e2e            # playwright
 pnpm lint && pnpm typecheck
+pnpm bench               # 100k-SKU benchmark (search, stock list, invoice save)
+pnpm verify:packaged     # build + package + packaged-app smoke test
 ```
 
 ## 11. How to work (process)

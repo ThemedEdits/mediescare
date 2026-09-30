@@ -3,6 +3,8 @@ import { parseRuntimeMode, type RuntimeMode } from '@mediescare/config';
 import {
   createBackup,
   defaultMigrationsDir,
+  ensurePharmacyDefaults,
+  refreshStatistics,
   getServerIdentity,
   hlcDeviceId,
   isInitialized,
@@ -28,6 +30,7 @@ interface Runtime {
   clock?: HybridLogicalClock;
   identity?: ServerIdentity;
   jobs?: NodeJS.Timeout;
+  statsAt: number;
 }
 
 // Kept on globalThis so dev-server hot reloads do not open the database twice.
@@ -72,6 +75,10 @@ export function getRuntime(): Runtime {
     });
   }
   runMigrations(handle.db, migrationsDir);
+  // After an upgrade, add any default data (units, payment modes, walk-in customer) that is missing.
+  ensurePharmacyDefaults(handle.db);
+  // Fresh query statistics keep search and invoice save fast on a large catalogue (see maintenance.ts).
+  refreshStatistics(handle.db);
 
   const runtime: Runtime = {
     mode,
@@ -80,10 +87,18 @@ export function getRuntime(): Runtime {
     dataDir,
     backupDir,
     dbKeyHex,
+    statsAt: Date.now(),
   };
   holder.__mediescareRuntime = runtime;
   startBackgroundJobs(runtime);
   return runtime;
+}
+
+/** Refresh query statistics once a day (cheap), so search stays fast as the catalogue grows. */
+function refreshStatisticsIfDue(runtime: Runtime): void {
+  if (Date.now() - runtime.statsAt < DAY_MS) return;
+  refreshStatistics(runtime.handle.db);
+  runtime.statsAt = Date.now();
 }
 
 /** Automatic daily backup. Checked every 15 minutes; never blocks a request. */
@@ -91,6 +106,7 @@ function startBackgroundJobs(runtime: Runtime): void {
   if (runtime.jobs || process.env.MEDIESCARE_DISABLE_JOBS === '1') return;
   const tick = () => {
     try {
+      refreshStatisticsIfDue(runtime);
       if (!isInitialized(runtime.handle.db)) return;
       const latest = listBackups(runtime.handle, 200).find((b) => b.kind === 'scheduled');
       if (latest && Date.now() - Date.parse(latest.createdAt) < DAY_MS) return;

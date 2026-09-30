@@ -7,7 +7,7 @@ import { isoNow, type WriteContext } from '../context';
 import { DomainError } from '../errors';
 import { recordChange } from '../outbox';
 import { itemBarcodes, itemUnits, items, racks, units } from '../schema/sqlite-all';
-import { branchToday } from './common';
+import { branchToday, ftsQuery } from './common';
 import { getBatchStock } from './stock';
 
 export interface ItemUnitInput {
@@ -474,15 +474,6 @@ export interface SearchHit extends ItemDetail {
   batches: SearchBatch[];
 }
 
-function ftsQuery(text: string): string | null {
-  const tokens = text
-    .split(/\s+/)
-    .map((t) => t.replace(/[^\p{L}\p{N}]/gu, ''))
-    .filter(Boolean)
-    .slice(0, 6);
-  return tokens.length ? tokens.map((t) => `"${t}"*`).join(' AND ') : null;
-}
-
 /**
  * POS item search: exact barcode first (scanner), then prefix full-text over name, generic name,
  * barcodes and code. Each hit carries sellable stock and batches so the counter never guesses.
@@ -499,12 +490,22 @@ export function searchItems(db: Db, ctx: WriteContext, text: string, limit = 20)
     .get();
   const ids: string[] = exact ? [exact.itemId] : [];
 
+  // Names that START with what was typed come first, straight from an index (what cashiers usually type).
+  const lower = q.toLowerCase();
+  const prefixed = db.all<{ id: string }>(
+    sql`SELECT id FROM items WHERE tenant_id = ${ctx.tenantId} AND lower(name) >= ${lower} AND lower(name) < ${`${lower}￿`}
+        AND is_active = 1 AND deleted_at IS NULL ORDER BY lower(name) LIMIT ${limit}`,
+  );
+  prefixed.forEach((r) => ids.includes(r.id) || ids.push(r.id));
+
+  // Then words anywhere in name, generic name, barcode or code. No relevance ranking on purpose: ranking
+  // thousands of matches costs far more than the 100 ms search budget allows on 100k+ items.
   const match = ftsQuery(q);
-  if (match) {
+  if (match && ids.length < limit) {
     const rows = db.all<{ item_id: string }>(
-      sql`SELECT item_id FROM items_fts WHERE items_fts MATCH ${match} ORDER BY bm25(items_fts, 0.0, 10.0, 4.0, 6.0, 8.0) LIMIT ${limit}`,
+      sql`SELECT item_id FROM items_fts WHERE items_fts MATCH ${match} LIMIT ${limit * 2}`,
     );
-    rows.forEach((r) => ids.includes(r.item_id) || ids.push(r.item_id));
+    for (const r of rows) if (ids.length < limit && !ids.includes(r.item_id)) ids.push(r.item_id);
   }
   if (ids.length === 0) return [];
 

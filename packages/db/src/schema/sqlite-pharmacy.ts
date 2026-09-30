@@ -242,6 +242,7 @@ export const stockMovements = sqliteTable(
     index('stock_movements_branch_item_batch_idx').on(t.branchId, t.itemId, t.batchId),
     index('stock_movements_doc_idx').on(t.docType, t.docId),
     index('stock_movements_time_idx').on(t.branchId, t.occurredAt),
+    index('stock_movements_batch_idx').on(t.batchId),
   ],
 );
 

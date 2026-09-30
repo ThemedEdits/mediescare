@@ -41,7 +41,7 @@ describe('API routes are guarded (CLAUDE.md §4.2: authorize every action)', () 
         expect(source).toMatch(/publicRoute\(/);
       } else {
         expect(source, 'protected routes must use withPermission(<permission>, ...)').toMatch(
-          /withPermission\('[a-z_]+\.[a-z_]+\.[a-z_]+'/,
+          /withPermission\(\s*'[a-z_]+\.[a-z_]+\.[a-z_]+'/,
         );
       }
     });

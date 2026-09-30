@@ -64,9 +64,6 @@ let para: string; // Paracetamol: tablet / strip (10) / box (100)
 let tramadol: string; // controlled
 let cashierShift: string;
 
-const thisDate = (offsetDays: number) =>
-  new Date(Date.parse('2026-10-05T00:00:00Z') + offsetDays * 86_400_000).toISOString().slice(0, 10);
-
 function itemInput(over: Partial<ItemInput> = {}): ItemInput {
   return {
     name: 'Paracetamol 500mg',
@@ -225,10 +222,31 @@ describe('items and search', () => {
     expect(searchItems(env.db, env.ctx(cashier), 'panadol')[0]?.id).toBe(para);
     expect(searchItems(env.db, env.ctx(cashier), 'paracetamol')[0]?.id).toBe(para); // generic name still matches
     expect(searchItems(env.db, env.ctx(cashier), '111222333')[0]?.id).toBe(para);
+    // A word in the middle of the name is found only through the full-text index.
+    expect(searchItems(env.db, env.ctx(cashier), 'extra')[0]?.id).toBe(para);
     env.db.run(sql`DELETE FROM items_fts`);
-    expect(searchItems(env.db, env.ctx(cashier), 'panadol')).toEqual([]);
-    expect(rebuildItemSearch(env.db)).toBe(2);
+    expect(searchItems(env.db, env.ctx(cashier), 'extra')).toEqual([]);
+    // Names that start with the typed text still come straight from the name index.
     expect(searchItems(env.db, env.ctx(cashier), 'panadol')[0]?.id).toBe(para);
+    expect(rebuildItemSearch(env.db)).toBe(2);
+    expect(searchItems(env.db, env.ctx(cashier), 'extra')[0]?.id).toBe(para);
+  });
+
+  it('puts names that start with the typed text first, then other matches', () => {
+    const cold = createItem(
+      env.db,
+      env.ctx(admin),
+      itemInput({
+        name: 'Cold Relief Paracetamol',
+        genericName: 'Paracetamol combination',
+        barcodes: ['5550001'],
+        retailRateUnitMicro: rate('3'),
+      }),
+    );
+    const hits = searchItems(env.db, env.ctx(cashier), 'para').map((h) => h.id);
+    expect(hits[0]).toBe(para); // starts with "para"
+    expect(hits).toContain(cold); // "para" inside the name, via the word index
+    expect(hits.indexOf(para)).toBeLessThan(hits.indexOf(cold));
   });
 
   it('hides inactive items from search', () => {

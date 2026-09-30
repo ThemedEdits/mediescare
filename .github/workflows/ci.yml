@@ -41,3 +41,4 @@ jobs:
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
       - run: pnpm --filter @mediescare/desktop smoke
+      - run: pnpm --filter @mediescare/desktop test:e2e

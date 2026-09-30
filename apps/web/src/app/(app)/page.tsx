@@ -1,4 +1,6 @@
-import { getSyncStatus, verifyAuditChain } from '@mediescare/db';
+import { can } from '@mediescare/core/permissions';
+import { getSyncStatus, salesSummary, stockValueMinor, verifyAuditChain } from '@mediescare/db';
+import { pkr } from '@/lib/format';
 import { requirePage } from '@/server/page-auth';
 import { getDb } from '@/server/runtime';
 
@@ -14,12 +16,65 @@ export default async function DashboardPage({
   const db = getDb();
   const sync = getSyncStatus(db);
   const chain = auth.branchId ? verifyAuditChain(db, auth.branchId) : null;
+
+  // Today in the branch time zone (Karachi) as a UTC range.
+  const day = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Karachi',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date());
+  const canSales = can(auth.access, 'pharmacy.sale.view');
+  const summary =
+    canSales && auth.branchId
+      ? salesSummary(
+          db,
+          auth.branchId,
+          new Date(`${day}T00:00:00+05:00`).toISOString(),
+          new Date(`${day}T23:59:59.999+05:00`).toISOString(),
+        )
+      : null;
+  // Cost and profit are shown only to roles with the matching right (permissions-matrix.md §4).
+  const showProfit = can(auth.access, 'pharmacy.sale.view_profit');
+  const showValue = can(auth.access, 'inventory.stock.view_cost') && !!auth.branchId;
+
   return (
-    <main className="mx-auto max-w-4xl space-y-4 p-6">
+    <main className="mx-auto max-w-5xl space-y-4 p-6">
       {denied ? (
         <p role="alert" className="rounded-[6px] bg-[#FEE2E2] px-4 py-3 text-sm text-danger">
           You do not have permission to open that page.
         </p>
+      ) : null}
+      {summary ? (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <Card
+            title="Sales today"
+            value={`PKR ${pkr(summary.revenueMinor)}`}
+            note={`${summary.salesCount} invoices${summary.voidCount ? `, ${summary.voidCount} voided` : ''}`}
+          />
+          {showProfit ? (
+            <Card
+              title="Gross profit today"
+              value={`PKR ${pkr(summary.grossProfitMinor)}`}
+              note="Sales without tax minus batch cost"
+              bad={summary.grossProfitMinor < 0}
+            />
+          ) : null}
+          {showProfit ? (
+            <Card
+              title="Discounts today"
+              value={`PKR ${pkr(summary.discountMinor)}`}
+              note="Given at the counter"
+            />
+          ) : null}
+          {showValue && auth.branchId ? (
+            <Card
+              title="Stock value"
+              value={`PKR ${pkr(stockValueMinor(db, auth.branchId))}`}
+              note="At batch cost"
+            />
+          ) : null}
+        </div>
       ) : null}
       <div className="grid gap-4 sm:grid-cols-3">
         <Card
