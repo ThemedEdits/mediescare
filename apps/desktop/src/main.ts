@@ -6,6 +6,9 @@ import { migrationsDir, resourcePath, serverJs } from './paths';
 import { loadOrCreateSecrets } from './secrets';
 import { pickPort, ServerProcess, waitForHealth } from './server';
 import { registerPrintHandlers } from './print';
+import { startLanAnnouncing } from './discovery-service';
+import { DeviceTokenStore } from './pairing';
+import { electronSealer, registerPairingHandlers } from './pairing-ipc';
 import { openRestoreWindow } from './restore';
 import {
   buildAppMenu,
@@ -22,6 +25,7 @@ if (process.env.MEDIESCARE_USER_DATA) app.setPath('userData', process.env.MEDIES
 
 let server: ServerProcess | null = null;
 let mainWindow: BrowserWindow | null = null;
+let stopAnnouncing: (() => void) | null = null;
 // The wizard window closing must not quit the app before the main window exists.
 let running = false;
 
@@ -55,6 +59,15 @@ function runWizard(userData: string): Promise<DesktopConfig> {
   });
 }
 
+/** Opt-in cloud sync: both the address and a device token must be present, otherwise sync stays off. */
+function cloudSettings(userData: string): { url: string; token: string } | undefined {
+  const url = process.env.MEDIESCARE_CLOUD_URL?.trim();
+  const token =
+    process.env.MEDIESCARE_CLOUD_TOKEN?.trim() ||
+    new DeviceTokenStore(userData, electronSealer).load('cloud');
+  return url && token ? { url, token } : undefined;
+}
+
 async function start(): Promise<void> {
   const userData = app.getPath('userData');
   const config = loadConfig(userData) ?? (await runWizard(userData));
@@ -78,6 +91,7 @@ async function start(): Promise<void> {
         mode: config.mode,
         port,
         secrets: loadOrCreateSecrets(userData),
+        cloud: cloudSettings(userData),
       });
       server.start();
       origin = server.url;
@@ -85,6 +99,10 @@ async function start(): Promise<void> {
     await waitForHealth(origin, config.mode === 'terminal' ? 8_000 : 45_000);
     mainWindow = createMainWindow(origin);
     registerPrintHandlers(origin);
+    if (config.mode === 'terminal') registerPairingHandlers(userData, origin);
+    if (config.mode === 'branch-server') {
+      stopAnnouncing = startLanAnnouncing({ origin, port: Number(new URL(origin).port) });
+    }
     running = true;
     if (config.mode !== 'terminal') {
       // Terminals hold no data, so only servers get the restore and backup-folder menu.
@@ -135,5 +153,8 @@ if (!app.requestSingleInstanceLock()) {
   app.on('window-all-closed', () => {
     if (running) app.quit();
   });
-  app.on('before-quit', () => server?.stop());
+  app.on('before-quit', () => {
+    stopAnnouncing?.();
+    server?.stop();
+  });
 }

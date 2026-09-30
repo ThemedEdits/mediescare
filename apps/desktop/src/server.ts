@@ -15,6 +15,8 @@ export interface ServerOptions {
   mode: RuntimeMode;
   port: number;
   secrets: Secrets;
+  /** Opt-in cloud sync (docs/sync.md). Absent: the server never contacts the cloud. */
+  cloud?: { url: string; token: string };
 }
 
 const MAX_RESTARTS = 5;
@@ -92,6 +94,9 @@ export class ServerProcess {
         MEDIESCARE_MIGRATIONS_DIR: o.migrationsDir,
         MEDIESCARE_DB_KEY: o.secrets.dbKeyHex,
         MEDIESCARE_SESSION_SECRET: o.secrets.sessionSecret,
+        ...(o.cloud
+          ? { MEDIESCARE_CLOUD_URL: o.cloud.url, MEDIESCARE_CLOUD_TOKEN: o.cloud.token }
+          : {}),
       },
     });
     this.child = child;

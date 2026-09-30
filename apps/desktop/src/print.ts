@@ -2,6 +2,7 @@ import { writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { app, BrowserWindow, dialog, ipcMain } from 'electron';
 import { isAllowedSender, pdfFileName } from './print-guard';
+import { registerPrinterHandlers } from './printers';
 
 export interface PrintResult {
   ok: boolean;
@@ -14,6 +15,7 @@ export interface PrintResult {
  * to landscape A4 and lets the user choose where to save it. Only the app's own pages may call it.
  */
 export function registerPrintHandlers(appOrigin: string): void {
+  registerPrinterHandlers(appOrigin);
   ipcMain.handle('print:pdf', async (event, suggestedName: unknown): Promise<PrintResult> => {
     if (!isAllowedSender(event.senderFrame?.url, appOrigin))
       return { ok: false, error: 'Not allowed from this page' };

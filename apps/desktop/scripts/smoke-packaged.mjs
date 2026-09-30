@@ -773,10 +773,171 @@ try {
       (await admin.put('/api/settings/pos', { settings: { 'pos.rounding': 'rupee' } })).data
         .settings['pos.rounding'] === 'rupee',
   );
-  for (const path of ['/purchasing', '/reports']) {
+  for (const path of ['/purchasing', '/reports', '/stock-take', '/settings']) {
     const p = await admin.get(path);
     check(`page ${path} renders`, p.status === 200 && p.data.raw.includes('Mediescare'));
   }
+
+  // --- settings: printing and tax defaults ---
+  const setts = await admin.get('/api/settings/pos');
+  check(
+    'settings default to an 80 mm receipt with the drawer opening on cash',
+    setts.data.settings['print.paper_width'] === '80' &&
+      setts.data.settings['print.open_drawer_on_cash'] === true,
+  );
+  check(
+    'a cashier cannot read the settings screen data',
+    (await counter.get('/api/settings/pos')).status === 403,
+  );
+  const saveSetts = await admin.put('/api/settings/pos', {
+    settings: { 'print.copies': 2, 'print.auto_print': true, 'tax.default_sales_tax_bp': 1800 },
+  });
+  check(
+    'admin saves printer and tax settings in one step',
+    saveSetts.status === 200 &&
+      saveSetts.data.settings['print.copies'] === 2 &&
+      saveSetts.data.settings['tax.default_sales_tax_bp'] === 1800,
+  );
+  const badSetts = await admin.put('/api/settings/pos', {
+    settings: { 'print.copies': 9, 'print.auto_print': false },
+  });
+  check(
+    'an invalid value is refused and nothing in the request is saved',
+    badSetts.status === 400 &&
+      (await admin.get('/api/settings/pos')).data.settings['print.auto_print'] === true,
+  );
+  check(
+    'the POS lookups carry the print settings for cashiers',
+    (await counter.get('/api/lookups')).data.settings['print.copies'] === 2,
+  );
+
+  // --- sync status and terminal pairing ---
+  const syncSt = await admin.get('/api/sync/status');
+  check(
+    'sync status reports cloud sync off by default',
+    syncSt.status === 200 &&
+      syncSt.data.enabled === false &&
+      typeof syncSt.data.pending === 'number',
+  );
+  check(
+    'a cashier cannot read sync status',
+    (await counter.get('/api/sync/status')).status === 403,
+  );
+  const pairCode = await admin.post('/api/sync/pairing-code');
+  check(
+    'admin creates a one-time terminal pairing code',
+    pairCode.status === 201 && /^[0-9]{4}-[0-9]{4}$/.test(pairCode.data.code),
+  );
+  check(
+    'a cashier cannot create a pairing code',
+    (await counter.post('/api/sync/pairing-code')).status === 403,
+  );
+
+  // --- purchase return and stock take ---
+  const batchList = (await admin.get(`/api/stock/batches?itemId=${item.data.id}`)).data.batches;
+  const s1 = batchList.find((b) => b.batchNo === 'S1');
+  const ledgerBeforeReturn = (await ledgerOf()).ledger.balanceMinor;
+  check(
+    'a cashier cannot return goods to a supplier',
+    (
+      await counter.post('/api/purchase-returns', {
+        supplierId: supplier.data.id,
+        reason: 'damaged',
+        lines: [{ batchId: s1.id, qtyBase: 1 }],
+      })
+    ).status === 403,
+  );
+  const tooMany = await admin.post('/api/purchase-returns', {
+    supplierId: supplier.data.id,
+    reason: 'damaged',
+    lines: [{ batchId: s1.id, qtyBase: s1.available + 1 }],
+  });
+  check('returning more than the batch holds is refused', tooMany.status === 409);
+  const supReturn = await admin.post('/api/purchase-returns', {
+    supplierId: supplier.data.id,
+    reason: 'damaged',
+    creditNoteNo: 'CN-SMOKE',
+    lines: [{ batchId: s1.id, qtyBase: 10 }],
+  });
+  check(
+    'a purchase return is saved with its own number and credit of 18.00',
+    supReturn.status === 201 &&
+      /^SMK01-PRT-\d{6}$/.test(supReturn.data.docNo) &&
+      supReturn.data.totalMinor === 1800,
+    JSON.stringify(supReturn.data),
+  );
+  check(
+    'the return takes 10 tablets out of the batch',
+    (await admin.get(`/api/stock/batches?itemId=${item.data.id}`)).data.batches.find(
+      (b) => b.batchNo === 'S1',
+    ).available ===
+      s1.available - 10,
+  );
+  check(
+    'the supplier ledger is credited by the return',
+    (await ledgerOf()).ledger.balanceMinor === ledgerBeforeReturn - 1800,
+  );
+  check(
+    'the returns list shows it',
+    (await admin.get('/api/purchase-returns')).data.rows.some(
+      (r) => r.docNo === supReturn.data.docNo,
+    ),
+  );
+
+  const countDoc = await admin.post('/api/stock-takes', { title: 'Smoke count' });
+  check(
+    'admin starts a stock count',
+    countDoc.status === 201 && /^SMK01-STK-\d{6}$/.test(countDoc.data.docNo),
+  );
+  check(
+    'a second count cannot be opened at the same time',
+    (await admin.post('/api/stock-takes', { title: 'Second' })).status === 409,
+  );
+  const countLines = (await admin.get(`/api/stock-takes/${countDoc.data.id}/lines?q=Smoke`)).data
+    .rows;
+  const s1Line = countLines.find((l) => l.batchNo === 'S1');
+  check(
+    'the count lists the batches with the frozen system quantity',
+    s1Line && s1Line.systemQtyBase === s1.available - 10,
+  );
+  check(
+    'a cashier cannot enter counts',
+    (
+      await counter.post(`/api/stock-takes/${countDoc.data.id}/counts`, {
+        counts: [{ lineId: s1Line.lineId, countedQtyBase: 1 }],
+      })
+    ).status === 403,
+  );
+  check(
+    'admin records a count 5 tablets short',
+    (
+      await admin.post(`/api/stock-takes/${countDoc.data.id}/counts`, {
+        counts: [{ lineId: s1Line.lineId, countedQtyBase: s1Line.systemQtyBase - 5 }],
+      })
+    ).status === 200,
+  );
+  const countPosted = await admin.post(`/api/stock-takes/${countDoc.data.id}/post`, {
+    uncounted: 'ignore',
+  });
+  check(
+    'posting the count adjusts only the difference',
+    countPosted.status === 200 &&
+      countPosted.data.result.adjusted === 1 &&
+      countPosted.data.result.lossMinor === 900,
+    JSON.stringify(countPosted.data),
+  );
+  check(
+    'stock now matches the count',
+    (await admin.get(`/api/stock/batches?itemId=${item.data.id}`)).data.batches.find(
+      (b) => b.batchNo === 'S1',
+    ).available ===
+      s1.available - 15,
+  );
+  check(
+    'a countPosted count cannot be countPosted again',
+    (await admin.post(`/api/stock-takes/${countDoc.data.id}/post`, { uncounted: 'ignore' }))
+      .status === 409,
+  );
 
   // --- Excel/CSV item import ---
   const tpl = await fetch(`${base()}/api/imports/items/template`, {

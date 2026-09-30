@@ -84,7 +84,7 @@ test('set up, stock an item, and sell it through the real POS', async () => {
   await expect(page.getByRole('cell', { name: /E2E Paracetamol 500mg/ })).toBeVisible();
 
   // --- receive stock: 50 strips (500 tablets) ---
-  await page.getByRole('link', { name: 'Stock' }).click();
+  await page.getByRole('link', { name: 'Stock', exact: true }).click();
   await page.getByRole('button', { name: 'Add stock' }).click();
   await page.getByRole('button', { name: '+', exact: true }).first().click(); // quick-add supplier
   await page.getByLabel('Supplier name').fill('E2E Distributor');
@@ -140,7 +140,7 @@ test('set up, stock an item, and sell it through the real POS', async () => {
   await page.getByRole('link', { name: 'Sales' }).click();
   await expect(page.getByRole('row', { name: /E2E01-INV-000001/ })).toBeVisible();
   await expect(page.getByRole('row', { name: /E2E01-INV-000002/ })).toBeVisible();
-  await page.getByRole('link', { name: 'Stock' }).click();
+  await page.getByRole('link', { name: 'Stock', exact: true }).click();
   await expect(page.getByRole('row', { name: /E2E Paracetamol 500mg/ })).toContainText('470');
   await page.getByRole('link', { name: 'Dashboard' }).click();
   await expect(page.getByText('PKR 75.00')).toBeVisible(); // sales today: 25 + 50
@@ -188,4 +188,32 @@ test('set up, stock an item, and sell it through the real POS', async () => {
   // --- reports hub opens ---
   await page.getByRole('link', { name: 'Reports' }).click();
   await expect(page.getByRole('heading', { name: /Reports/ })).toBeVisible();
+
+  // --- settings: change and save ---
+  await page.getByRole('link', { name: 'Settings' }).click();
+  await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible();
+  await page.getByLabel('Rounding').selectOption('half_rupee');
+  await page.getByRole('button', { name: 'Save settings' }).click();
+  await expect(page.getByRole('status')).toContainText('Settings saved');
+
+  // --- stock take: count a batch 20 tablets short, post, stock follows ---
+  await page.getByRole('link', { name: 'Stock take' }).click();
+  await page.getByRole('button', { name: 'Start a count' }).click();
+  await page.getByLabel('Count name').fill('E2E count');
+  await page.getByRole('button', { name: 'Start count' }).click();
+  const b1 = page.getByRole('row', { name: /E2E-B1/ });
+  await expect(b1).toBeVisible();
+  await b1.getByLabel(/strip$/i).fill('45'); // the system says 47 strips: 20 tablets short
+  await b1.getByLabel(/strip$/i).press('Tab');
+  await expect(b1).toContainText('-20');
+  await page.getByRole('button', { name: 'Post differences' }).click();
+  await page
+    .getByRole('dialog', { name: 'Post the differences' })
+    .getByRole('button', { name: 'Post differences' })
+    .click();
+  await expect(page.getByRole('dialog', { name: 'Count posted' })).toBeVisible();
+  await page.getByRole('button', { name: 'Done' }).click();
+  await page.getByRole('link', { name: 'Stock', exact: true }).click();
+  await page.waitForURL((u) => u.pathname === '/stock');
+  await expect(page.getByRole('row', { name: /E2E Paracetamol 500mg/ })).toContainText('550'); // 470 + 100 - 20
 });
