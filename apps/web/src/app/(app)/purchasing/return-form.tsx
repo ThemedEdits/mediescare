@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { lineAmountMinor } from '@mediescare/core/money';
-import { api, Button, ErrorText, inputClass, Modal, useAsync } from '@/components/ui';
+import { api, Button, ErrorText, inputClass, Modal, useAsync, useErrorText } from '@/components/ui';
+import { useT } from '@/i18n/client';
 import { pkr } from '@/lib/format';
 
 interface Supplier {
@@ -35,15 +36,7 @@ interface Line {
   qty: string;
 }
 
-const REASONS: [string, string][] = [
-  ['damaged', 'Damaged'],
-  ['expired', 'Expired'],
-  ['near_expiry', 'Near expiry'],
-  ['wrong_item', 'Wrong item sent'],
-  ['overstock', 'Overstock'],
-  ['recall', 'Recall'],
-  ['other', 'Other (describe)'],
-];
+const REASONS = ['damaged', 'expired', 'near_expiry', 'wrong_item', 'overstock', 'recall', 'other'];
 
 const key = () => Math.random().toString(36).slice(2, 9);
 
@@ -55,6 +48,8 @@ export function ReturnForm({
   onClose: () => void;
   onSaved: (docNo: string) => void;
 }) {
+  const t = useT();
+  const errorText = useErrorText();
   const suppliers = useAsync(() => api<{ suppliers: Supplier[] }>('/api/suppliers'));
   const [supplierId, setSupplierId] = useState('');
   const [reason, setReason] = useState('damaged');
@@ -73,12 +68,12 @@ export function ReturnForm({
 
   useEffect(() => {
     if (!q.trim()) return setFound([]);
-    const t = setTimeout(() => {
+    const timer = setTimeout(() => {
       api<{ rows: Found[] }>(`/api/items?q=${encodeURIComponent(q)}&pageSize=8`)
         .then((r) => setFound(r.rows))
         .catch(() => setFound([]));
     }, 150);
-    return () => clearTimeout(t);
+    return () => clearTimeout(timer);
   }, [q]);
 
   async function pickItem(f: Found) {
@@ -91,12 +86,13 @@ export function ReturnForm({
         api<{ batches: Batch[] }>(`/api/stock/batches?itemId=${f.itemId}`),
       ]);
       const batches = stock.batches.filter((b) => b.available > 0);
-      if (batches.length === 0) setError(`${item.item.name} has no stock to return.`);
+      if (batches.length === 0)
+        setError(t('purchasing.returnForm.noStock', { name: item.item.name }));
       else setPicking({ name: item.item.name, units: item.item.units, batches });
       setQ('');
       setFound([]);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not load the batches');
+      setError(errorText(e, 'purchasing.returnForm.couldNotLoadBatches'));
     }
   }
 
@@ -151,25 +147,25 @@ export function ReturnForm({
       });
       onSaved(r.docNo);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not save the return');
+      setError(errorText(e, 'purchasing.returnForm.couldNotSaveReturn'));
       setBusy(false);
     }
   }
 
   const cell = 'h-9 rounded-[6px] border border-slate-400 bg-white px-2 text-sm';
   return (
-    <Modal title="Return goods to a supplier" onClose={onClose} wide>
+    <Modal title={t('purchasing.returnForm.title')} onClose={onClose} wide>
       <div className="space-y-4">
         <div className="grid gap-3 sm:grid-cols-4">
           <label className="text-sm">
-            Supplier
+            {t('common.supplier')}
             <select
-              aria-label="Supplier"
+              aria-label={t('common.supplier')}
               className={inputClass}
               value={supplierId}
               onChange={(e) => setSupplierId(e.target.value)}
             >
-              <option value="">Choose…</option>
+              <option value="">{t('purchasing.choose')}</option>
               {suppliers.data?.suppliers.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.name}
@@ -178,33 +174,33 @@ export function ReturnForm({
             </select>
           </label>
           <label className="text-sm">
-            Reason
+            {t('common.reason')}
             <select
-              aria-label="Reason"
+              aria-label={t('common.reason')}
               className={inputClass}
               value={reason}
               onChange={(e) => setReason(e.target.value)}
             >
-              {REASONS.map(([v, label]) => (
+              {REASONS.map((v) => (
                 <option key={v} value={v}>
-                  {label}
+                  {t(`purchasing.returnForm.reason.${v}`)}
                 </option>
               ))}
             </select>
           </label>
           <label className="text-sm">
-            Supplier credit note no.
+            {t('purchasing.returnForm.creditNoteLabel')}
             <input
-              aria-label="Credit note number"
+              aria-label={t('purchasing.returnForm.creditNoteAria')}
               className={inputClass}
               value={creditNoteNo}
               onChange={(e) => setCreditNoteNo(e.target.value)}
             />
           </label>
           <label className="text-sm">
-            Note
+            {t('purchasing.note')}
             <input
-              aria-label="Note"
+              aria-label={t('purchasing.note')}
               className={inputClass}
               value={note}
               onChange={(e) => setNote(e.target.value)}
@@ -214,9 +210,9 @@ export function ReturnForm({
 
         <div className="relative">
           <input
-            aria-label="Find item"
+            aria-label={t('purchasing.returnForm.findItemAria')}
             className={inputClass}
-            placeholder="Type an item name to choose the batch to return"
+            placeholder={t('purchasing.returnForm.findItemPlaceholder')}
             value={q}
             onChange={(e) => setQ(e.target.value)}
           />
@@ -230,7 +226,7 @@ export function ReturnForm({
                     onClick={() => void pickItem(f)}
                   >
                     <span>{f.name}</span>
-                    <span className="font-mono text-xs text-muted">{f.sku}</span>
+                    <bdi className="font-mono text-xs text-muted">{f.sku}</bdi>
                   </button>
                 </li>
               ))}
@@ -240,7 +236,9 @@ export function ReturnForm({
 
         {picking ? (
           <div className="rounded-[10px] border border-primary-600 bg-primary-50 p-3">
-            <p className="mb-2 text-sm font-medium">Batches of {picking.name}</p>
+            <p className="mb-2 text-sm font-medium">
+              {t('purchasing.returnForm.batchesOf', { name: picking.name })}
+            </p>
             <div className="flex flex-wrap gap-2">
               {picking.batches.map((b) => (
                 <button
@@ -250,8 +248,12 @@ export function ReturnForm({
                   onClick={() => addBatch(b)}
                   className="rounded-[6px] border border-primary-600 bg-white px-3 py-1 text-start text-sm hover:bg-primary-50 disabled:opacity-40"
                 >
-                  <span className="font-mono">{b.batchNo}</span> · exp {b.expiryDate} ·{' '}
-                  {b.available} in stock
+                  <bdi className="font-mono">{b.batchNo}</bdi>
+                  {' · '}
+                  {t('purchasing.returnForm.batchMeta', {
+                    expiry: b.expiryDate,
+                    available: b.available,
+                  })}
                 </button>
               ))}
             </div>
@@ -260,15 +262,15 @@ export function ReturnForm({
 
         <div className="max-h-[35vh] overflow-auto rounded-[10px] border border-border">
           <table className="w-full text-sm">
-            <thead className="sticky top-0 bg-surface-2 text-left text-xs uppercase text-muted">
+            <thead className="sticky top-0 bg-surface-2 text-start text-xs uppercase text-muted">
               <tr>
-                <th className="px-2 py-2">Item</th>
-                <th>Batch</th>
-                <th>Expiry</th>
-                <th className="text-end">In stock</th>
-                <th>Unit</th>
-                <th>Return qty</th>
-                <th className="text-end">Credit</th>
+                <th className="px-2 py-2">{t('common.item')}</th>
+                <th>{t('purchasing.col.batch')}</th>
+                <th>{t('purchasing.col.expiry')}</th>
+                <th className="text-end">{t('purchasing.returnForm.inStock')}</th>
+                <th>{t('purchasing.col.unit')}</th>
+                <th>{t('purchasing.returnForm.returnQty')}</th>
+                <th className="text-end">{t('purchasing.col.credit')}</th>
                 <th />
               </tr>
             </thead>
@@ -278,12 +280,14 @@ export function ReturnForm({
                 return (
                   <tr key={l.key} className="border-t border-border">
                     <td className="px-2 py-1 font-medium">{l.itemName}</td>
-                    <td className="font-mono text-xs">{l.batch.batchNo}</td>
+                    <td className="font-mono text-xs">
+                      <bdi>{l.batch.batchNo}</bdi>
+                    </td>
                     <td>{l.batch.expiryDate}</td>
                     <td className="text-end tabular-nums">{l.batch.available}</td>
                     <td>
                       <select
-                        aria-label="Unit"
+                        aria-label={t('purchasing.col.unit')}
                         className={cell}
                         value={l.unitId}
                         onChange={(e) => patch(l.key, { unitId: e.target.value })}
@@ -298,7 +302,7 @@ export function ReturnForm({
                     </td>
                     <td>
                       <input
-                        aria-label="Return quantity"
+                        aria-label={t('purchasing.returnForm.returnQuantityAria')}
                         className={`${cell} w-20 ${b !== null && b > l.batch.available ? 'border-danger' : ''}`}
                         inputMode="numeric"
                         value={l.qty}
@@ -312,7 +316,7 @@ export function ReturnForm({
                       <Button
                         variant="ghost"
                         className="h-8 px-2 text-danger"
-                        aria-label="Remove row"
+                        aria-label={t('purchasing.form.removeRow')}
                         onClick={() => setLines((p) => p.filter((x) => x.key !== l.key))}
                       >
                         ✕
@@ -324,7 +328,7 @@ export function ReturnForm({
               {lines.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="px-3 py-8 text-center text-muted">
-                    Search for an item and choose the batch that is going back.
+                    {t('purchasing.returnForm.empty')}
                   </td>
                 </tr>
               ) : null}
@@ -335,15 +339,15 @@ export function ReturnForm({
         <div className="flex items-end justify-between gap-3">
           <ErrorText message={error} />
           <p className="ms-auto text-2xl font-bold tabular-nums" data-testid="return-total">
-            Credit PKR {pkr(total)}
+            {t('purchasing.returnForm.credit')} <bdi>PKR {pkr(total)}</bdi>
           </p>
         </div>
         <div className="flex justify-end gap-2">
           <Button variant="outline" onClick={onClose}>
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button onClick={() => void save()} disabled={busy || !ready}>
-            {busy ? 'Saving…' : 'Return goods'}
+            {busy ? t('common.saving') : t('purchasing.returnForm.returnGoods')}
           </Button>
         </div>
       </div>

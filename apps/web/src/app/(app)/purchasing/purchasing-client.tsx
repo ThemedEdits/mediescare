@@ -2,9 +2,10 @@
 
 import { useState } from 'react';
 import { api, Badge, Button, inputClass, NameDialog, useAsync } from '@/components/ui';
+import { useT } from '@/i18n/client';
 import { pkr } from '@/lib/format';
 import { ReceiveForm, type ReceivePo } from '../stock/receive-form';
-import { PoDetail, PO_TONE, type PoView } from './po-detail';
+import { PoDetail, PO_TONE, useStatusLabel, type PoView } from './po-detail';
 import { PoForm, type EditablePo } from './po-form';
 import { ReturnForm } from './return-form';
 import { ReturnsTab } from './returns-tab';
@@ -57,11 +58,12 @@ interface BalanceRow {
 }
 
 export function PurchasingClient({ branchName, can }: { branchName: string; can: PurchasingCan }) {
+  const t = useT();
   const tabs: [Tab, string, boolean][] = [
-    ['orders', 'Purchase orders', can.viewOrders],
-    ['bills', 'Supplier bills', can.viewBills],
-    ['returns', 'Returns to suppliers', can.viewReturns],
-    ['suppliers', 'Suppliers & payments', can.viewAccounts],
+    ['orders', t('purchasing.tabs.orders'), can.viewOrders],
+    ['bills', t('purchasing.tabs.bills'), can.viewBills],
+    ['returns', t('purchasing.tabs.returns'), can.viewReturns],
+    ['suppliers', t('purchasing.tabs.suppliers'), can.viewAccounts],
   ];
   const visible = tabs.filter(([, , ok]) => ok);
   const [tab, setTab] = useState<Tab>(visible[0]?.[0] ?? 'orders');
@@ -79,19 +81,19 @@ export function PurchasingClient({ branchName, can }: { branchName: string; can:
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-2xl font-semibold">Purchasing</h1>
+        <h1 className="text-2xl font-semibold">{t('purchasing.title')}</h1>
         <div className="flex gap-2">
           {can.createOrder ? (
-            <Button onClick={() => setPoForm({})}>New purchase order</Button>
+            <Button onClick={() => setPoForm({})}>{t('purchasing.actions.newOrder')}</Button>
           ) : null}
           {can.receive ? (
             <Button variant="outline" onClick={() => setReceivePo('new')}>
-              Add stock without an order
+              {t('purchasing.actions.addStockNoOrder')}
             </Button>
           ) : null}
           {can.createReturn ? (
             <Button variant="outline" onClick={() => setReturning(true)}>
-              Return to supplier
+              {t('purchasing.actions.returnToSupplier')}
             </Button>
           ) : null}
         </div>
@@ -133,7 +135,11 @@ export function PurchasingClient({ branchName, can }: { branchName: string; can:
           onClose={() => setPoForm(null)}
           onSaved={(docNo) => {
             setPoForm(null);
-            setToast(docNo ? `Order ${docNo} saved as a draft.` : 'Order updated.');
+            setToast(
+              docNo
+                ? t('purchasing.toast.orderSaved', { docNo })
+                : t('purchasing.toast.orderUpdated'),
+            );
             if (poForm.order) setOpenPo(poForm.order.id);
             refresh();
           }}
@@ -159,7 +165,7 @@ export function PurchasingClient({ branchName, can }: { branchName: string; can:
           onClose={() => setReceivePo(null)}
           onSaved={(docNo) => {
             setReceivePo(null);
-            setToast(`Stock received as ${docNo}.`);
+            setToast(t('purchasing.toast.stockReceived', { docNo }));
             refresh();
           }}
         />
@@ -169,7 +175,7 @@ export function PurchasingClient({ branchName, can }: { branchName: string; can:
           onClose={() => setReturning(false)}
           onSaved={(docNo) => {
             setReturning(false);
-            setToast(`Goods returned as ${docNo}.`);
+            setToast(t('purchasing.toast.goodsReturned', { docNo }));
             refresh();
           }}
         />
@@ -185,8 +191,8 @@ export function PurchasingClient({ branchName, can }: { branchName: string; can:
       ) : null}
       {addingSupplier ? (
         <NameDialog
-          title="New supplier"
-          label="Supplier name"
+          title={t('purchasing.newSupplier')}
+          label={t('purchasing.supplierName')}
           onClose={() => setAddingSupplier(false)}
           onSubmit={async (name) => {
             await api('/api/suppliers', { body: { name } });
@@ -201,9 +207,11 @@ export function PurchasingClient({ branchName, can }: { branchName: string; can:
 
 const th = 'px-3 py-2';
 const tableWrap = 'overflow-x-auto rounded-[10px] border border-border';
-const thead = 'bg-surface-2 text-left text-xs uppercase text-muted';
+const thead = 'bg-surface-2 text-start text-xs uppercase text-muted';
 
 function OrdersTab({ version, onOpen }: { version: number; onOpen: (id: string) => void }) {
+  const t = useT();
+  const statusLabel = useStatusLabel();
   const [status, setStatus] = useState('');
   const [q, setQ] = useState('');
   const { data, error } = useAsync(
@@ -217,22 +225,22 @@ function OrdersTab({ version, onOpen }: { version: number; onOpen: (id: string) 
     <div className="space-y-3">
       <div className="flex gap-2">
         <input
-          aria-label="Search orders"
+          aria-label={t('purchasing.orders.searchAria')}
           className={`${inputClass} max-w-xs`}
-          placeholder="Order no. or supplier"
+          placeholder={t('purchasing.orders.searchPlaceholder')}
           value={q}
           onChange={(e) => setQ(e.target.value)}
         />
         <select
-          aria-label="Status"
+          aria-label={t('common.status')}
           className={`${inputClass} max-w-44`}
           value={status}
           onChange={(e) => setStatus(e.target.value)}
         >
-          <option value="">All statuses</option>
+          <option value="">{t('purchasing.orders.allStatuses')}</option>
           {(['draft', 'approved', 'partial', 'received', 'cancelled'] as const).map((s) => (
             <option key={s} value={s}>
-              {s}
+              {statusLabel(s)}
             </option>
           ))}
         </select>
@@ -246,13 +254,13 @@ function OrdersTab({ version, onOpen }: { version: number; onOpen: (id: string) 
         <table className="w-full text-sm">
           <thead className={thead}>
             <tr>
-              <th className={th}>Order</th>
-              <th>Date</th>
-              <th>Supplier</th>
-              <th>Expected</th>
-              <th className="text-end">Items</th>
-              <th className="text-end">Amount</th>
-              <th className={th}>Status</th>
+              <th className={th}>{t('purchasing.orders.order')}</th>
+              <th>{t('common.date')}</th>
+              <th>{t('common.supplier')}</th>
+              <th>{t('purchasing.orders.expected')}</th>
+              <th className="text-end">{t('purchasing.orders.items')}</th>
+              <th className="text-end">{t('purchasing.col.amount')}</th>
+              <th className={th}>{t('common.status')}</th>
             </tr>
           </thead>
           <tbody>
@@ -262,21 +270,23 @@ function OrdersTab({ version, onOpen }: { version: number; onOpen: (id: string) 
                 className="cursor-pointer border-t border-border hover:bg-primary-50"
                 onClick={() => onOpen(r.id)}
               >
-                <td className={`${th} font-mono text-xs`}>{r.docNo}</td>
+                <td className={`${th} font-mono text-xs`}>
+                  <bdi>{r.docNo}</bdi>
+                </td>
                 <td>{r.createdAt.slice(0, 10)}</td>
                 <td className="font-medium">{r.supplierName}</td>
                 <td>{r.expectedDate ?? '–'}</td>
                 <td className="text-end tabular-nums">{r.lineCount}</td>
                 <td className="text-end tabular-nums">{pkr(r.subTotalMinor)}</td>
                 <td className={th}>
-                  <Badge tone={PO_TONE[r.status]}>{r.status}</Badge>
+                  <Badge tone={PO_TONE[r.status]}>{statusLabel(r.status)}</Badge>
                 </td>
               </tr>
             ))}
             {data && data.rows.length === 0 ? (
               <tr>
                 <td colSpan={7} className="px-3 py-10 text-center text-muted">
-                  No purchase orders yet. Create one, or use “Fill from low stock” inside it.
+                  {t('purchasing.orders.empty')}
                 </td>
               </tr>
             ) : null}
@@ -288,6 +298,7 @@ function OrdersTab({ version, onOpen }: { version: number; onOpen: (id: string) 
 }
 
 function BillsTab({ version }: { version: number }) {
+  const t = useT();
   const [q, setQ] = useState('');
   const [unpaid, setUnpaid] = useState(false);
   const { data, error } = useAsync(
@@ -301,15 +312,15 @@ function BillsTab({ version }: { version: number }) {
     <div className="space-y-3">
       <div className="flex items-center gap-3">
         <input
-          aria-label="Search bills"
+          aria-label={t('purchasing.bills.searchAria')}
           className={`${inputClass} max-w-xs`}
-          placeholder="Bill no., invoice no. or supplier"
+          placeholder={t('purchasing.bills.searchPlaceholder')}
           value={q}
           onChange={(e) => setQ(e.target.value)}
         />
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" checked={unpaid} onChange={(e) => setUnpaid(e.target.checked)} />{' '}
-          Unpaid only
+          {t('purchasing.bills.unpaidOnly')}
         </label>
       </div>
       {error ? (
@@ -321,31 +332,37 @@ function BillsTab({ version }: { version: number }) {
         <table className="w-full text-sm">
           <thead className={thead}>
             <tr>
-              <th className={th}>Bill</th>
-              <th>Date</th>
-              <th>Supplier</th>
-              <th>Supplier invoice</th>
-              <th>Order</th>
-              <th className="text-end">Payable</th>
-              <th className="text-end">Paid</th>
-              <th className={`${th} text-end`}>Due</th>
+              <th className={th}>{t('purchasing.bills.bill')}</th>
+              <th>{t('common.date')}</th>
+              <th>{t('common.supplier')}</th>
+              <th>{t('purchasing.bills.supplierInvoice')}</th>
+              <th>{t('purchasing.bills.order')}</th>
+              <th className="text-end">{t('purchasing.bills.payable')}</th>
+              <th className="text-end">{t('purchasing.bills.paid')}</th>
+              <th className={`${th} text-end`}>{t('purchasing.bills.due')}</th>
             </tr>
           </thead>
           <tbody>
             {data?.rows.map((r) => (
               <tr key={r.id} className="border-t border-border">
-                <td className={`${th} font-mono text-xs`}>{r.docNo}</td>
+                <td className={`${th} font-mono text-xs`}>
+                  <bdi>{r.docNo}</bdi>
+                </td>
                 <td>{r.createdAt.slice(0, 10)}</td>
                 <td className="font-medium">{r.supplierName}</td>
-                <td>{r.supplierInvoiceNo ?? '–'}</td>
-                <td className="font-mono text-xs">{r.poDocNo ?? '–'}</td>
+                <td>
+                  <bdi>{r.supplierInvoiceNo ?? '–'}</bdi>
+                </td>
+                <td className="font-mono text-xs">
+                  <bdi>{r.poDocNo ?? '–'}</bdi>
+                </td>
                 <td className="text-end tabular-nums">{pkr(r.payableMinor)}</td>
                 <td className="text-end tabular-nums">{pkr(r.paidMinor)}</td>
                 <td className={`${th} text-end font-medium tabular-nums`}>
                   {r.outstandingMinor > 0 ? (
                     pkr(r.outstandingMinor)
                   ) : (
-                    <Badge tone="success">Paid</Badge>
+                    <Badge tone="success">{t('purchasing.bills.paid')}</Badge>
                   )}
                 </td>
               </tr>
@@ -353,7 +370,7 @@ function BillsTab({ version }: { version: number }) {
             {data && data.rows.length === 0 ? (
               <tr>
                 <td colSpan={8} className="px-3 py-10 text-center text-muted">
-                  No supplier bills found.
+                  {t('purchasing.bills.empty')}
                 </td>
               </tr>
             ) : null}
@@ -373,6 +390,7 @@ function SuppliersTab({
   onOpen: (id: string) => void;
   onAdd?: () => void;
 }) {
+  const t = useT();
   const [q, setQ] = useState('');
   const [owing, setOwing] = useState(false);
   const { data, error } = useAsync(
@@ -387,23 +405,26 @@ function SuppliersTab({
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-3">
         <input
-          aria-label="Search suppliers"
+          aria-label={t('purchasing.suppliers.searchAria')}
           className={`${inputClass} max-w-xs`}
-          placeholder="Supplier name"
+          placeholder={t('purchasing.supplierName')}
           value={q}
           onChange={(e) => setQ(e.target.value)}
         />
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" checked={owing} onChange={(e) => setOwing(e.target.checked)} />{' '}
-          Only with a balance
+          {t('purchasing.suppliers.onlyWithBalance')}
         </label>
         {onAdd ? (
           <Button variant="outline" onClick={onAdd}>
-            Add supplier
+            {t('purchasing.suppliers.add')}
           </Button>
         ) : null}
         <p className="ms-auto text-sm text-muted">
-          Total payable: <strong className="text-slate-900">PKR {pkr(totalOwed)}</strong>
+          {t('purchasing.suppliers.totalPayable')}{' '}
+          <strong className="text-slate-900">
+            <bdi>PKR {pkr(totalOwed)}</bdi>
+          </strong>
         </p>
       </div>
       {error ? (
@@ -415,11 +436,11 @@ function SuppliersTab({
         <table className="w-full text-sm">
           <thead className={thead}>
             <tr>
-              <th className={th}>Supplier</th>
-              <th>Phone</th>
-              <th className="text-end">Terms</th>
-              <th>Last payment</th>
-              <th className={`${th} text-end`}>We owe</th>
+              <th className={th}>{t('purchasing.suppliers.supplier')}</th>
+              <th>{t('purchasing.suppliers.phone')}</th>
+              <th className="text-end">{t('purchasing.suppliers.terms')}</th>
+              <th>{t('purchasing.suppliers.lastPayment')}</th>
+              <th className={`${th} text-end`}>{t('purchasing.suppliers.weOwe')}</th>
             </tr>
           </thead>
           <tbody>
@@ -430,8 +451,12 @@ function SuppliersTab({
                 onClick={() => onOpen(b.supplierId)}
               >
                 <td className={`${th} font-medium`}>{b.name}</td>
-                <td>{b.phone ?? '–'}</td>
-                <td className="text-end tabular-nums">{b.termsDays} d</td>
+                <td>
+                  <bdi>{b.phone ?? '–'}</bdi>
+                </td>
+                <td className="text-end tabular-nums">
+                  {t('purchasing.suppliers.termsDays', { days: b.termsDays })}
+                </td>
                 <td>{b.lastPaymentAt?.slice(0, 10) ?? '–'}</td>
                 <td className={`${th} text-end font-medium tabular-nums`}>{pkr(b.balanceMinor)}</td>
               </tr>
@@ -439,7 +464,7 @@ function SuppliersTab({
             {data && data.balances.length === 0 ? (
               <tr>
                 <td colSpan={5} className="px-3 py-10 text-center text-muted">
-                  No suppliers found.
+                  {t('purchasing.suppliers.empty')}
                 </td>
               </tr>
             ) : null}

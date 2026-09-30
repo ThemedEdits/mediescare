@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { lineAmountMinor, unitRateFromPack } from '@mediescare/core/money';
-import { api, Button, ErrorText, inputClass, Modal, useAsync } from '@/components/ui';
+import { api, Button, ErrorText, inputClass, Modal, useAsync, useErrorText } from '@/components/ui';
+import { useT } from '@/i18n/client';
 import { pkr, rate, tryMicro } from '@/lib/format';
 
 interface Supplier {
@@ -67,6 +68,8 @@ export function PoForm({
   onClose: () => void;
   onSaved: (docNo: string | null) => void;
 }) {
+  const t = useT();
+  const errorText = useErrorText();
   const suppliers = useAsync(() => api<{ suppliers: Supplier[] }>('/api/suppliers'));
   const [supplierId, setSupplierId] = useState(order?.supplierId ?? '');
   const [expected, setExpected] = useState(order?.expectedDate ?? '');
@@ -90,12 +93,12 @@ export function PoForm({
 
   useEffect(() => {
     if (!q.trim()) return setFound([]);
-    const t = setTimeout(() => {
+    const timer = setTimeout(() => {
       api<{ rows: Found[] }>(`/api/items?q=${encodeURIComponent(q)}&pageSize=8`)
         .then((r) => setFound(r.rows))
         .catch(() => setFound([]));
     }, 150);
-    return () => clearTimeout(t);
+    return () => clearTimeout(timer);
   }, [q]);
 
   async function addItem(f: Found) {
@@ -120,7 +123,7 @@ export function PoForm({
       setQ('');
       setFound([]);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not add the item');
+      setError(errorText(e, 'purchasing.form.couldNotAddItem'));
     }
   }
 
@@ -140,10 +143,10 @@ export function PoForm({
           qty: String(s.suggestedQty),
           price: s.unitPriceMicro > 0 ? rate(s.unitPriceMicro) : '',
         }));
-      if (add.length === 0) setError('Nothing is low on stock right now.');
+      if (add.length === 0) setError(t('purchasing.form.nothingLow'));
       setLines((prev) => [...prev, ...add]);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not load suggestions');
+      setError(errorText(e, 'purchasing.form.couldNotLoadSuggestions'));
     }
   }
 
@@ -185,25 +188,29 @@ export function PoForm({
         onSaved(r.docNo);
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not save the order');
+      setError(errorText(e, 'purchasing.form.couldNotSaveOrder'));
       setBusy(false);
     }
   }
 
   const cell = 'h-9 rounded-[6px] border border-slate-400 bg-white px-2 text-sm';
   return (
-    <Modal title={order ? 'Edit purchase order' : 'New purchase order'} onClose={onClose} wide>
+    <Modal
+      title={order ? t('purchasing.form.editTitle') : t('purchasing.actions.newOrder')}
+      onClose={onClose}
+      wide
+    >
       <div className="space-y-4">
         <div className="grid gap-3 sm:grid-cols-3">
           <label className="text-sm">
-            Supplier
+            {t('common.supplier')}
             <select
-              aria-label="Supplier"
+              aria-label={t('common.supplier')}
               className={inputClass}
               value={supplierId}
               onChange={(e) => setSupplierId(e.target.value)}
             >
-              <option value="">Choose…</option>
+              <option value="">{t('purchasing.choose')}</option>
               {suppliers.data?.suppliers.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.name}
@@ -212,19 +219,19 @@ export function PoForm({
             </select>
           </label>
           <label className="text-sm">
-            Expected on
+            {t('purchasing.form.expectedOn')}
             <input
               type="date"
-              aria-label="Expected date"
+              aria-label={t('purchasing.form.expectedDateAria')}
               className={inputClass}
               value={expected}
               onChange={(e) => setExpected(e.target.value)}
             />
           </label>
           <label className="text-sm">
-            Note
+            {t('purchasing.note')}
             <input
-              aria-label="Note"
+              aria-label={t('purchasing.note')}
               className={inputClass}
               value={note}
               onChange={(e) => setNote(e.target.value)}
@@ -235,9 +242,9 @@ export function PoForm({
         <div className="flex gap-2">
           <div className="relative flex-1">
             <input
-              aria-label="Add item"
+              aria-label={t('purchasing.form.addItemAria')}
               className={inputClass}
-              placeholder="Type an item name to add a row"
+              placeholder={t('purchasing.form.addItemPlaceholder')}
               value={q}
               onChange={(e) => setQ(e.target.value)}
             />
@@ -251,7 +258,7 @@ export function PoForm({
                       onClick={() => void addItem(f)}
                     >
                       <span>{f.name}</span>
-                      <span className="font-mono text-xs text-muted">{f.sku}</span>
+                      <bdi className="font-mono text-xs text-muted">{f.sku}</bdi>
                     </button>
                   </li>
                 ))}
@@ -259,19 +266,19 @@ export function PoForm({
             ) : null}
           </div>
           <Button type="button" variant="outline" onClick={() => void fillFromLowStock()}>
-            Fill from low stock
+            {t('purchasing.form.fillLowStock')}
           </Button>
         </div>
 
         <div className="max-h-[45vh] overflow-auto rounded-[10px] border border-border">
           <table className="w-full text-sm">
-            <thead className="sticky top-0 bg-surface-2 text-left text-xs uppercase text-muted">
+            <thead className="sticky top-0 bg-surface-2 text-start text-xs uppercase text-muted">
               <tr>
-                <th className="px-2 py-2">Item</th>
-                <th>Unit</th>
-                <th>Qty</th>
-                <th>Price / unit</th>
-                <th className="text-end">Amount</th>
+                <th className="px-2 py-2">{t('common.item')}</th>
+                <th>{t('purchasing.col.unit')}</th>
+                <th>{t('purchasing.col.qty')}</th>
+                <th>{t('purchasing.form.priceUnitCol')}</th>
+                <th className="text-end">{t('purchasing.col.amount')}</th>
                 <th />
               </tr>
             </thead>
@@ -281,7 +288,7 @@ export function PoForm({
                   <td className="px-2 py-1 font-medium">{l.name}</td>
                   <td>
                     <select
-                      aria-label="Unit"
+                      aria-label={t('purchasing.col.unit')}
                       className={cell}
                       value={l.unitId}
                       onChange={(e) => patch(l.key, { unitId: e.target.value })}
@@ -296,7 +303,7 @@ export function PoForm({
                   </td>
                   <td>
                     <input
-                      aria-label="Quantity"
+                      aria-label={t('common.quantity')}
                       className={`${cell} w-20`}
                       inputMode="numeric"
                       value={l.qty}
@@ -305,7 +312,7 @@ export function PoForm({
                   </td>
                   <td>
                     <input
-                      aria-label="Price per unit"
+                      aria-label={t('purchasing.form.priceAria')}
                       className={`${cell} w-24 text-end`}
                       inputMode="decimal"
                       value={l.price}
@@ -319,7 +326,7 @@ export function PoForm({
                     <Button
                       variant="ghost"
                       className="h-8 px-2 text-danger"
-                      aria-label="Remove row"
+                      aria-label={t('purchasing.form.removeRow')}
                       onClick={() => setLines((p) => p.filter((x) => x.key !== l.key))}
                     >
                       ✕
@@ -330,7 +337,7 @@ export function PoForm({
               {lines.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="px-3 py-8 text-center text-muted">
-                    Search for an item, or use “Fill from low stock”.
+                    {t('purchasing.form.empty')}
                   </td>
                 </tr>
               ) : null}
@@ -341,15 +348,19 @@ export function PoForm({
         <div className="flex items-end justify-between gap-3">
           <ErrorText message={error} />
           <p className="ms-auto text-2xl font-bold tabular-nums" data-testid="po-total">
-            PKR {pkr(total)}
+            <bdi>PKR {pkr(total)}</bdi>
           </p>
         </div>
         <div className="flex justify-end gap-2">
           <Button variant="outline" onClick={onClose}>
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button onClick={() => void save()} disabled={busy || !ready}>
-            {busy ? 'Saving…' : order ? 'Save changes' : 'Save as draft'}
+            {busy
+              ? t('common.saving')
+              : order
+                ? t('purchasing.form.saveChanges')
+                : t('purchasing.form.saveAsDraft')}
           </Button>
         </div>
       </div>

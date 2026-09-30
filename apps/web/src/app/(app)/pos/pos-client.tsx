@@ -9,7 +9,17 @@ import {
   type PricedLine,
 } from '@mediescare/core/sales';
 import { unitRateFromPack } from '@mediescare/core/money';
-import { api, ApiError, Badge, Button, ErrorText, inputClass, useAsync } from '@/components/ui';
+import {
+  api,
+  ApiError,
+  Badge,
+  Button,
+  ErrorText,
+  inputClass,
+  useAsync,
+  useErrorText,
+} from '@/components/ui';
+import { useT } from '@/i18n/client';
 import { newKey, pkr, rate, tryMicro, tryMinor } from '@/lib/format';
 import { readPrintSettings, type ReceiptPaymentInput } from '@/lib/receipt';
 import {
@@ -80,6 +90,8 @@ export function PosClient({
   canHold: boolean;
   canMissed: boolean;
 }) {
+  const t = useT();
+  const errorText = useErrorText();
   const lookups = useAsync(() => api<Lookups>('/api/lookups'));
   const shiftState = useAsync(() => api<{ shift: Shift | null }>('/api/shifts/current'));
   const shift = shiftState.data?.shift ?? null;
@@ -119,7 +131,7 @@ export function PosClient({
     }
     const seq = ++searchSeq.current;
     setSearching(true);
-    const t = setTimeout(() => {
+    const timer = setTimeout(() => {
       api<{ hits: Hit[] }>(`/api/pos/search?q=${encodeURIComponent(q)}`)
         .then((r) => {
           if (seq === searchSeq.current) {
@@ -130,11 +142,11 @@ export function PosClient({
         })
         .catch(
           (e: unknown) =>
-            seq === searchSeq.current && setError(e instanceof Error ? e.message : 'Search failed'),
+            seq === searchSeq.current && setError(errorText(e, 'pos.err.searchFailed')),
         )
         .finally(() => seq === searchSeq.current && setSearching(false));
     }, 110);
-    return () => clearTimeout(t);
+    return () => clearTimeout(timer);
   }, [query]);
 
   function touchCart() {
@@ -172,10 +184,10 @@ export function PosClient({
       const pick = r.hits.find((h) => h.matchedByBarcode) ?? r.hits[0];
       if (pick) addHit(pick);
       else {
-        setError(`Nothing found for "${q}". Press F8 to record a missed sale.`);
+        setError(t('pos.err.nothingFound', { query: q }));
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Search failed');
+      setError(errorText(e, 'pos.err.searchFailed'));
     }
   }
 
@@ -198,7 +210,7 @@ export function PosClient({
       const priced: PricedLine[] = lines.map((l) => {
         const pct = l.discountPct.trim() === '' ? 0 : Number(l.discountPct);
         if (!Number.isFinite(pct) || pct < 0 || pct > 100)
-          throw new Error('Line discount must be between 0 and 100 percent');
+          throw new Error(t('pos.err.lineDiscountRange'));
         return {
           qtyBase: l.qty * unitOf(l).factorToBase,
           rateUnitMicro: rateBase(l),
@@ -209,7 +221,7 @@ export function PosClient({
       });
       const bp = billDiscPct.trim() === '' ? 0 : Math.floor(Number(billDiscPct) * 100 + 0.5);
       if (!Number.isFinite(bp) || bp < 0 || bp > 10_000)
-        throw new Error('Bill discount must be between 0 and 100 percent');
+        throw new Error(t('pos.err.billDiscountRange'));
       return {
         bill: computeBill({
           lines: priced,
@@ -219,9 +231,9 @@ export function PosClient({
         priced,
       };
     } catch (e) {
-      return { error: e instanceof Error ? e.message : 'Check the quantities and prices' };
+      return { error: e instanceof Error ? e.message : t('pos.err.checkQuantities') };
     }
-  }, [lines, billDiscPct, lookups.data?.rounding]);
+  }, [lines, billDiscPct, lookups.data?.rounding, t]);
 
   const grand = calc && 'bill' in calc ? calc.bill.grandTotalMinor : 0;
   const settlement = useMemo(() => {
@@ -237,9 +249,12 @@ export function PosClient({
     try {
       return { ok: true as const, ...settlePayments(grand, tendered, { allowDue: hasCredit }) };
     } catch (e) {
-      return { ok: false as const, message: e instanceof Error ? e.message : 'Check the payment' };
+      return {
+        ok: false as const,
+        message: e instanceof Error ? e.message : t('pos.err.checkPayment'),
+      };
     }
-  }, [calc, pays, modes, grand]);
+  }, [calc, pays, modes, grand, t]);
 
   const stockWarnings = useMemo(() => {
     const need = new Map<string, number>();
@@ -286,7 +301,7 @@ export function PosClient({
       void r;
       clearCart();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not hold this cart');
+      setError(errorText(e, 'pos.err.couldNotHold'));
     }
   }
 
@@ -313,7 +328,7 @@ export function PosClient({
       setDialog(null);
       focusSearch();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not open that cart');
+      setError(errorText(e, 'pos.err.couldNotOpenCart'));
     }
   }
 
@@ -326,7 +341,7 @@ export function PosClient({
       return;
     }
     if (!settlement || !settlement.ok) {
-      setError(settlement && !settlement.ok ? settlement.message : 'Enter the payment');
+      setError(settlement && !settlement.ok ? settlement.message : t('pos.err.enterPayment'));
       return;
     }
     setSaving(true);
@@ -394,7 +409,7 @@ export function PosClient({
         // The server says which approval is needed (discount above limit, price change, below cost).
         setDialog({ override: e.details as OverrideNeed });
       } else {
-        setError(e instanceof Error ? e.message : 'Could not save the sale');
+        setError(errorText(e, 'pos.err.couldNotSaleSave'));
       }
     } finally {
       setSaving(false);
@@ -472,22 +487,25 @@ export function PosClient({
       </main>
     );
   if (!shiftState.data)
-    return <main className="p-6 text-muted">{shiftState.error ?? 'Loading…'}</main>;
+    return <main className="p-6 text-muted">{shiftState.error ?? t('common.loading')}</main>;
 
   const due = settlement && settlement.ok ? settlement.dueMinor : grand;
   const change = settlement && settlement.ok ? settlement.changeMinor : 0;
 
   return (
-    <main className="flex min-h-[calc(100vh-57px)] flex-col gap-3 p-3" aria-label="Point of sale">
+    <main
+      className="flex min-h-[calc(100vh-57px)] flex-col gap-3 p-3"
+      aria-label={t('pos.ariaPos')}
+    >
       <div className="flex flex-wrap items-center gap-3 text-sm">
-        <Badge tone="success">Shift {shift?.docNo}</Badge>
+        <Badge tone="success">{t('pos.shift', { docNo: shift?.docNo ?? '' })}</Badge>
         <button
           type="button"
           className="rounded-[6px] border border-border px-3 py-1.5 hover:bg-primary-50"
           onClick={() => setDialog('customer')}
         >
-          <span className="text-muted">Customer </span>
-          <strong>{customer?.name ?? 'Walk-in customer'}</strong>{' '}
+          <span className="text-muted">{t('common.customer')} </span>
+          <strong>{customer?.name ?? t('pos.walkinCustomer')}</strong>{' '}
           <kbd className="text-xs text-muted">F2</kbd>
         </button>
         <span className="ms-auto flex flex-wrap gap-1">
@@ -498,19 +516,19 @@ export function PosClient({
               onClick={() => void holdCart()}
               disabled={lines.length === 0}
             >
-              Hold <kbd className="text-xs opacity-70">F4</kbd>
+              {t('pos.hold')} <kbd className="text-xs opacity-70">F4</kbd>
             </Button>
           ) : null}
           <Button variant="outline" className="h-9" onClick={() => setDialog('recall')}>
-            Recall <kbd className="text-xs opacity-70">F5</kbd>
+            {t('pos.recall')} <kbd className="text-xs opacity-70">F5</kbd>
           </Button>
           {canMissed ? (
             <Button variant="outline" className="h-9" onClick={() => setDialog('missed')}>
-              Missed sale <kbd className="text-xs opacity-70">F8</kbd>
+              {t('pos.missedSale')} <kbd className="text-xs opacity-70">F8</kbd>
             </Button>
           ) : null}
           <Button variant="outline" className="h-9" onClick={() => setDialog('close-shift')}>
-            Close shift <kbd className="text-xs opacity-70">F12</kbd>
+            {t('pos.closeShift')} <kbd className="text-xs opacity-70">F12</kbd>
           </Button>
         </span>
       </div>
@@ -519,9 +537,9 @@ export function PosClient({
         <input
           ref={searchRef}
           autoFocus
-          aria-label="Search item or scan barcode"
+          aria-label={t('pos.searchAria')}
           className={`${inputClass} h-12 text-lg`}
-          placeholder="Scan barcode or type item name (F3)"
+          placeholder={t('pos.searchPlaceholder')}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={(e) => {
@@ -557,14 +575,16 @@ export function PosClient({
                       {[h.genericName, h.strength, h.dosageForm].filter(Boolean).join(' · ')}
                     </span>
                     <span className="block text-xs text-muted">
-                      {h.rackCode ? `Rack ${h.rackCode} · ` : ''}
-                      {h.nearestExpiry ? `earliest expiry ${h.nearestExpiry}` : 'no sellable stock'}
+                      {h.rackCode ? `${t('pos.rack', { code: h.rackCode })} · ` : ''}
+                      {h.nearestExpiry
+                        ? t('pos.earliestExpiry', { date: h.nearestExpiry })
+                        : t('pos.noSellableStock')}
                     </span>
                   </span>
                   {h.isNarcotic ? (
-                    <Badge tone="danger">Controlled</Badge>
+                    <Badge tone="danger">{t('pos.controlled')}</Badge>
                   ) : h.isPrescription ? (
-                    <Badge tone="warning">Rx</Badge>
+                    <Badge tone="warning">{t('pos.rx')}</Badge>
                   ) : null}
                   <span className="text-end">
                     <span className="block font-semibold">
@@ -579,14 +599,16 @@ export function PosClient({
                     <span
                       className={`block text-xs ${h.sellableBase > 0 ? 'text-success' : 'text-danger'}`}
                     >
-                      {h.sellableBase > 0 ? `${h.sellableBase} in stock` : 'Out of stock'}
+                      {h.sellableBase > 0
+                        ? t('pos.inStock', { count: h.sellableBase })
+                        : t('pos.outOfStock')}
                     </span>
                   </span>
                 </button>
               </li>
             ))}
             {hits.length === 0 && searching ? (
-              <li className="px-4 py-3 text-sm text-muted">Searching…</li>
+              <li className="px-4 py-3 text-sm text-muted">{t('pos.searching')}</li>
             ) : null}
           </ul>
         ) : null}
@@ -594,24 +616,27 @@ export function PosClient({
       <ErrorText message={error} />
 
       <div className="grid flex-1 gap-3 lg:grid-cols-[1fr_20rem]">
-        <section className="overflow-x-auto rounded-[10px] border border-border" aria-label="Cart">
+        <section
+          className="overflow-x-auto rounded-[10px] border border-border"
+          aria-label={t('pos.ariaCart')}
+        >
           <table className="w-full text-sm">
-            <thead className="bg-surface-2 text-left text-xs uppercase text-muted">
+            <thead className="bg-surface-2 text-start text-xs uppercase text-muted">
               <tr>
                 <th className="px-3 py-2">#</th>
-                <th className="px-3 py-2">Item</th>
-                <th className="px-3 py-2">Unit</th>
-                <th className="px-3 py-2">Batch</th>
-                <th className="px-3 py-2 text-end">Price</th>
-                <th className="px-3 py-2">Qty</th>
-                <th className="px-3 py-2">Disc %</th>
-                <th className="px-3 py-2 text-end">Amount</th>
+                <th className="px-3 py-2">{t('common.item')}</th>
+                <th className="px-3 py-2">{t('pos.cart.unit')}</th>
+                <th className="px-3 py-2">{t('pos.cart.batch')}</th>
+                <th className="px-3 py-2 text-end">{t('common.price')}</th>
+                <th className="px-3 py-2">{t('pos.cart.qty')}</th>
+                <th className="px-3 py-2">{t('pos.cart.discPct')}</th>
+                <th className="px-3 py-2 text-end">{t('pos.cart.amount')}</th>
                 <th />
               </tr>
             </thead>
             <tbody>
               {lines.map((l, i) => {
-                const t = calc && 'bill' in calc ? calc.bill.lines[i] : undefined;
+                const lt = calc && 'bill' in calc ? calc.bill.lines[i] : undefined;
                 const unit = unitOf(l);
                 const sellable = l.hit.batches.filter((b) => b.expiry.state !== 'expired');
                 return (
@@ -627,19 +652,23 @@ export function PosClient({
                       {l.hit.isNarcotic ? (
                         <span className="ms-2">
                           <Badge tone={l.narcotic ? 'success' : 'danger'}>
-                            {l.narcotic ? 'Patient recorded' : 'Needs patient'}
+                            {l.narcotic
+                              ? t('pos.cart.patientRecorded')
+                              : t('pos.cart.needsPatient')}
                           </Badge>
                         </span>
                       ) : null}
                       {stockWarnings.has(l.key) ? (
                         <span className="ms-2">
-                          <Badge tone="danger">Only {l.hit.sellableBase} in stock</Badge>
+                          <Badge tone="danger">
+                            {t('pos.cart.onlyInStock', { count: l.hit.sellableBase })}
+                          </Badge>
                         </span>
                       ) : null}
                     </td>
                     <td className="px-3">
                       <select
-                        aria-label="Unit"
+                        aria-label={t('pos.cart.unit')}
                         className="h-9 rounded-[6px] border border-slate-400 bg-white px-1"
                         value={l.unitId}
                         onChange={(e) =>
@@ -656,23 +685,25 @@ export function PosClient({
                     </td>
                     <td className="px-3">
                       <select
-                        aria-label="Batch"
+                        aria-label={t('pos.cart.batch')}
                         className="h-9 max-w-40 rounded-[6px] border border-slate-400 bg-white px-1"
                         value={l.batchId ?? ''}
                         onChange={(e) => patchLine(l.key, { batchId: e.target.value || undefined })}
                       >
-                        <option value="">Auto (first expiry)</option>
+                        <option value="">{t('pos.cart.batchAuto')}</option>
                         {sellable.map((b) => (
                           <option key={b.id} value={b.id}>
                             {b.batchNo} [{b.available}] {b.expiryDate}
-                            {b.expiry.state === 'near' ? ` ⚠ ${b.expiry.daysLeft}d` : ''}
+                            {b.expiry.state === 'near'
+                              ? ` ⚠ ${t('pos.cart.daysShort', { count: b.expiry.daysLeft })}`
+                              : ''}
                           </option>
                         ))}
                       </select>
                     </td>
                     <td className="px-3 text-end">
                       <input
-                        aria-label="Price"
+                        aria-label={t('common.price')}
                         className="h-9 w-24 rounded-[6px] border border-slate-400 px-2 text-end"
                         inputMode="decimal"
                         value={l.rateText ?? rate(l.hit.retailRateUnitMicro * unit.factorToBase)}
@@ -681,7 +712,7 @@ export function PosClient({
                     </td>
                     <td className="px-3">
                       <input
-                        aria-label="Quantity"
+                        aria-label={t('common.quantity')}
                         type="number"
                         min={1}
                         className="h-9 w-20 rounded-[6px] border border-slate-400 px-2 text-center font-semibold"
@@ -695,14 +726,14 @@ export function PosClient({
                     </td>
                     <td className="px-3">
                       <input
-                        aria-label="Discount percent"
+                        aria-label={t('pos.cart.discountPercent')}
                         className="h-9 w-16 rounded-[6px] border border-slate-400 px-2 text-center"
                         inputMode="decimal"
                         value={l.discountPct}
                         onChange={(e) => patchLine(l.key, { discountPct: e.target.value })}
                       />
                     </td>
-                    <td className="px-3 text-end font-semibold">{t ? pkr(t.netMinor) : '–'}</td>
+                    <td className="px-3 text-end font-semibold">{lt ? pkr(lt.netMinor) : '–'}</td>
                     <td className="px-2 text-end">
                       {l.hit.isNarcotic ? (
                         <Button
@@ -710,13 +741,13 @@ export function PosClient({
                           className="h-8 px-2"
                           onClick={() => setDialog({ narcotic: l.key })}
                         >
-                          Patient
+                          {t('pos.cart.patient')}
                         </Button>
                       ) : null}
                       <Button
                         variant="ghost"
                         className="h-8 px-2 text-danger"
-                        aria-label="Remove line"
+                        aria-label={t('pos.cart.removeLine')}
                         onClick={() => removeLine(l.key)}
                       >
                         ✕
@@ -728,7 +759,7 @@ export function PosClient({
               {lines.length === 0 ? (
                 <tr>
                   <td colSpan={9} className="px-3 py-16 text-center text-muted">
-                    Scan a barcode or type an item name to start a sale.
+                    {t('pos.cart.empty')}
                   </td>
                 </tr>
               ) : null}
@@ -741,10 +772,10 @@ export function PosClient({
           ) : null}
         </section>
 
-        <aside className="space-y-3" aria-label="Totals and payment">
+        <aside className="space-y-3" aria-label={t('pos.ariaTotals')}>
           <div className="rounded-[10px] border border-border bg-surface p-4">
             <Line
-              label="Sub-total"
+              label={t('pos.totals.subTotal')}
               value={
                 calc && 'bill' in calc
                   ? pkr(calc.bill.grossMinor - calc.bill.lineDiscountMinor)
@@ -752,9 +783,9 @@ export function PosClient({
               }
             />
             <label className="my-1 flex items-center justify-between text-sm">
-              <span className="text-muted">Bill discount %</span>
+              <span className="text-muted">{t('pos.totals.billDiscountPct')}</span>
               <input
-                aria-label="Bill discount percent"
+                aria-label={t('pos.totals.billDiscountAria')}
                 className="h-8 w-20 rounded-[6px] border border-slate-400 px-2 text-end"
                 inputMode="decimal"
                 value={billDiscPct}
@@ -765,16 +796,16 @@ export function PosClient({
               />
             </label>
             {calc && 'bill' in calc && calc.bill.totalDiscountMinor > 0 ? (
-              <Line label="Discount" value={`-${pkr(calc.bill.totalDiscountMinor)}`} />
+              <Line label={t('common.discount')} value={`-${pkr(calc.bill.totalDiscountMinor)}`} />
             ) : null}
             {calc && 'bill' in calc && calc.bill.taxMinor > 0 ? (
-              <Line label="Tax" value={pkr(calc.bill.taxMinor)} />
+              <Line label={t('pos.totals.tax')} value={pkr(calc.bill.taxMinor)} />
             ) : null}
             {calc && 'bill' in calc && calc.bill.roundingMinor !== 0 ? (
-              <Line label="Rounding" value={pkr(calc.bill.roundingMinor)} />
+              <Line label={t('pos.totals.rounding')} value={pkr(calc.bill.roundingMinor)} />
             ) : null}
             <div className="mt-2 border-t border-border pt-2">
-              <p className="text-xs uppercase text-muted">Grand total (PKR)</p>
+              <p className="text-xs uppercase text-muted">{t('pos.totals.grandTotal')}</p>
               <p className="text-4xl font-bold tabular-nums" data-testid="grand-total">
                 {pkr(grand)}
               </p>
@@ -783,13 +814,13 @@ export function PosClient({
 
           <div className="space-y-2 rounded-[10px] border border-border p-3">
             <div className="flex items-center justify-between text-sm">
-              <strong>Payment</strong>
-              <span className="text-xs text-muted">F9 = exact cash</span>
+              <strong>{t('pos.payment.title')}</strong>
+              <span className="text-xs text-muted">{t('pos.payment.exactHint')}</span>
             </div>
             {pays.map((p, i) => (
               <div key={p.key} className="flex gap-1">
                 <select
-                  aria-label="Payment method"
+                  aria-label={t('pos.payment.method')}
                   className="h-10 flex-1 rounded-[6px] border border-slate-400 bg-white px-1 text-sm"
                   value={p.modeId}
                   onChange={(e) =>
@@ -806,7 +837,7 @@ export function PosClient({
                 </select>
                 <input
                   ref={i === 0 ? cashRef : undefined}
-                  aria-label="Amount received"
+                  aria-label={t('pos.payment.received')}
                   className="h-10 w-28 rounded-[6px] border border-slate-400 px-2 text-end text-lg"
                   inputMode="decimal"
                   value={p.amount}
@@ -819,7 +850,7 @@ export function PosClient({
                 <Button
                   variant="ghost"
                   className="h-10 px-2 text-danger"
-                  aria-label="Remove payment"
+                  aria-label={t('pos.payment.remove')}
                   onClick={() => setPays((prev) => prev.filter((x) => x.key !== p.key))}
                 >
                   ✕
@@ -834,7 +865,7 @@ export function PosClient({
                   onClick={setExactCash}
                   disabled={grand <= 0}
                 >
-                  Exact cash
+                  {t('pos.payment.exactCash')}
                 </Button>
               ) : null}
               <Button
@@ -856,12 +887,12 @@ export function PosClient({
                   ])
                 }
               >
-                + Add payment
+                {t('pos.payment.add')}
               </Button>
             </div>
             <div className="grid grid-cols-2 gap-2 pt-1 text-center">
               <div className="rounded-[6px] bg-surface p-2">
-                <p className="text-xs text-muted">Due</p>
+                <p className="text-xs text-muted">{t('pos.payment.due')}</p>
                 <p
                   className={`text-xl font-bold ${due > 0 && pays.length > 0 ? 'text-danger' : ''}`}
                   data-testid="due"
@@ -870,7 +901,7 @@ export function PosClient({
                 </p>
               </div>
               <div className="rounded-[6px] bg-surface p-2">
-                <p className="text-xs text-muted">Change</p>
+                <p className="text-xs text-muted">{t('pos.payment.change')}</p>
                 <p className="text-xl font-bold text-success" data-testid="change">
                   {pkr(change)}
                 </p>
@@ -882,9 +913,9 @@ export function PosClient({
           </div>
 
           <input
-            aria-label="Invoice note"
+            aria-label={t('pos.invoiceNote')}
             className={inputClass}
-            placeholder="Invoice note (optional)"
+            placeholder={t('pos.invoiceNotePlaceholder')}
             value={note}
             onChange={(e) => setNote(e.target.value)}
           />
@@ -895,14 +926,14 @@ export function PosClient({
               onClick={clearCart}
               disabled={lines.length === 0}
             >
-              Clear
+              {t('pos.clear')}
             </Button>
             <Button
               className="h-12 flex-[2] text-base"
               onClick={() => void save()}
               disabled={saving || lines.length === 0 || !calc || 'error' in calc}
             >
-              {saving ? 'Saving…' : 'Save (F10)'}
+              {saving ? t('common.saving') : t('pos.saveF10')}
             </Button>
           </div>
         </aside>

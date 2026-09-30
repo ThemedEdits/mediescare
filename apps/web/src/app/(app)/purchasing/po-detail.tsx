@@ -2,7 +2,17 @@
 
 import { useState } from 'react';
 import { lineAmountMinor, unitRateFromPack } from '@mediescare/core/money';
-import { api, Badge, Button, ErrorText, Modal, NameDialog, useAsync } from '@/components/ui';
+import {
+  api,
+  Badge,
+  Button,
+  ErrorText,
+  Modal,
+  NameDialog,
+  useAsync,
+  useErrorText,
+} from '@/components/ui';
+import { useT } from '@/i18n/client';
 import { pkr, rate } from '@/lib/format';
 import type { EditablePo } from './po-form';
 import type { ReceivePo } from '../stock/receive-form';
@@ -45,6 +55,13 @@ export const PO_TONE = {
   cancelled: 'danger',
 } as const;
 
+/** Status text for a purchase-order status value; unknown values show as they are. */
+export function useStatusLabel(): (status: string) => string {
+  const t = useT();
+  return (status) =>
+    t.has(`purchasing.status.${status}`) ? t(`purchasing.status.${status}`) : status;
+}
+
 export function PoDetail({
   id,
   branchName,
@@ -66,6 +83,9 @@ export function PoDetail({
   onEdit: (po: EditablePo) => void;
   onReceive: (po: ReceivePo) => void;
 }) {
+  const t = useT();
+  const errorText = useErrorText();
+  const statusLabel = useStatusLabel();
   const {
     data,
     error: loadError,
@@ -82,7 +102,7 @@ export function PoDetail({
       reload();
       onChanged();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not approve');
+      setError(errorText(e, 'purchasing.detail.couldNotApprove'));
     }
   }
 
@@ -90,7 +110,15 @@ export function PoDetail({
     lineAmountMinor(l.orderedBase, unitRateFromPack(l.unitPriceMicro, l.factorToBase));
 
   return (
-    <Modal title={po ? `Purchase order ${po.docNo}` : 'Purchase order'} onClose={onClose} wide>
+    <Modal
+      title={
+        po
+          ? t('purchasing.detail.title', { docNo: po.docNo })
+          : t('purchasing.detail.titleFallback')
+      }
+      onClose={onClose}
+      wide
+    >
       <style>{'@media print { @page { size: A4; margin: 14mm; } }'}</style>
       <ErrorText message={loadError ?? error} />
       {po ? (
@@ -98,42 +126,50 @@ export function PoDetail({
           <div id="doc-print" className="space-y-3">
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-lg font-semibold">{branchName} · Purchase order</p>
-                <p className="font-mono text-sm">{po.docNo}</p>
+                <p className="text-lg font-semibold">
+                  {t('purchasing.detail.heading', { branch: branchName })}
+                </p>
+                <p className="font-mono text-sm">
+                  <bdi>{po.docNo}</bdi>
+                </p>
               </div>
-              <Badge tone={PO_TONE[po.status]}>{po.status}</Badge>
+              <Badge tone={PO_TONE[po.status]}>{statusLabel(po.status)}</Badge>
             </div>
             <div className="grid gap-1 text-sm sm:grid-cols-2">
               <p>
-                <span className="text-muted">Supplier: </span>
+                <span className="text-muted">{t('purchasing.detail.supplierLabel')} </span>
                 <strong>{po.supplierName}</strong>
               </p>
               <p>
-                <span className="text-muted">Date: </span>
+                <span className="text-muted">{t('purchasing.detail.dateLabel')} </span>
                 {po.createdAt.slice(0, 10)}
               </p>
               <p>
-                <span className="text-muted">Expected: </span>
+                <span className="text-muted">{t('purchasing.detail.expectedLabel')} </span>
                 {po.expectedDate ?? '–'}
               </p>
               {po.note ? (
                 <p>
-                  <span className="text-muted">Note: </span>
+                  <span className="text-muted">{t('purchasing.detail.noteLabel')} </span>
                   {po.note}
                 </p>
               ) : null}
-              {po.cancelReason ? <p className="text-danger">Cancelled: {po.cancelReason}</p> : null}
+              {po.cancelReason ? (
+                <p className="text-danger">
+                  {t('purchasing.detail.cancelled', { reason: po.cancelReason })}
+                </p>
+              ) : null}
             </div>
             <table className="w-full text-sm">
-              <thead className="border-b border-border text-left text-xs uppercase text-muted">
+              <thead className="border-b border-border text-start text-xs uppercase text-muted">
                 <tr>
                   <th className="py-1">#</th>
-                  <th>Item</th>
-                  <th>Unit</th>
-                  <th className="text-end">Ordered</th>
-                  <th className="text-end">Received</th>
-                  <th className="text-end">Price</th>
-                  <th className="text-end">Amount</th>
+                  <th>{t('common.item')}</th>
+                  <th>{t('purchasing.col.unit')}</th>
+                  <th className="text-end">{t('purchasing.detail.ordered')}</th>
+                  <th className="text-end">{t('purchasing.detail.received')}</th>
+                  <th className="text-end">{t('common.price')}</th>
+                  <th className="text-end">{t('purchasing.col.amount')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -154,10 +190,10 @@ export function PoDetail({
               <tfoot>
                 <tr>
                   <td colSpan={6} className="pt-2 text-end font-semibold">
-                    Total
+                    {t('common.total')}
                   </td>
                   <td className="pt-2 text-end font-bold tabular-nums">
-                    PKR {pkr(po.subTotalMinor)}
+                    <bdi>PKR {pkr(po.subTotalMinor)}</bdi>
                   </td>
                 </tr>
               </tfoot>
@@ -166,14 +202,16 @@ export function PoDetail({
 
           {po.receipts.length > 0 ? (
             <p className="text-sm text-muted">
-              Received on:{' '}
-              {po.receipts.map((r) => `${r.docNo} (${r.createdAt.slice(0, 10)})`).join(', ')}
+              {t('purchasing.detail.receivedOn')}{' '}
+              <bdi>
+                {po.receipts.map((r) => `${r.docNo} (${r.createdAt.slice(0, 10)})`).join(', ')}
+              </bdi>
             </p>
           ) : null}
 
           <div className="flex flex-wrap justify-end gap-2">
             <Button variant="outline" onClick={() => window.print()}>
-              Print
+              {t('common.print')}
             </Button>
             {po.status === 'draft' && canEdit ? (
               <Button
@@ -189,11 +227,11 @@ export function PoDetail({
                   })
                 }
               >
-                Edit
+                {t('common.edit')}
               </Button>
             ) : null}
             {po.status === 'draft' && canApprove ? (
-              <Button onClick={() => void approve()}>Approve</Button>
+              <Button onClick={() => void approve()}>{t('purchasing.detail.approve')}</Button>
             ) : null}
             {(po.status === 'approved' || po.status === 'partial') && canReceive ? (
               <Button
@@ -206,24 +244,24 @@ export function PoDetail({
                   })
                 }
               >
-                Receive goods
+                {t('purchasing.detail.receiveGoods')}
               </Button>
             ) : null}
             {po.status !== 'cancelled' && po.status !== 'received' && canEdit ? (
               <Button variant="danger" onClick={() => setCancelling(true)}>
-                Cancel order
+                {t('purchasing.detail.cancelOrder')}
               </Button>
             ) : null}
           </div>
         </div>
       ) : (
-        <p className="py-8 text-center text-muted">Loading…</p>
+        <p className="py-8 text-center text-muted">{t('common.loading')}</p>
       )}
       {cancelling ? (
         <NameDialog
-          title="Cancel purchase order"
-          label="Reason"
-          submitLabel="Cancel order"
+          title={t('purchasing.detail.cancelTitle')}
+          label={t('common.reason')}
+          submitLabel={t('purchasing.detail.cancelOrder')}
           onClose={() => setCancelling(false)}
           onSubmit={async (reason) => {
             await api(`/api/purchase-orders/${id}/cancel`, { body: { reason } });

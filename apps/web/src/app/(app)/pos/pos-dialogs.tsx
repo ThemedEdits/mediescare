@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { api, Button, ErrorText, inputClass, Modal } from '@/components/ui';
+import { api, Button, ErrorText, inputClass, Modal, useErrorText } from '@/components/ui';
+import { useT } from '@/i18n/client';
 import { pkr, tryMinor } from '@/lib/format';
 import {
   buildReceiptData,
@@ -28,6 +29,8 @@ export function OverrideDialog({
   onGranted: (overrideId: string) => void;
   onClose: () => void;
 }) {
+  const t = useT();
+  const errorText = useErrorText();
   const ref = useAutoFocus<HTMLInputElement>();
   const [username, setUsername] = useState('');
   const [pin, setPin] = useState('');
@@ -35,10 +38,10 @@ export function OverrideDialog({
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const what = {
-    discount: `a ${((need.percentBp ?? 0) / 100).toFixed(1)}% discount`,
-    override_price: 'a price change',
-    refund: `a refund of PKR ${pkr(need.amountMinor ?? 0)}`,
-    void: 'voiding this sale',
+    discount: t('pos.override.discount', { percent: ((need.percentBp ?? 0) / 100).toFixed(1) }),
+    override_price: t('pos.override.overridePrice'),
+    refund: t('pos.override.refund', { amount: pkr(need.amountMinor ?? 0) }),
+    void: t('pos.override.void'),
   }[need.kind];
   const needsReason =
     need.kind === 'refund' ||
@@ -46,7 +49,7 @@ export function OverrideDialog({
     (need.kind === 'discount' && (need.percentBp ?? 0) >= 10_000);
 
   return (
-    <Modal title="Manager approval needed" onClose={onClose}>
+    <Modal title={t('pos.override.title')} onClose={onClose}>
       <form
         className="space-y-3"
         onSubmit={async (e) => {
@@ -66,17 +69,15 @@ export function OverrideDialog({
             });
             onGranted(r.overrideId);
           } catch (err) {
-            setError(err instanceof Error ? err.message : 'Approval was not accepted');
+            setError(errorText(err, 'pos.err.approvalRejected'));
             setPin('');
             setBusy(false);
           }
         }}
       >
-        <p className="text-sm text-muted">
-          A manager must approve {what}. They enter their own username and PIN.
-        </p>
+        <p className="text-sm text-muted">{what}</p>
         <label className="block text-sm">
-          Manager username
+          {t('pos.override.username')}
           <input
             ref={ref}
             className={inputClass}
@@ -87,7 +88,7 @@ export function OverrideDialog({
           />
         </label>
         <label className="block text-sm">
-          Manager PIN
+          {t('pos.override.pin')}
           <input
             className={`${inputClass} font-mono tracking-widest`}
             type="password"
@@ -101,7 +102,7 @@ export function OverrideDialog({
         </label>
         {needsReason ? (
           <label className="block text-sm">
-            Reason
+            {t('common.reason')}
             <input
               className={inputClass}
               value={reason}
@@ -113,13 +114,13 @@ export function OverrideDialog({
         <ErrorText message={error} />
         <div className="flex justify-end gap-2">
           <Button type="button" variant="outline" onClick={onClose}>
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button
             type="submit"
             disabled={busy || !username || pin.length < 4 || (needsReason && !reason.trim())}
           >
-            {busy ? 'Checking…' : 'Approve'}
+            {busy ? t('pos.override.checking') : t('pos.override.approve')}
           </Button>
         </div>
       </form>
@@ -139,6 +140,7 @@ export function NarcoticDialog({
   onSave: (n: Narcotic) => void;
   onClose: () => void;
 }) {
+  const t = useT();
   const ref = useAutoFocus<HTMLInputElement>();
   const [v, setV] = useState<Narcotic>(
     initial ?? { patientName: '', patientCnic: '', doctorName: '', prescriptionRef: '' },
@@ -146,7 +148,7 @@ export function NarcoticDialog({
   const cnicOk = /^\d{5}-?\d{7}-?\d$/.test(v.patientCnic.trim());
   const ok = v.patientName.trim().length >= 2 && cnicOk && v.doctorName.trim().length >= 2;
   return (
-    <Modal title="Controlled item" onClose={onClose}>
+    <Modal title={t('pos.narcotic.title')} onClose={onClose}>
       <form
         className="space-y-3"
         onSubmit={(e) => {
@@ -155,11 +157,10 @@ export function NarcoticDialog({
         }}
       >
         <p className="text-sm text-muted">
-          <strong>{itemName}</strong> is a controlled drug. Patient, CNIC and doctor are recorded in
-          the narcotic register.
+          <strong>{itemName}</strong> {t('pos.narcotic.introRest')}
         </p>
         <label className="block text-sm">
-          Patient name
+          {t('pos.narcotic.patientName')}
           <input
             ref={ref}
             className={inputClass}
@@ -169,7 +170,7 @@ export function NarcoticDialog({
           />
         </label>
         <label className="block text-sm">
-          Patient CNIC
+          {t('pos.narcotic.patientCnic')}
           <input
             className={`${inputClass} font-mono`}
             placeholder="42101-1234567-1"
@@ -178,11 +179,11 @@ export function NarcoticDialog({
             required
           />
           {v.patientCnic && !cnicOk ? (
-            <span className="text-xs text-danger">13 digits, for example 42101-1234567-1</span>
+            <span className="text-xs text-danger">{t('pos.narcotic.cnicHint')}</span>
           ) : null}
         </label>
         <label className="block text-sm">
-          Doctor name
+          {t('pos.narcotic.doctorName')}
           <input
             className={inputClass}
             value={v.doctorName}
@@ -191,7 +192,7 @@ export function NarcoticDialog({
           />
         </label>
         <label className="block text-sm">
-          Prescription reference (optional)
+          {t('pos.narcotic.prescriptionRef')}
           <input
             className={inputClass}
             value={v.prescriptionRef ?? ''}
@@ -200,10 +201,10 @@ export function NarcoticDialog({
         </label>
         <div className="flex justify-end gap-2">
           <Button type="button" variant="outline" onClick={onClose}>
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button type="submit" disabled={!ok}>
-            Save details
+            {t('pos.narcotic.saveDetails')}
           </Button>
         </div>
       </form>
@@ -218,6 +219,8 @@ export function CustomerDialog({
   onPick: (c: Customer) => void;
   onClose: () => void;
 }) {
+  const t = useT();
+  const errorText = useErrorText();
   const ref = useAutoFocus<HTMLInputElement>();
   const [q, setQ] = useState('');
   const [list, setList] = useState<Customer[]>([]);
@@ -228,18 +231,18 @@ export function CustomerDialog({
     const t = setTimeout(() => {
       api<{ customers: Customer[] }>(`/api/customers?q=${encodeURIComponent(q)}`)
         .then((r) => setList(r.customers))
-        .catch((e: unknown) => setError(e instanceof Error ? e.message : 'Search failed'));
+        .catch((e: unknown) => setError(errorText(e, 'pos.err.searchFailed')));
     }, 150);
     return () => clearTimeout(t);
   }, [q]);
 
   return (
-    <Modal title="Customer" onClose={onClose}>
+    <Modal title={t('common.customer')} onClose={onClose}>
       <div className="space-y-3">
         <input
           ref={ref}
           className={inputClass}
-          placeholder="Search name, phone or MR number"
+          placeholder={t('pos.customer.searchPlaceholder')}
           value={q}
           onChange={(e) => setQ(e.target.value)}
         />
@@ -256,13 +259,13 @@ export function CustomerDialog({
                 </span>
                 <span className="font-mono text-xs text-muted">
                   {c.mrNo}
-                  {c.isWalkin ? ' · walk-in' : ''}
+                  {c.isWalkin ? ` · ${t('pos.customer.walkin')}` : ''}
                 </span>
               </button>
             </li>
           ))}
           {list.length === 0 ? (
-            <li className="px-3 py-4 text-center text-sm text-muted">No customer found</li>
+            <li className="px-3 py-4 text-center text-sm text-muted">{t('pos.customer.none')}</li>
           ) : null}
         </ul>
         <ErrorText message={error} />
@@ -289,25 +292,30 @@ export function CustomerDialog({
                   creditLimitMinor: tryMinor(String(f.get('credit') ?? '')) ?? 0,
                 });
               } catch (err) {
-                setError(err instanceof Error ? err.message : 'Could not add the customer');
+                setError(errorText(err, 'pos.err.couldNotAddCustomer'));
               }
             }}
           >
-            <input name="name" className={inputClass} placeholder="Full name" required />
-            <input name="phone" className={inputClass} placeholder="Phone" />
+            <input
+              name="name"
+              className={inputClass}
+              placeholder={t('pos.customer.fullName')}
+              required
+            />
+            <input name="phone" className={inputClass} placeholder={t('pos.customer.phone')} />
             <input
               name="credit"
               className={inputClass}
-              placeholder="Credit limit PKR (optional)"
+              placeholder={t('pos.customer.creditLimit')}
               inputMode="decimal"
             />
             <Button type="submit" className="w-full">
-              Add customer
+              {t('pos.customer.add')}
             </Button>
           </form>
         ) : (
           <Button variant="outline" className="w-full" onClick={() => setAdding(true)}>
-            + New customer
+            {t('pos.customer.new')}
           </Button>
         )}
       </div>
@@ -328,17 +336,19 @@ export function RecallDialog({
   onPick: (id: string) => void;
   onClose: () => void;
 }) {
+  const t = useT();
+  const errorText = useErrorText();
   const [holds, setHolds] = useState<HoldRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const load = () =>
     api<{ holds: HoldRow[] }>('/api/holds')
       .then((r) => setHolds(r.holds))
-      .catch((e: unknown) => setError(e instanceof Error ? e.message : 'Failed'));
+      .catch((e: unknown) => setError(errorText(e, 'pos.err.failed')));
   useEffect(() => {
     void load();
   }, []);
   return (
-    <Modal title="Held invoices" onClose={onClose}>
+    <Modal title={t('pos.held.title')} onClose={onClose}>
       <ul className="max-h-80 divide-y divide-border overflow-y-auto rounded-[6px] border border-border">
         {holds?.map((h) => (
           <li key={h.id} className="flex items-center justify-between px-3 py-2">
@@ -347,7 +357,7 @@ export function RecallDialog({
               className="text-start hover:underline"
               onClick={() => onPick(h.id)}
             >
-              {h.label || 'Held cart'}{' '}
+              {h.label || t('pos.held.heldCart')}{' '}
               <span className="text-xs text-muted">
                 {new Date(h.createdAt).toLocaleTimeString()}
               </span>
@@ -357,19 +367,21 @@ export function RecallDialog({
               className="h-8 px-2 text-danger"
               onClick={async () => {
                 await api(`/api/holds/${h.id}`, { method: 'DELETE' }).catch((e: unknown) =>
-                  setError(e instanceof Error ? e.message : 'Failed'),
+                  setError(errorText(e, 'pos.err.failed')),
                 );
                 void load();
               }}
             >
-              Delete
+              {t('common.delete')}
             </Button>
           </li>
         ))}
         {holds && holds.length === 0 ? (
-          <li className="px-3 py-6 text-center text-sm text-muted">Nothing is on hold.</li>
+          <li className="px-3 py-6 text-center text-sm text-muted">{t('pos.held.empty')}</li>
         ) : null}
-        {!holds ? <li className="px-3 py-6 text-center text-sm text-muted">Loading…</li> : null}
+        {!holds ? (
+          <li className="px-3 py-6 text-center text-sm text-muted">{t('common.loading')}</li>
+        ) : null}
       </ul>
       <ErrorText message={error} />
     </Modal>
@@ -385,10 +397,12 @@ export function MissedDialog({
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const t = useT();
+  const errorText = useErrorText();
   const ref = useAutoFocus<HTMLInputElement>();
   const [error, setError] = useState<string | null>(null);
   return (
-    <Modal title="Missed sale" onClose={onClose}>
+    <Modal title={t('pos.missedSale')} onClose={onClose}>
       <form
         className="space-y-3"
         onSubmit={async (e) => {
@@ -404,20 +418,18 @@ export function MissedDialog({
             });
             onSaved();
           } catch (err) {
-            setError(err instanceof Error ? err.message : 'Could not save');
+            setError(errorText(err, 'common.couldNotSave'));
           }
         }}
       >
-        <p className="text-sm text-muted">
-          Something the customer wanted that you did not have. Purchasing will see it.
-        </p>
+        <p className="text-sm text-muted">{t('pos.missed.intro')}</p>
         <label className="block text-sm">
-          Item
+          {t('common.item')}
           <input ref={ref} name="item" className={inputClass} defaultValue={initialText} required />
         </label>
         <div className="grid grid-cols-2 gap-3">
           <label className="text-sm">
-            Quantity
+            {t('common.quantity')}
             <input
               name="qty"
               type="number"
@@ -428,16 +440,16 @@ export function MissedDialog({
             />
           </label>
           <label className="text-sm">
-            Customer phone
+            {t('pos.missed.customerPhone')}
             <input name="phone" className={inputClass} />
           </label>
         </div>
         <ErrorText message={error} />
         <div className="flex justify-end gap-2">
           <Button type="button" variant="outline" onClick={onClose}>
-            Cancel
+            {t('common.cancel')}
           </Button>
-          <Button type="submit">Save</Button>
+          <Button type="submit">{t('common.save')}</Button>
         </div>
       </form>
     </Modal>
@@ -445,16 +457,16 @@ export function MissedDialog({
 }
 
 export function OpenShiftPanel({ onOpened }: { onOpened: () => void }) {
+  const t = useT();
+  const errorText = useErrorText();
   const ref = useAutoFocus<HTMLInputElement>();
   const [amount, setAmount] = useState('0');
   const [error, setError] = useState<string | null>(null);
   const minor = tryMinor(amount);
   return (
     <div className="mx-auto mt-16 max-w-sm space-y-4 rounded-[10px] border border-border bg-surface p-6">
-      <h1 className="text-xl font-semibold">Open your shift</h1>
-      <p className="text-sm text-muted">
-        Count the cash in your drawer and enter it. You must open a shift before selling.
-      </p>
+      <h1 className="text-xl font-semibold">{t('pos.openShift.title')}</h1>
+      <p className="text-sm text-muted">{t('pos.openShift.intro')}</p>
       <form
         className="space-y-3"
         onSubmit={async (e) => {
@@ -464,12 +476,12 @@ export function OpenShiftPanel({ onOpened }: { onOpened: () => void }) {
             await api('/api/shifts/open', { body: { floatMinor: minor } });
             onOpened();
           } catch (err) {
-            setError(err instanceof Error ? err.message : 'Could not open the shift');
+            setError(errorText(err, 'pos.err.couldNotOpenShift'));
           }
         }}
       >
         <label className="block text-sm">
-          Opening cash (PKR)
+          {t('pos.openShift.openingCash')}
           <input
             ref={ref}
             className={`${inputClass} text-lg`}
@@ -480,7 +492,7 @@ export function OpenShiftPanel({ onOpened }: { onOpened: () => void }) {
         </label>
         <ErrorText message={error} />
         <Button type="submit" className="w-full" disabled={minor === null}>
-          Open shift
+          {t('pos.openShift.open')}
         </Button>
       </form>
     </div>
@@ -496,6 +508,8 @@ export function CloseShiftDialog({
   onClosed: () => void;
   onClose: () => void;
 }) {
+  const t = useT();
+  const errorText = useErrorText();
   const ref = useAutoFocus<HTMLInputElement>();
   const [counted, setCounted] = useState('');
   const [result, setResult] = useState<{
@@ -508,31 +522,37 @@ export function CloseShiftDialog({
   if (result) {
     const v = result.varianceMinor;
     return (
-      <Modal title="Shift closed" onClose={onClosed}>
+      <Modal title={t('pos.closeShiftDlg.closedTitle')} onClose={onClosed}>
         <div className="space-y-2 text-sm">
-          <Row label="Expected in drawer" value={`PKR ${pkr(result.expectedCashMinor)}`} />
-          <Row label="You counted" value={`PKR ${pkr(result.countedCashMinor)}`} />
           <Row
-            label="Difference"
+            label={t('pos.closeShiftDlg.expected')}
+            value={`PKR ${pkr(result.expectedCashMinor)}`}
+          />
+          <Row
+            label={t('pos.closeShiftDlg.youCounted')}
+            value={`PKR ${pkr(result.countedCashMinor)}`}
+          />
+          <Row
+            label={t('pos.closeShiftDlg.difference')}
             value={`${v > 0 ? '+' : ''}${pkr(v)}`}
             tone={v === 0 ? 'ok' : 'bad'}
           />
           <p className="text-muted">
             {v === 0
-              ? 'The drawer matches.'
+              ? t('pos.closeShiftDlg.matches')
               : v > 0
-                ? 'The drawer has more than expected.'
-                : 'The drawer is short. A manager will review it.'}
+                ? t('pos.closeShiftDlg.over')
+                : t('pos.closeShiftDlg.short')}
           </p>
         </div>
         <Button className="mt-4 w-full" onClick={onClosed}>
-          Done
+          {t('common.done')}
         </Button>
       </Modal>
     );
   }
   return (
-    <Modal title={`Close shift ${shift.docNo}`} onClose={onClose}>
+    <Modal title={t('pos.closeShiftDlg.title', { docNo: shift.docNo })} onClose={onClose}>
       <form
         className="space-y-3"
         onSubmit={async (e) => {
@@ -545,16 +565,13 @@ export function CloseShiftDialog({
               }),
             );
           } catch (err) {
-            setError(err instanceof Error ? err.message : 'Could not close the shift');
+            setError(errorText(err, 'pos.err.couldNotCloseShift'));
           }
         }}
       >
-        <p className="text-sm text-muted">
-          Count all the cash in the drawer and enter the total. The system total is shown only after
-          you save.
-        </p>
+        <p className="text-sm text-muted">{t('pos.closeShiftDlg.intro')}</p>
         <label className="block text-sm">
-          Cash counted (PKR)
+          {t('pos.closeShiftDlg.counted')}
           <input
             ref={ref}
             className={`${inputClass} text-lg`}
@@ -566,10 +583,10 @@ export function CloseShiftDialog({
         <ErrorText message={error} />
         <div className="flex justify-end gap-2">
           <Button type="button" variant="outline" onClick={onClose}>
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button type="submit" disabled={minor === null}>
-            Close shift
+            {t('pos.closeShift')}
           </Button>
         </div>
       </form>
@@ -581,7 +598,10 @@ function Row({ label, value, tone }: { label: string; value: string; tone?: 'ok'
   return (
     <div className="flex justify-between">
       <span className="text-muted">{label}</span>
-      <strong className={tone === 'bad' ? 'text-danger' : tone === 'ok' ? 'text-success' : ''}>
+      <strong
+        dir="ltr"
+        className={tone === 'bad' ? 'text-danger' : tone === 'ok' ? 'text-success' : ''}
+      >
         {value}
       </strong>
     </div>
@@ -612,6 +632,7 @@ export function ReceiptDialog({
   settings: PrintSettings;
   onNew: () => void;
 }) {
+  const t = useT();
   const ref = useAutoFocus<HTMLButtonElement>();
   const [printError, setPrintError] = useState<string | null>(null);
   const [printing, setPrinting] = useState(false);
@@ -630,7 +651,7 @@ export function ReceiptDialog({
       openDrawer: payments.some((p) => p.cash),
     });
     setPrinting(false);
-    setPrintError(result.ok ? null : (result.error ?? 'Printing failed'));
+    setPrintError(result.ok ? null : (result.error ?? t('pos.err.printingFailed')));
     return result.ok;
   };
   const printClick = async () => {
@@ -643,30 +664,30 @@ export function ReceiptDialog({
     void printNative();
   }, []);
   return (
-    <Modal title={`Saved ${sale.docNo}`} onClose={onNew}>
+    <Modal title={t('pos.saved.title', { docNo: sale.docNo })} onClose={onNew}>
       <div className="space-y-3">
         {sale.changeMinor > 0 ? (
           <div className="rounded-[10px] bg-[#E8F5E9] p-4 text-center">
-            <p className="text-sm text-success">Give back</p>
+            <p className="text-sm text-success">{t('pos.saved.giveBack')}</p>
             <p className="text-4xl font-bold text-success" data-testid="change-due">
               {pkr(sale.changeMinor)}
             </p>
           </div>
         ) : null}
         <div className="flex justify-between text-sm">
-          <span className="text-muted">Total</span>
-          <strong>PKR {pkr(sale.grandTotalMinor)}</strong>
+          <span className="text-muted">{t('common.total')}</span>
+          <strong dir="ltr">PKR {pkr(sale.grandTotalMinor)}</strong>
         </div>
         {sale.dueMinor > 0 ? (
           <div className="flex justify-between text-sm">
-            <span className="text-muted">On account</span>
-            <strong>PKR {pkr(sale.dueMinor)}</strong>
+            <span className="text-muted">{t('pos.saved.onAccount')}</span>
+            <strong dir="ltr">PKR {pkr(sale.dueMinor)}</strong>
           </div>
         ) : null}
         {sale.profitMinor !== undefined ? (
           <div className="flex justify-between text-sm">
-            <span className="text-muted">Profit</span>
-            <strong>PKR {pkr(sale.profitMinor)}</strong>
+            <span className="text-muted">{t('pos.saved.profit')}</span>
+            <strong dir="ltr">PKR {pkr(sale.profitMinor)}</strong>
           </div>
         ) : null}
         <ErrorText message={printError} />
@@ -680,10 +701,10 @@ export function ReceiptDialog({
             disabled={printing}
             onClick={() => void printClick()}
           >
-            {printing ? 'Printing...' : 'Print receipt'}
+            {printing ? t('pos.saved.printing') : t('pos.saved.printReceipt')}
           </Button>
           <Button ref={ref} className="flex-1" onClick={onNew}>
-            New sale
+            {t('pos.saved.newSale')}
           </Button>
         </div>
       </div>

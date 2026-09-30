@@ -10,7 +10,9 @@ import {
   inputClass,
   Modal,
   useAsync,
+  useErrorText,
 } from '@/components/ui';
+import { useT } from '@/i18n/client';
 import { pkr } from '@/lib/format';
 import { OverrideDialog } from '../pos/pos-dialogs';
 import type { OverrideNeed, PaymentMode } from '../pos/pos-types';
@@ -48,13 +50,13 @@ interface Detail {
   lines: (Line & { itemId: string })[];
 }
 
-const REASONS: [string, string][] = [
-  ['wrong_item', 'Wrong item'],
-  ['damaged', 'Damaged'],
-  ['expired', 'Expired'],
-  ['customer_changed_mind', 'Customer changed mind'],
-  ['prescription_change', 'Prescription changed'],
-  ['other', 'Other (describe)'],
+const REASONS = [
+  'wrong_item',
+  'damaged',
+  'expired',
+  'customer_changed_mind',
+  'prescription_change',
+  'other',
 ];
 
 export function SalesClient({
@@ -66,6 +68,7 @@ export function SalesClient({
   canReturn: boolean;
   canSeeProfit: boolean;
 }) {
+  const t = useT();
   const [q, setQ] = useState('');
   const [page, setPage] = useState(1);
   const list = useAsync(
@@ -81,15 +84,13 @@ export function SalesClient({
     <>
       <div className="flex flex-wrap items-end gap-3">
         <div>
-          <h1 className="text-2xl font-semibold">Sales</h1>
-          <p className="text-sm text-muted">
-            Every invoice of this branch. Posted invoices are never edited: void or return them.
-          </p>
+          <h1 className="text-2xl font-semibold">{t('sales.title')}</h1>
+          <p className="text-sm text-muted">{t('sales.subtitle')}</p>
         </div>
         <input
-          aria-label="Search invoices"
+          aria-label={t('sales.searchInvoices')}
           className={`${inputClass} ms-auto w-64`}
-          placeholder="Invoice number…"
+          placeholder={t('sales.invoicePlaceholder')}
           value={q}
           onChange={(e) => {
             setQ(e.target.value);
@@ -100,33 +101,37 @@ export function SalesClient({
       <ErrorText message={list.error} />
       <div className="overflow-x-auto rounded-[10px] border border-border">
         <table className="w-full text-sm">
-          <thead className="bg-surface-2 text-left text-xs uppercase text-muted">
+          <thead className="bg-surface-2 text-start text-xs uppercase text-muted">
             <tr>
-              <th className="px-4 py-3">Invoice</th>
-              <th>Date</th>
-              <th className="text-end">Total</th>
-              <th className="text-end">Paid</th>
-              <th className="text-end">Due</th>
-              <th className="px-4">Status</th>
+              <th className="px-4 py-3">{t('sales.col.invoice')}</th>
+              <th>{t('common.date')}</th>
+              <th className="text-end">{t('common.total')}</th>
+              <th className="text-end">{t('sales.col.paid')}</th>
+              <th className="text-end">{t('sales.col.due')}</th>
+              <th className="px-4">{t('common.status')}</th>
               <th />
             </tr>
           </thead>
           <tbody>
             {list.data?.rows.map((r) => (
               <tr key={r.id} className="border-t border-border">
-                <td className="px-4 py-3 font-mono text-xs">{r.docNo}</td>
-                <td>{new Date(r.createdAt).toLocaleString()}</td>
+                <td className="px-4 py-3 font-mono text-xs">
+                  <bdi>{r.docNo}</bdi>
+                </td>
+                <td>
+                  <bdi>{new Date(r.createdAt).toLocaleString()}</bdi>
+                </td>
                 <td className="text-end tabular-nums">{pkr(r.grandTotalMinor)}</td>
                 <td className="text-end tabular-nums">{pkr(r.paidMinor)}</td>
                 <td className="text-end tabular-nums">{r.dueMinor > 0 ? pkr(r.dueMinor) : '–'}</td>
                 <td className="px-4">
                   <Badge tone={r.status === 'posted' ? 'success' : 'danger'}>
-                    {r.status === 'posted' ? 'Posted' : 'Void'}
+                    {r.status === 'posted' ? t('sales.status.posted') : t('sales.status.void')}
                   </Badge>
                 </td>
                 <td className="px-4 text-end">
                   <Button variant="ghost" className="h-8 px-2" onClick={() => setOpen(r.id)}>
-                    Open
+                    {t('sales.open')}
                   </Button>
                 </td>
               </tr>
@@ -134,14 +139,14 @@ export function SalesClient({
             {list.data && list.data.rows.length === 0 ? (
               <tr>
                 <td colSpan={7} className="px-4 py-10 text-center text-muted">
-                  No invoices yet.
+                  {t('sales.empty')}
                 </td>
               </tr>
             ) : null}
             {!list.data && !list.error ? (
               <tr>
                 <td colSpan={7} className="px-4 py-10 text-center text-muted">
-                  Loading…
+                  {t('common.loading')}
                 </td>
               </tr>
             ) : null}
@@ -149,7 +154,7 @@ export function SalesClient({
         </table>
       </div>
       <div className="flex items-center justify-between text-sm text-muted">
-        <span>{list.data?.total ?? 0} invoices</span>
+        <span>{t('sales.count', { count: list.data?.total ?? 0 })}</span>
         <span className="flex items-center gap-2">
           <Button
             variant="outline"
@@ -157,16 +162,16 @@ export function SalesClient({
             disabled={page <= 1}
             onClick={() => setPage(page - 1)}
           >
-            Previous
+            {t('common.previous')}
           </Button>
-          Page {page} of {pages}
+          {t('sales.pageOf', { page, pages })}
           <Button
             variant="outline"
             className="h-8 px-3"
             disabled={page >= pages}
             onClick={() => setPage(page + 1)}
           >
-            Next
+            {t('common.next')}
           </Button>
         </span>
       </div>
@@ -199,6 +204,8 @@ function SaleDialog({
   canSeeProfit: boolean;
   onClose: () => void;
 }) {
+  const t = useT();
+  const errorText = useErrorText();
   const d = useAsync(() => api<{ sale: Detail }>(`/api/sales/${id}`));
   const modes = useAsync(() => api<{ paymentModes: PaymentMode[] }>('/api/lookups'));
   const [mode, setMode] = useState<'view' | 'void' | 'return'>('view');
@@ -215,13 +222,13 @@ function SaleDialog({
   async function doVoid(overrideId?: string) {
     try {
       await api(`/api/sales/${id}/void`, { body: { reason, overrideId } });
-      setNotice('Invoice voided. Stock has been put back.');
+      setNotice(t('sales.voidedNotice'));
       setMode('view');
       d.reload();
     } catch (e) {
       if (e instanceof ApiError && e.code === 'OVERRIDE_REQUIRED')
         setNeed(e.details as OverrideNeed);
-      else setError(e instanceof Error ? e.message : 'Could not void');
+      else setError(errorText(e, 'sales.couldNotVoid'));
     }
   }
 
@@ -241,19 +248,23 @@ function SaleDialog({
           overrideId,
         },
       });
-      setNotice(`Return ${r.docNo}: refund PKR ${pkr(r.refundMinor)}`);
+      setNotice(t('sales.returnNotice', { docNo: r.docNo, amount: pkr(r.refundMinor) }));
       setMode('view');
       setRetQty({});
       d.reload();
     } catch (e) {
       if (e instanceof ApiError && e.code === 'OVERRIDE_REQUIRED')
         setNeed(e.details as OverrideNeed);
-      else setError(e instanceof Error ? e.message : 'Could not return');
+      else setError(errorText(e, 'sales.couldNotReturn'));
     }
   }
 
   return (
-    <Modal title={sale ? `Invoice ${sale.docNo}` : 'Invoice'} onClose={onClose} wide>
+    <Modal
+      title={sale ? t('sales.invoiceTitle', { docNo: sale.docNo }) : t('sales.col.invoice')}
+      onClose={onClose}
+      wide
+    >
       <ErrorText message={d.error} />
       {notice ? (
         <p role="status" className="mb-2 rounded-[6px] bg-primary-50 px-3 py-2 text-sm">
@@ -264,25 +275,35 @@ function SaleDialog({
         <div className="space-y-3">
           <div className="flex flex-wrap items-center gap-3 text-sm">
             <Badge tone={sale.status === 'posted' ? 'success' : 'danger'}>
-              {sale.status === 'posted' ? 'Posted' : 'Void'}
+              {sale.status === 'posted' ? t('sales.status.posted') : t('sales.status.void')}
             </Badge>
-            <span className="text-muted">{new Date(sale.createdAt).toLocaleString()}</span>
+            <span className="text-muted">
+              <bdi>{new Date(sale.createdAt).toLocaleString()}</bdi>
+            </span>
             {sale.voidReason ? (
-              <span className="text-danger">Reason: {sale.voidReason}</span>
+              <span className="text-danger">
+                {t('sales.reasonLine', { reason: sale.voidReason })}
+              </span>
             ) : null}
-            <strong className="ms-auto text-lg">PKR {pkr(sale.grandTotalMinor)}</strong>
+            <strong className="ms-auto text-lg">
+              <bdi>{t('sales.totalPkr', { amount: pkr(sale.grandTotalMinor) })}</bdi>
+            </strong>
             {canSeeProfit && sale.profitMinor !== undefined ? (
-              <span className="text-muted">Profit {pkr(sale.profitMinor)}</span>
+              <span className="text-muted">
+                <bdi>{t('sales.profit', { amount: pkr(sale.profitMinor) })}</bdi>
+              </span>
             ) : null}
           </div>
           <table className="w-full text-sm">
-            <thead className="text-left text-xs uppercase text-muted">
+            <thead className="text-start text-xs uppercase text-muted">
               <tr>
                 <th className="py-2">#</th>
-                <th>Item</th>
-                <th className="text-end">Qty (smallest unit)</th>
-                <th className="text-end">Amount</th>
-                {mode === 'return' ? <th className="text-end">Return qty</th> : null}
+                <th>{t('common.item')}</th>
+                <th className="text-end">{t('sales.col.qtySmallest')}</th>
+                <th className="text-end">{t('sales.col.amount')}</th>
+                {mode === 'return' ? (
+                  <th className="text-end">{t('sales.col.returnQty')}</th>
+                ) : null}
               </tr>
             </thead>
             <tbody>
@@ -295,7 +316,7 @@ function SaleDialog({
                   {mode === 'return' ? (
                     <td className="text-end">
                       <input
-                        aria-label={`Return quantity line ${l.lineNo}`}
+                        aria-label={t('sales.returnQtyLine', { line: l.lineNo })}
                         className="h-8 w-20 rounded-[6px] border border-slate-400 px-2 text-end"
                         inputMode="numeric"
                         value={retQty[l.lineNo] ?? ''}
@@ -310,14 +331,11 @@ function SaleDialog({
 
           {mode === 'void' ? (
             <div className="space-y-2 rounded-[10px] bg-surface p-3">
-              <p className="text-sm text-muted">
-                Voiding keeps the invoice in the books and puts the stock back. Only for a sale in
-                your still-open shift.
-              </p>
+              <p className="text-sm text-muted">{t('sales.voidHelp')}</p>
               <input
-                aria-label="Reason for voiding"
+                aria-label={t('sales.voidReasonLabel')}
                 className={inputClass}
-                placeholder="Reason (required)"
+                placeholder={t('sales.reasonRequired')}
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
               />
@@ -330,44 +348,41 @@ function SaleDialog({
                     setError(null);
                   }}
                 >
-                  Cancel
+                  {t('common.cancel')}
                 </Button>
                 <Button
                   variant="danger"
                   disabled={reason.trim().length < 3}
                   onClick={() => void doVoid()}
                 >
-                  Void invoice
+                  {t('sales.voidInvoice')}
                 </Button>
               </div>
             </div>
           ) : null}
           {mode === 'return' ? (
             <div className="space-y-2 rounded-[10px] bg-surface p-3">
-              <p className="text-sm text-muted">
-                Enter how many of the smallest units come back for each line. The refund is worked
-                out from what the customer paid.
-              </p>
+              <p className="text-sm text-muted">{t('sales.returnHelp')}</p>
               <div className="grid gap-2 sm:grid-cols-3">
                 <select
-                  aria-label="Return reason"
+                  aria-label={t('sales.returnReasonLabel')}
                   className={inputClass}
                   value={retReason}
                   onChange={(e) => setRetReason(e.target.value)}
                 >
-                  {REASONS.map(([v, l]) => (
+                  {REASONS.map((v) => (
                     <option key={v} value={v}>
-                      {l}
+                      {t('sales.reason.' + v)}
                     </option>
                   ))}
                 </select>
                 <select
-                  aria-label="Refund method"
+                  aria-label={t('sales.refundMethod')}
                   className={inputClass}
                   value={refundMode}
                   onChange={(e) => setRefundMode(e.target.value)}
                 >
-                  <option value="">Cash</option>
+                  <option value="">{t('common.cash')}</option>
                   {modes.data?.paymentModes
                     .filter((m) => m.kind !== 'credit' && m.kind !== 'cash')
                     .map((m) => (
@@ -382,14 +397,14 @@ function SaleDialog({
                     checked={restock}
                     onChange={(e) => setRestock(e.target.checked)}
                   />{' '}
-                  Put back on the shelf
+                  {t('sales.putBack')}
                 </label>
               </div>
               {retReason === 'other' ? (
                 <input
-                  aria-label="Describe the reason"
+                  aria-label={t('sales.describeReason')}
                   className={inputClass}
-                  placeholder="Describe the reason"
+                  placeholder={t('sales.describeReason')}
                   value={reason}
                   onChange={(e) => setReason(e.target.value)}
                 />
@@ -403,13 +418,13 @@ function SaleDialog({
                     setError(null);
                   }}
                 >
-                  Cancel
+                  {t('common.cancel')}
                 </Button>
                 <Button
                   disabled={!Object.values(retQty).some((v) => Number(v) > 0)}
                   onClick={() => void doReturn()}
                 >
-                  Give refund
+                  {t('sales.giveRefund')}
                 </Button>
               </div>
             </div>
@@ -424,7 +439,7 @@ function SaleDialog({
                     setNotice(null);
                   }}
                 >
-                  Return items
+                  {t('sales.returnItems')}
                 </Button>
               ) : null}
               {canVoid ? (
@@ -435,7 +450,7 @@ function SaleDialog({
                     setNotice(null);
                   }}
                 >
-                  Void
+                  {t('sales.status.void')}
                 </Button>
               ) : null}
             </div>

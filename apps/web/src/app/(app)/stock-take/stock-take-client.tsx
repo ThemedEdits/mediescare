@@ -1,7 +1,17 @@
 'use client';
 
 import { useState } from 'react';
-import { api, Badge, Button, ErrorText, inputClass, Modal, useAsync } from '@/components/ui';
+import {
+  api,
+  Badge,
+  Button,
+  ErrorText,
+  inputClass,
+  Modal,
+  useAsync,
+  useErrorText,
+} from '@/components/ui';
+import { useT } from '@/i18n/client';
 import { pkr } from '@/lib/format';
 import { CountSheet } from './count-sheet';
 
@@ -21,14 +31,20 @@ export interface TakeSummary {
   surplusCostValueMinor?: number;
 }
 
+/** Translated status, falling back to the raw value. */
+export function statusText(t: ReturnType<typeof useT>, status: string): string {
+  return t.has(`stockTake.status.${status}`) ? t(`stockTake.status.${status}`) : status;
+}
+
 const TONE = { open: 'warning', posted: 'success', cancelled: 'neutral' } as const;
 
 /** Physical counts: list of counts, start a new one, open one to enter counts or post the differences. */
 export function StockTakeClient({ canCount, canPost }: { canCount: boolean; canPost: boolean }) {
+  const t = useT();
   const { data, error, reload } = useAsync(() => api<{ takes: TakeSummary[] }>('/api/stock-takes'));
   const [starting, setStarting] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
-  const hasOpen = data?.takes.some((t) => t.status === 'open') ?? false;
+  const hasOpen = data?.takes.some((x) => x.status === 'open') ?? false;
 
   if (openId)
     return (
@@ -46,62 +62,64 @@ export function StockTakeClient({ canCount, canPost }: { canCount: boolean; canP
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Stock take</h1>
+        <h1 className="text-2xl font-semibold">{t('stockTake.title')}</h1>
         {canCount ? (
           <Button
             onClick={() => setStarting(true)}
             disabled={hasOpen}
-            title={hasOpen ? 'Finish or cancel the open count first' : undefined}
+            title={hasOpen ? t('stockTake.finishFirst') : undefined}
           >
-            Start a count
+            {t('stockTake.startCount')}
           </Button>
         ) : null}
       </div>
-      <p className="text-sm text-muted">
-        Starting a count freezes what the system says. Enter what you find on the shelf, then post:
-        only the differences are written to the stock ledger, and sales made while counting are
-        kept.
-      </p>
+      <p className="text-sm text-muted">{t('stockTake.intro')}</p>
       <ErrorText message={error} />
       <div className="overflow-x-auto rounded-[10px] border border-border">
         <table className="w-full text-sm">
-          <thead className="bg-surface-2 text-left text-xs uppercase text-muted">
+          <thead className="bg-surface-2 text-start text-xs uppercase text-muted">
             <tr>
-              <th className="px-3 py-2">Count</th>
-              <th>Name</th>
-              <th>Started</th>
-              <th className="text-end">Counted</th>
-              <th className="text-end">Differences</th>
-              <th className="px-3 text-end">Shortage value</th>
-              <th className="px-3">Status</th>
+              <th className="px-3 py-2">{t('stockTake.colCount')}</th>
+              <th>{t('common.name')}</th>
+              <th>{t('stockTake.started')}</th>
+              <th className="text-end">{t('stockTake.counted')}</th>
+              <th className="text-end">{t('stockTake.differences')}</th>
+              <th className="px-3 text-end">{t('stockTake.shortageValue')}</th>
+              <th className="px-3">{t('common.status')}</th>
             </tr>
           </thead>
           <tbody>
-            {data?.takes.map((t) => (
+            {data?.takes.map((tk) => (
               <tr
-                key={t.id}
+                key={tk.id}
                 className="cursor-pointer border-t border-border hover:bg-primary-50"
-                onClick={() => setOpenId(t.id)}
+                onClick={() => setOpenId(tk.id)}
               >
-                <td className="px-3 py-2 font-mono text-xs">{t.docNo}</td>
-                <td className="font-medium">{t.title}</td>
-                <td>{t.createdAt.slice(0, 10)}</td>
-                <td className="text-end tabular-nums">
-                  {t.countedLines} / {t.totalLines}
+                <td className="px-3 py-2 font-mono text-xs">
+                  <bdi>{tk.docNo}</bdi>
                 </td>
-                <td className="text-end tabular-nums">{t.varianceLines}</td>
+                <td className="font-medium">{tk.title}</td>
+                <td>
+                  <bdi>{tk.createdAt.slice(0, 10)}</bdi>
+                </td>
+                <td className="text-end tabular-nums">
+                  <bdi>
+                    {tk.countedLines} / {tk.totalLines}
+                  </bdi>
+                </td>
+                <td className="text-end tabular-nums">{tk.varianceLines}</td>
                 <td className="px-3 text-end tabular-nums">
-                  {t.shortageCostValueMinor === undefined ? '–' : pkr(t.shortageCostValueMinor)}
+                  {tk.shortageCostValueMinor === undefined ? '–' : pkr(tk.shortageCostValueMinor)}
                 </td>
                 <td className="px-3">
-                  <Badge tone={TONE[t.status]}>{t.status}</Badge>
+                  <Badge tone={TONE[tk.status]}>{statusText(t, tk.status)}</Badge>
                 </td>
               </tr>
             ))}
             {data && data.takes.length === 0 ? (
               <tr>
                 <td colSpan={7} className="px-3 py-10 text-center text-muted">
-                  No counts yet.
+                  {t('stockTake.noCounts')}
                 </td>
               </tr>
             ) : null}
@@ -133,6 +151,8 @@ function StartDialog({
   onClose: () => void;
   onStarted: (id: string) => void;
 }) {
+  const t = useT();
+  const errorText = useErrorText();
   const lookups = useAsync(() => api<{ categories: Named[]; racks: Named[] }>('/api/lookups'));
   const [title, setTitle] = useState('');
   const [by, setBy] = useState<'all' | 'category' | 'rack'>('all');
@@ -159,29 +179,29 @@ function StartDialog({
       });
       onStarted(r.id);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not start the count');
+      setError(errorText(e, 'stockTake.start.failed'));
       setBusy(false);
     }
   }
 
   return (
-    <Modal title="Start a stock count" onClose={onClose}>
+    <Modal title={t('stockTake.start.title')} onClose={onClose}>
       <div className="space-y-3">
         <label className="block text-sm">
-          Name
+          {t('common.name')}
           <input
-            aria-label="Count name"
+            aria-label={t('stockTake.start.countName')}
             autoFocus
             className={inputClass}
-            placeholder="Full count, Rack A…"
+            placeholder={t('stockTake.start.namePlaceholder')}
             value={title}
             onChange={(e) => setTitle(e.target.value)}
           />
         </label>
         <label className="block text-sm">
-          What to count
+          {t('stockTake.start.whatToCount')}
           <select
-            aria-label="Scope"
+            aria-label={t('stockTake.start.scope')}
             className={inputClass}
             value={by}
             onChange={(e) => {
@@ -189,19 +209,19 @@ function StartDialog({
               setRefId('');
             }}
           >
-            <option value="all">Everything in stock</option>
-            <option value="category">One category</option>
-            <option value="rack">One rack</option>
+            <option value="all">{t('stockTake.start.scopeAll')}</option>
+            <option value="category">{t('stockTake.start.scopeCategory')}</option>
+            <option value="rack">{t('stockTake.start.scopeRack')}</option>
           </select>
         </label>
         {by !== 'all' ? (
           <select
-            aria-label="Choose"
+            aria-label={t('stockTake.start.chooseLabel')}
             className={inputClass}
             value={refId}
             onChange={(e) => setRefId(e.target.value)}
           >
-            <option value="">Choose…</option>
+            <option value="">{t('stockTake.start.chooseOption')}</option>
             {options?.map((o) => (
               <option key={o.id} value={o.id}>
                 {o.name}
@@ -212,13 +232,13 @@ function StartDialog({
         <ErrorText message={error} />
         <div className="flex justify-end gap-2">
           <Button variant="outline" onClick={onClose}>
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button
             onClick={() => void start()}
             disabled={busy || title.trim().length < 2 || (by !== 'all' && !refId)}
           >
-            {busy ? 'Starting…' : 'Start count'}
+            {busy ? t('stockTake.start.starting') : t('stockTake.start.submit')}
           </Button>
         </div>
       </div>

@@ -3,7 +3,17 @@
 import { useEffect, useState } from 'react';
 import { unitRateFromPack } from '@mediescare/core/money';
 import { lineAmountMinor, percentOfMinor } from '@mediescare/core/money';
-import { api, Button, ErrorText, inputClass, Modal, NameDialog, useAsync } from '@/components/ui';
+import {
+  api,
+  Button,
+  ErrorText,
+  inputClass,
+  Modal,
+  NameDialog,
+  useAsync,
+  useErrorText,
+} from '@/components/ui';
+import { useT } from '@/i18n/client';
 import { pkr, rate, tryMicro, tryMinor } from '@/lib/format';
 
 interface Supplier {
@@ -61,6 +71,8 @@ export function ReceiveForm({
   onClose: () => void;
   onSaved: (docNo: string) => void;
 }) {
+  const t = useT();
+  const errorText = useErrorText();
   const suppliers = useAsync(() => api<{ suppliers: Supplier[] }>('/api/suppliers'));
   const defaults = useAsync(() => api<{ settings?: Record<string, number> }>('/api/lookups'));
   const [supplierId, setSupplierId] = useState(po?.supplierId ?? '');
@@ -89,10 +101,7 @@ export function ReceiveForm({
         }),
     )
       .then((rows) => alive && setLines(rows))
-      .catch(
-        (e: unknown) =>
-          alive && setError(e instanceof Error ? e.message : 'Could not load the order'),
-      );
+      .catch((e: unknown) => alive && setError(errorText(e, 'stock.receive.loadOrderFailed')));
     return () => {
       alive = false;
     };
@@ -110,12 +119,12 @@ export function ReceiveForm({
 
   useEffect(() => {
     if (!q.trim()) return setFound([]);
-    const t = setTimeout(() => {
+    const timer = setTimeout(() => {
       api<{ rows: Found[] }>(`/api/items?q=${encodeURIComponent(q)}&pageSize=8`)
         .then((r) => setFound(r.rows))
         .catch(() => setFound([]));
     }, 150);
-    return () => clearTimeout(t);
+    return () => clearTimeout(timer);
   }, [q]);
 
   async function addItem(f: Found) {
@@ -141,7 +150,7 @@ export function ReceiveForm({
       setQ('');
       setFound([]);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not add the item');
+      setError(errorText(e, 'stock.receive.addItemFailed'));
     }
   }
 
@@ -156,7 +165,7 @@ export function ReceiveForm({
     return lineAmountMinor(qty * unit.factorToBase, unitRateFromPack(micro, unit.factorToBase));
   };
   const subTotal = lines.reduce((s, l) => s + (lineTotal(l) ?? 0), 0);
-  const m = (t: string) => tryMinor(t) ?? 0;
+  const m = (text: string) => tryMinor(text) ?? 0;
   const bp = (k: string) => Number(defaults.data?.settings?.[k] ?? 0);
   const hasDefaultRates =
     bp('tax.default_sales_tax_bp') + bp('tax.default_advance_tax_bp') + bp('tax.default_wht_bp') >
@@ -209,7 +218,7 @@ export function ReceiveForm({
       });
       onSaved(r.docNo);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not save the receipt');
+      setError(errorText(e, 'stock.receive.saveFailed'));
       setBusy(false);
     }
   }
@@ -218,20 +227,24 @@ export function ReceiveForm({
 
   const cell = 'h-9 rounded-[6px] border border-slate-400 bg-white px-2 text-sm';
   return (
-    <Modal title={po ? `Receive ${po.docNo}` : 'Add stock (goods receipt)'} onClose={onClose} wide>
+    <Modal
+      title={po ? t('stock.receive.titleForOrder', { docNo: po.docNo }) : t('stock.receive.title')}
+      onClose={onClose}
+      wide
+    >
       <div className="space-y-4">
         <div className="grid gap-3 sm:grid-cols-4">
           <label className="text-sm sm:col-span-2">
-            Supplier
+            {t('common.supplier')}
             <span className="flex gap-1">
               <select
-                aria-label="Supplier"
+                aria-label={t('common.supplier')}
                 className={`${inputClass} flex-1`}
                 value={supplierId}
                 disabled={Boolean(po)}
                 onChange={(e) => setSupplierId(e.target.value)}
               >
-                <option value="">Choose…</option>
+                <option value="">{t('stock.receive.choose')}</option>
                 {suppliers.data?.suppliers.map((s) => (
                   <option key={s.id} value={s.id}>
                     {s.name}
@@ -251,7 +264,7 @@ export function ReceiveForm({
             </span>
           </label>
           <label className="text-sm">
-            Supplier invoice no.
+            {t('stock.receive.supplierInvoiceNo')}
             <input
               className={inputClass}
               value={invNo}
@@ -259,7 +272,7 @@ export function ReceiveForm({
             />
           </label>
           <label className="text-sm">
-            Invoice date
+            {t('stock.receive.invoiceDate')}
             <input
               type="date"
               className={inputClass}
@@ -271,9 +284,9 @@ export function ReceiveForm({
 
         <div className="relative">
           <input
-            aria-label="Add item"
+            aria-label={t('stock.receive.addItem')}
             className={inputClass}
-            placeholder="Type an item name to add a row"
+            placeholder={t('stock.receive.addItemPlaceholder')}
             value={q}
             onChange={(e) => setQ(e.target.value)}
           />
@@ -287,7 +300,9 @@ export function ReceiveForm({
                     onClick={() => void addItem(f)}
                   >
                     <span>{f.name}</span>
-                    <span className="font-mono text-xs text-muted">{f.sku}</span>
+                    <span dir="ltr" className="font-mono text-xs text-muted">
+                      {f.sku}
+                    </span>
                   </button>
                 </li>
               ))}
@@ -297,16 +312,16 @@ export function ReceiveForm({
 
         <div className="overflow-x-auto rounded-[10px] border border-border">
           <table className="w-full text-sm">
-            <thead className="bg-surface-2 text-left text-xs uppercase text-muted">
+            <thead className="bg-surface-2 text-start text-xs uppercase text-muted">
               <tr>
-                <th className="px-2 py-2">Item</th>
-                <th>Unit</th>
-                <th>Qty</th>
-                <th>Bonus</th>
-                <th>Batch no.</th>
-                <th>Expiry</th>
-                <th>Price / unit</th>
-                <th className="text-end">Amount</th>
+                <th className="px-2 py-2">{t('common.item')}</th>
+                <th>{t('stock.receive.unit')}</th>
+                <th>{t('stock.receive.qtyShort')}</th>
+                <th>{t('stock.receive.bonus')}</th>
+                <th>{t('stock.receive.batchNoShort')}</th>
+                <th>{t('stock.receive.expiry')}</th>
+                <th>{t('stock.receive.priceShort')}</th>
+                <th className="text-end">{t('stock.receive.amount')}</th>
                 <th />
               </tr>
             </thead>
@@ -316,7 +331,7 @@ export function ReceiveForm({
                   <td className="px-2 py-1 font-medium">{l.item.name}</td>
                   <td>
                     <select
-                      aria-label="Unit"
+                      aria-label={t('stock.receive.unit')}
                       className={cell}
                       value={l.unitId}
                       onChange={(e) => patch(l.key, { unitId: e.target.value })}
@@ -331,7 +346,7 @@ export function ReceiveForm({
                   </td>
                   <td>
                     <input
-                      aria-label="Quantity"
+                      aria-label={t('common.quantity')}
                       className={`${cell} w-16`}
                       inputMode="numeric"
                       value={l.qty}
@@ -340,7 +355,7 @@ export function ReceiveForm({
                   </td>
                   <td>
                     <input
-                      aria-label="Bonus quantity"
+                      aria-label={t('stock.receive.bonusQuantity')}
                       className={`${cell} w-16`}
                       inputMode="numeric"
                       value={l.bonus}
@@ -349,7 +364,7 @@ export function ReceiveForm({
                   </td>
                   <td>
                     <input
-                      aria-label="Batch number"
+                      aria-label={t('stock.receive.batchNumber')}
                       className={`${cell} w-28 font-mono`}
                       value={l.batchNo}
                       onChange={(e) => patch(l.key, { batchNo: e.target.value })}
@@ -357,7 +372,7 @@ export function ReceiveForm({
                   </td>
                   <td>
                     <input
-                      aria-label="Expiry date"
+                      aria-label={t('stock.receive.expiryDate')}
                       type="date"
                       className={cell}
                       value={l.expiry}
@@ -366,7 +381,7 @@ export function ReceiveForm({
                   </td>
                   <td>
                     <input
-                      aria-label="Price per unit"
+                      aria-label={t('stock.receive.pricePerUnit')}
                       className={`${cell} w-24 text-end`}
                       inputMode="decimal"
                       value={l.price}
@@ -380,7 +395,7 @@ export function ReceiveForm({
                     <Button
                       variant="ghost"
                       className="h-8 px-2 text-danger"
-                      aria-label="Remove row"
+                      aria-label={t('stock.receive.removeRow')}
                       onClick={() => setLines((p) => p.filter((x) => x.key !== l.key))}
                     >
                       ✕
@@ -391,7 +406,7 @@ export function ReceiveForm({
               {lines.length === 0 ? (
                 <tr>
                   <td colSpan={9} className="px-3 py-8 text-center text-muted">
-                    Search for an item above to add it to this receipt.
+                    {t('stock.receive.emptyLines')}
                   </td>
                 </tr>
               ) : null}
@@ -402,15 +417,15 @@ export function ReceiveForm({
         <div className="grid gap-3 sm:grid-cols-5">
           {(
             [
-              ['Discount', discount, setDiscount],
-              ['Sales tax', salesTax, setSalesTax],
-              ['Advance tax', advTax, setAdvTax],
-              ['WHT (withheld)', wht, setWht],
-              ['Freight', freight, setFreight],
+              [t('common.discount'), discount, setDiscount],
+              [t('stock.receive.salesTax'), salesTax, setSalesTax],
+              [t('stock.receive.advanceTax'), advTax, setAdvTax],
+              [t('stock.receive.wht'), wht, setWht],
+              [t('stock.receive.freight'), freight, setFreight],
             ] as const
           ).map(([label, v, set]) => (
             <label key={label} className="text-sm">
-              {label} (PKR)
+              {t('stock.receive.withCurrency', { label })}
               <input
                 aria-label={label}
                 className={inputClass}
@@ -429,35 +444,37 @@ export function ReceiveForm({
             onClick={applyDefaultRates}
             disabled={subTotal === 0}
           >
-            Fill taxes from branch rates
+            {t('stock.receive.fillTaxes')}
           </Button>
         ) : null}
         <div className="flex flex-wrap items-end gap-3">
           <label className="min-w-64 flex-1 text-sm">
-            Stock note
+            {t('stock.receive.stockNote')}
             <input className={inputClass} value={note} onChange={(e) => setNote(e.target.value)} />
           </label>
           <div className="text-end">
-            <p className="text-xs text-muted">Goods {pkr(subTotal)}</p>
+            <p className="text-xs text-muted">
+              {t('stock.receive.goods', { amount: pkr(subTotal) })}
+            </p>
             <p className="text-2xl font-bold tabular-nums" data-testid="grn-total">
-              PKR {pkr(total)}
+              <bdi>PKR {pkr(total)}</bdi>
             </p>
           </div>
         </div>
         <ErrorText message={error} />
         <div className="flex justify-end gap-2">
           <Button variant="outline" onClick={onClose}>
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button onClick={() => void save()} disabled={busy || !ready}>
-            {busy ? 'Saving…' : 'Receive stock'}
+            {busy ? t('common.saving') : t('stock.receive.submit')}
           </Button>
         </div>
       </div>
       {addingSupplier ? (
         <NameDialog
-          title="New supplier"
-          label="Supplier name"
+          title={t('stock.receive.newSupplier')}
+          label={t('stock.receive.supplierName')}
           onClose={() => setAddingSupplier(false)}
           onSubmit={async (name) => {
             const r = await api<{ id: string }>('/api/suppliers', { body: { name } });

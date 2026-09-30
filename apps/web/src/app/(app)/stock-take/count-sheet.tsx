@@ -10,9 +10,11 @@ import {
   Modal,
   NameDialog,
   useAsync,
+  useErrorText,
 } from '@/components/ui';
+import { useT } from '@/i18n/client';
 import { pkr } from '@/lib/format';
-import type { TakeSummary } from './stock-take-client';
+import { statusText, type TakeSummary } from './stock-take-client';
 
 interface Line {
   lineId: string;
@@ -118,6 +120,8 @@ export function CountSheet({
   canPost: boolean;
   onBack: () => void;
 }) {
+  const t = useT();
+  const errorText = useErrorText();
   const [filter, setFilter] = useState<'all' | 'uncounted' | 'variance'>('all');
   const [q, setQ] = useState('');
   const [page, setPage] = useState(1);
@@ -148,24 +152,38 @@ export function CountSheet({
       await api(`/api/stock-takes/${takeId}/counts`, {
         body: { counts: [{ lineId, countedQtyBase }] },
       });
-      setTick((t) => t + 1);
+      setTick((n) => n + 1);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not save the count');
+      setError(errorText(e, 'stockTake.sheet.saveFailed'));
     }
   }
+
+  const [summaryBefore, summaryAfter] = result
+    ? t('stockTake.result.summary', {
+        adjusted: '\u0001',
+        unchanged: result.unchanged,
+        ignored: result.ignoredUncounted,
+      }).split('\u0001')
+    : ['', ''];
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <button className="text-sm text-primary-600 hover:underline" onClick={onBack}>
-            ← All counts
+            <span className="inline-block rtl:rotate-180">←</span> {t('stockTake.sheet.allCounts')}
           </button>
           <h1 className="text-2xl font-semibold">
-            {take ? `${take.docNo} · ${take.title}` : 'Stock count'}{' '}
+            {take ? (
+              <>
+                <bdi>{take.docNo}</bdi> · {take.title}
+              </>
+            ) : (
+              t('stockTake.sheet.heading')
+            )}{' '}
             {take ? (
               <Badge tone={open ? 'warning' : take.status === 'posted' ? 'success' : 'neutral'}>
-                {take.status}
+                {statusText(t, take.status)}
               </Badge>
             ) : null}
           </h1>
@@ -174,39 +192,48 @@ export function CountSheet({
           <div className="flex gap-2">
             {canCount ? (
               <Button variant="danger" onClick={() => setCancelling(true)}>
-                Cancel count
+                {t('stockTake.sheet.cancelCount')}
               </Button>
             ) : null}
-            {canPost ? <Button onClick={() => setPosting(true)}>Post differences</Button> : null}
+            {canPost ? (
+              <Button onClick={() => setPosting(true)}>
+                {t('stockTake.sheet.postDifferences')}
+              </Button>
+            ) : null}
           </div>
         ) : null}
       </div>
 
       {take ? (
         <div className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
-          <Stat label="Counted" value={`${take.countedLines} / ${take.totalLines}`} />
-          <Stat label="With differences" value={String(take.varianceLines)} />
           <Stat
-            label="Shortage at cost"
+            label={t('stockTake.counted')}
+            value={`${take.countedLines} / ${take.totalLines}`}
+          />
+          <Stat label={t('stockTake.sheet.withDifferences')} value={String(take.varianceLines)} />
+          <Stat
+            label={t('stockTake.sheet.shortageAtCost')}
             value={
               take.shortageCostValueMinor === undefined ? '–' : pkr(take.shortageCostValueMinor)
             }
           />
           <Stat
-            label="Surplus at cost"
+            label={t('stockTake.sheet.surplusAtCost')}
             value={take.surplusCostValueMinor === undefined ? '–' : pkr(take.surplusCostValueMinor)}
           />
         </div>
       ) : null}
       {take?.status === 'cancelled' ? (
-        <p className="text-sm text-danger">Cancelled: {take.cancelReason}</p>
+        <p className="text-sm text-danger">
+          {t('stockTake.sheet.cancelled', { reason: take.cancelReason ?? '' })}
+        </p>
       ) : null}
 
       <div className="flex flex-wrap items-center gap-2">
         <input
-          aria-label="Search lines"
+          aria-label={t('stockTake.sheet.searchLines')}
           className={`${inputClass} max-w-xs`}
-          placeholder="Item, code or batch"
+          placeholder={t('stockTake.sheet.searchPlaceholder')}
           value={q}
           onChange={(e) => {
             setQ(e.target.value);
@@ -223,7 +250,11 @@ export function CountSheet({
               setPage(1);
             }}
           >
-            {f === 'all' ? 'All' : f === 'uncounted' ? 'Not counted' : 'Differences'}
+            {f === 'all'
+              ? t('common.all')
+              : f === 'uncounted'
+                ? t('stockTake.sheet.notCounted')
+                : t('stockTake.differences')}
           </Button>
         ))}
       </div>
@@ -231,15 +262,15 @@ export function CountSheet({
 
       <div className="overflow-x-auto rounded-[10px] border border-border">
         <table className="w-full text-sm">
-          <thead className="bg-surface-2 text-left text-xs uppercase text-muted">
+          <thead className="bg-surface-2 text-start text-xs uppercase text-muted">
             <tr>
-              <th className="px-3 py-2">Item</th>
-              <th>Batch</th>
-              <th>Expiry</th>
-              <th className="text-end">System</th>
-              <th className="px-3">Counted</th>
-              <th className="text-end">Difference</th>
-              <th className="px-3 text-end">Value</th>
+              <th className="px-3 py-2">{t('common.item')}</th>
+              <th>{t('stockTake.sheet.batch')}</th>
+              <th>{t('stockTake.sheet.expiry')}</th>
+              <th className="text-end">{t('stockTake.sheet.system')}</th>
+              <th className="px-3">{t('stockTake.counted')}</th>
+              <th className="text-end">{t('stockTake.sheet.difference')}</th>
+              <th className="px-3 text-end">{t('stockTake.sheet.value')}</th>
             </tr>
           </thead>
           <tbody>
@@ -247,12 +278,18 @@ export function CountSheet({
               <tr key={`${l.lineId}:${l.countedQtyBase}`} className="border-t border-border">
                 <td className="px-3 py-1">
                   <span className="font-medium">{l.itemName}</span>{' '}
-                  <span className="font-mono text-xs text-muted">{l.sku}</span>
+                  <span dir="ltr" className="font-mono text-xs text-muted">
+                    {l.sku}
+                  </span>
                 </td>
-                <td className="font-mono text-xs">{l.batchNo}</td>
-                <td>{l.expiryDate}</td>
+                <td className="font-mono text-xs">
+                  <bdi>{l.batchNo}</bdi>
+                </td>
+                <td>
+                  <bdi>{l.expiryDate}</bdi>
+                </td>
                 <td className="text-end tabular-nums">
-                  {packsText(l.systemQtyBase, l.packSize, l.packName, l.baseUnitName)}
+                  <bdi>{packsText(l.systemQtyBase, l.packSize, l.packName, l.baseUnitName)}</bdi>
                 </td>
                 <td className="px-3">
                   <CountCell
@@ -264,11 +301,13 @@ export function CountSheet({
                 <td
                   className={`text-end tabular-nums ${l.differenceBase && l.differenceBase < 0 ? 'text-danger' : ''}`}
                 >
-                  {l.differenceBase === null
-                    ? ''
-                    : l.differenceBase > 0
-                      ? `+${l.differenceBase}`
-                      : l.differenceBase}
+                  <bdi>
+                    {l.differenceBase === null
+                      ? ''
+                      : l.differenceBase > 0
+                        ? `+${l.differenceBase}`
+                        : l.differenceBase}
+                  </bdi>
                 </td>
                 <td className="px-3 text-end tabular-nums">
                   {l.costValueMinor === undefined ||
@@ -282,7 +321,7 @@ export function CountSheet({
             {lines.data && lines.data.rows.length === 0 ? (
               <tr>
                 <td colSpan={7} className="px-3 py-10 text-center text-muted">
-                  Nothing to show.
+                  {t('stockTake.sheet.empty')}
                 </td>
               </tr>
             ) : null}
@@ -291,7 +330,7 @@ export function CountSheet({
       </div>
       <div className="flex items-center justify-end gap-2 text-sm">
         <span className="text-muted">
-          Page {page} of {pages} · {lines.data?.total ?? 0} lines
+          {t('stockTake.sheet.pageInfo', { page, pages, total: lines.data?.total ?? 0 })}
         </span>
         <Button
           variant="outline"
@@ -299,7 +338,7 @@ export function CountSheet({
           disabled={page <= 1}
           onClick={() => setPage(page - 1)}
         >
-          Previous
+          {t('common.previous')}
         </Button>
         <Button
           variant="outline"
@@ -307,7 +346,7 @@ export function CountSheet({
           disabled={page >= pages}
           onClick={() => setPage(page + 1)}
         >
-          Next
+          {t('common.next')}
         </Button>
       </div>
 
@@ -318,39 +357,39 @@ export function CountSheet({
           onPosted={(r) => {
             setPosting(false);
             setResult(r);
-            setTick((t) => t + 1);
+            setTick((n) => n + 1);
           }}
           takeId={takeId}
         />
       ) : null}
       {cancelling ? (
         <NameDialog
-          title="Cancel this count"
-          label="Reason"
-          submitLabel="Cancel count"
+          title={t('stockTake.sheet.cancelTitle')}
+          label={t('common.reason')}
+          submitLabel={t('stockTake.sheet.cancelCount')}
           onClose={() => setCancelling(false)}
           onSubmit={async (reason) => {
             await api(`/api/stock-takes/${takeId}/cancel`, { body: { reason } });
             setCancelling(false);
-            setTick((t) => t + 1);
+            setTick((n) => n + 1);
           }}
         />
       ) : null}
       {result ? (
-        <Modal title="Count posted" onClose={() => setResult(null)}>
+        <Modal title={t('stockTake.result.title')} onClose={() => setResult(null)}>
           <div className="space-y-2 text-sm">
             <p>
-              <strong>{result.adjusted}</strong> batches adjusted, {result.unchanged} matched,{' '}
-              {result.ignoredUncounted} left as they were.
+              {summaryBefore}
+              <strong>{result.adjusted}</strong>
+              {summaryAfter}
             </p>
             {result.clamped > 0 ? (
               <p className="text-warning">
-                {result.clamped} shortages were larger than what is left on the shelf now (sold
-                during the count) and were limited.
+                {t('stockTake.result.clamped', { count: result.clamped })}
               </p>
             ) : null}
             <Button className="w-full" onClick={() => setResult(null)}>
-              Done
+              {t('common.done')}
             </Button>
           </div>
         </Modal>
@@ -379,6 +418,8 @@ function PostDialog({
   onClose: () => void;
   onPosted: (r: PostResult) => void;
 }) {
+  const t = useT();
+  const errorText = useErrorText();
   const [uncounted, setUncounted] = useState<'ignore' | 'zero'>('ignore');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -393,29 +434,27 @@ function PostDialog({
       });
       onPosted(r.result);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not post the count');
+      setError(errorText(e, 'stockTake.post.failed'));
       setBusy(false);
     }
   }
 
   return (
-    <Modal title="Post the differences" onClose={onClose}>
+    <Modal title={t('stockTake.post.title')} onClose={onClose}>
       <div className="space-y-3 text-sm">
-        <p>
-          {take.varianceLines} batches differ from the system. Posting writes them to the stock
-          ledger and closes this count. It cannot be undone; a mistake is fixed with a new
-          adjustment.
-        </p>
+        <p>{t('stockTake.post.body', { count: take.varianceLines })}</p>
         {left > 0 ? (
           <fieldset className="space-y-1 rounded-[6px] border border-border p-3">
-            <legend className="px-1 text-xs text-muted">{left} batches were not counted</legend>
+            <legend className="px-1 text-xs text-muted">
+              {t('stockTake.post.notCounted', { count: left })}
+            </legend>
             <label className="flex items-center gap-2">
               <input
                 type="radio"
                 checked={uncounted === 'ignore'}
                 onChange={() => setUncounted('ignore')}
               />{' '}
-              Leave them as they are
+              {t('stockTake.post.leave')}
             </label>
             <label className="flex items-center gap-2">
               <input
@@ -423,17 +462,17 @@ function PostDialog({
                 checked={uncounted === 'zero'}
                 onChange={() => setUncounted('zero')}
               />{' '}
-              Treat them as not found (count zero)
+              {t('stockTake.post.zero')}
             </label>
           </fieldset>
         ) : null}
         <ErrorText message={error} />
         <div className="flex justify-end gap-2">
           <Button variant="outline" onClick={onClose}>
-            Keep counting
+            {t('stockTake.post.keepCounting')}
           </Button>
           <Button onClick={() => void post()} disabled={busy}>
-            {busy ? 'Posting…' : 'Post differences'}
+            {busy ? t('stockTake.post.posting') : t('stockTake.sheet.postDifferences')}
           </Button>
         </div>
       </div>

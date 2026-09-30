@@ -1,7 +1,17 @@
 'use client';
 
 import { useState } from 'react';
-import { api, Badge, Button, ErrorText, inputClass, Modal, useAsync } from '@/components/ui';
+import {
+  api,
+  Badge,
+  Button,
+  ErrorText,
+  inputClass,
+  Modal,
+  useAsync,
+  useErrorText,
+} from '@/components/ui';
+import { useT } from '@/i18n/client';
 import { pkr, tryMinor } from '@/lib/format';
 
 interface Entry {
@@ -41,12 +51,12 @@ interface Mode {
   kind: string;
 }
 
-const AGING: [keyof LedgerResponse['ledger']['aging'], string][] = [
-  ['notDue', 'Not due'],
-  ['days1to30', '1–30 days'],
-  ['days31to60', '31–60 days'],
-  ['days61to90', '61–90 days'],
-  ['over90', 'Over 90'],
+const AGING: (keyof LedgerResponse['ledger']['aging'])[] = [
+  'notDue',
+  'days1to30',
+  'days31to60',
+  'days61to90',
+  'over90',
 ];
 
 /** Statement of account for one supplier, with ageing and a payment dialog. */
@@ -63,6 +73,7 @@ export function SupplierLedger({
   onClose: () => void;
   onChanged: () => void;
 }) {
+  const t = useT();
   const { data, error, reload } = useAsync(
     () => api<LedgerResponse>(`/api/suppliers/${supplierId}/ledger`),
     [supplierId],
@@ -71,7 +82,15 @@ export function SupplierLedger({
   const l = data?.ledger;
 
   return (
-    <Modal title={l ? `${l.supplier.name} · account` : 'Supplier account'} onClose={onClose} wide>
+    <Modal
+      title={
+        l
+          ? t('purchasing.ledger.accountTitle', { name: l.supplier.name })
+          : t('purchasing.ledger.accountFallback')
+      }
+      onClose={onClose}
+      wide
+    >
       <style>{'@media print { @page { size: A4; margin: 14mm; } }'}</style>
       <ErrorText message={error} />
       {l && data ? (
@@ -79,46 +98,53 @@ export function SupplierLedger({
           <div id="doc-print" className="space-y-3">
             <div className="flex items-end justify-between">
               <div>
-                <p className="text-lg font-semibold">{branchName} · Supplier statement</p>
+                <p className="text-lg font-semibold">
+                  {t('purchasing.ledger.statement', { branch: branchName })}
+                </p>
                 <p className="text-sm text-muted">
-                  {l.supplier.name} · terms {l.supplier.termsDays} days
+                  {t('purchasing.ledger.terms', {
+                    name: l.supplier.name,
+                    days: l.supplier.termsDays,
+                  })}
                 </p>
               </div>
               <div className="text-end">
-                <p className="text-xs text-muted">We owe</p>
+                <p className="text-xs text-muted">{t('purchasing.suppliers.weOwe')}</p>
                 <p className="text-2xl font-bold tabular-nums" data-testid="ledger-balance">
-                  PKR {pkr(l.balanceMinor)}
+                  <bdi>PKR {pkr(l.balanceMinor)}</bdi>
                 </p>
               </div>
             </div>
             <div className="grid grid-cols-5 gap-2 text-center text-sm">
-              {AGING.map(([k, label]) => (
+              {AGING.map((k) => (
                 <div
                   key={k}
                   className={`rounded-[6px] border border-border p-2 ${k === 'over90' && l.aging[k] > 0 ? 'bg-[#FEE2E2]' : ''}`}
                 >
-                  <p className="text-xs text-muted">{label}</p>
+                  <p className="text-xs text-muted">{t(`purchasing.ledger.aging.${k}`)}</p>
                   <p className="font-semibold tabular-nums">{pkr(l.aging[k])}</p>
                 </div>
               ))}
             </div>
             <div className="max-h-[40vh] overflow-auto rounded-[10px] border border-border">
               <table className="w-full text-sm">
-                <thead className="sticky top-0 bg-surface-2 text-left text-xs uppercase text-muted">
+                <thead className="sticky top-0 bg-surface-2 text-start text-xs uppercase text-muted">
                   <tr>
-                    <th className="px-2 py-2">Date</th>
-                    <th>Document</th>
-                    <th>Details</th>
-                    <th className="text-end">Bills</th>
-                    <th className="text-end">Paid</th>
-                    <th className="px-2 text-end">Balance</th>
+                    <th className="px-2 py-2">{t('common.date')}</th>
+                    <th>{t('purchasing.ledger.document')}</th>
+                    <th>{t('purchasing.ledger.details')}</th>
+                    <th className="text-end">{t('purchasing.ledger.bills')}</th>
+                    <th className="text-end">{t('purchasing.bills.paid')}</th>
+                    <th className="px-2 text-end">{t('purchasing.ledger.balance')}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {l.entries.map((e, i) => (
                     <tr key={`${e.docNo}-${i}`} className="border-t border-border">
                       <td className="px-2 py-1">{e.date}</td>
-                      <td className="font-mono text-xs">{e.docNo}</td>
+                      <td className="font-mono text-xs">
+                        <bdi>{e.docNo}</bdi>
+                      </td>
                       <td>{e.description}</td>
                       <td className="text-end tabular-nums">
                         {e.debitMinor ? pkr(e.debitMinor) : ''}
@@ -138,15 +164,16 @@ export function SupplierLedger({
 
           {data.openBills.length > 0 ? (
             <div className="space-y-1">
-              <p className="text-sm font-medium">Unpaid bills</p>
+              <p className="text-sm font-medium">{t('purchasing.ledger.unpaidBills')}</p>
               {data.openBills.map((b) => (
                 <div
                   key={b.grnId}
                   className="flex items-center justify-between rounded-[6px] border border-border px-3 py-1.5 text-sm"
                 >
                   <span>
-                    <span className="font-mono text-xs">{b.docNo}</span>{' '}
-                    {b.supplierInvoiceNo ? `· ${b.supplierInvoiceNo}` : ''} · due {b.dueDate}
+                    <bdi className="font-mono text-xs">{b.docNo}</bdi>{' '}
+                    {b.supplierInvoiceNo ? `· ${b.supplierInvoiceNo}` : ''} ·{' '}
+                    {t('purchasing.ledger.due', { date: b.dueDate })}
                   </span>
                   <span className="flex items-center gap-2">
                     <Badge
@@ -162,7 +189,7 @@ export function SupplierLedger({
                         className="h-8 px-3"
                         onClick={() => setPaying({ bill: b })}
                       >
-                        Pay
+                        {t('purchasing.ledger.pay')}
                       </Button>
                     ) : null}
                   </span>
@@ -173,13 +200,15 @@ export function SupplierLedger({
 
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={() => window.print()}>
-              Print
+              {t('common.print')}
             </Button>
-            {canPay ? <Button onClick={() => setPaying({})}>Record payment</Button> : null}
+            {canPay ? (
+              <Button onClick={() => setPaying({})}>{t('purchasing.ledger.recordPayment')}</Button>
+            ) : null}
           </div>
         </div>
       ) : (
-        <p className="py-8 text-center text-muted">Loading…</p>
+        <p className="py-8 text-center text-muted">{t('common.loading')}</p>
       )}
       {paying ? (
         <PaymentDialog
@@ -211,6 +240,8 @@ function PaymentDialog({
   onClose: () => void;
   onPaid: () => void;
 }) {
+  const t = useT();
+  const errorText = useErrorText();
   const modes = useAsync(() => api<{ paymentModes: Mode[] }>('/api/lookups'));
   const [amount, setAmount] = useState(
     defaultAmount
@@ -239,18 +270,25 @@ function PaymentDialog({
       });
       onPaid();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not save the payment');
+      setError(errorText(e, 'purchasing.ledger.couldNotSavePayment'));
       setBusy(false);
     }
   }
 
   return (
-    <Modal title={bill ? `Pay bill ${bill.docNo}` : 'Payment on account'} onClose={onClose}>
+    <Modal
+      title={
+        bill
+          ? t('purchasing.ledger.payBillTitle', { docNo: bill.docNo })
+          : t('purchasing.ledger.payOnAccount')
+      }
+      onClose={onClose}
+    >
       <div className="space-y-3">
         <label className="block text-sm">
-          Amount (PKR)
+          {t('purchasing.ledger.amountPkr')}
           <input
-            aria-label="Payment amount"
+            aria-label={t('purchasing.ledger.amountAria')}
             autoFocus
             className={inputClass}
             inputMode="decimal"
@@ -259,9 +297,9 @@ function PaymentDialog({
           />
         </label>
         <label className="block text-sm">
-          Paid by
+          {t('purchasing.ledger.paidBy')}
           <select
-            aria-label="Payment method"
+            aria-label={t('purchasing.ledger.methodAria')}
             className={inputClass}
             value={modeId || usable[0]?.id || ''}
             onChange={(e) => setModeId(e.target.value)}
@@ -274,9 +312,9 @@ function PaymentDialog({
           </select>
         </label>
         <label className="block text-sm">
-          Reference (cheque / transfer no.)
+          {t('purchasing.ledger.reference')}
           <input
-            aria-label="Reference"
+            aria-label={t('purchasing.ledger.referenceAria')}
             className={inputClass}
             value={reference}
             onChange={(e) => setReference(e.target.value)}
@@ -285,13 +323,13 @@ function PaymentDialog({
         <ErrorText message={error ?? modes.error} />
         <div className="flex justify-end gap-2">
           <Button variant="outline" onClick={onClose}>
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button
             onClick={() => void save()}
             disabled={busy || !minor || minor <= 0 || usable.length === 0}
           >
-            {busy ? 'Saving…' : 'Save payment'}
+            {busy ? t('common.saving') : t('purchasing.ledger.savePayment')}
           </Button>
         </div>
       </div>

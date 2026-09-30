@@ -12,7 +12,9 @@ import {
   Modal,
   NameDialog,
   useAsync,
+  useErrorText,
 } from '@/components/ui';
+import { useT } from '@/i18n/client';
 import { bpToPercent, percentToBp } from '../settings/percent';
 import { pkr, rate, tryMicro } from '@/lib/format';
 
@@ -82,6 +84,7 @@ export function ItemsClient({
   /** True on a branch: Head Office creates items and sets prices and tax rates, they are read-only here. */
   pricesSetByHeadOffice?: boolean;
 }) {
+  const t = useT();
   const [q, setQ] = useState('');
   const [page, setPage] = useState(1);
   const [flt, setFlt] = useState('');
@@ -100,14 +103,14 @@ export function ItemsClient({
     <>
       <div className="flex flex-wrap items-end gap-3">
         <div>
-          <h1 className="text-2xl font-semibold">Items</h1>
-          <p className="text-sm text-muted">Medicines and retail products with stock on hand.</p>
+          <h1 className="text-2xl font-semibold">{t('items.title')}</h1>
+          <p className="text-sm text-muted">{t('items.subtitle')}</p>
         </div>
         <div className="ms-auto flex flex-wrap gap-2">
           <input
-            aria-label="Search items"
+            aria-label={t('items.searchItems')}
             className={`${inputClass} w-64`}
-            placeholder="Search name, generic, code…"
+            placeholder={t('items.searchPlaceholder')}
             value={q}
             onChange={(e) => {
               setQ(e.target.value);
@@ -115,7 +118,7 @@ export function ItemsClient({
             }}
           />
           <select
-            aria-label="Filter"
+            aria-label={t('items.filter')}
             className={`${inputClass} w-40`}
             value={flt}
             onChange={(e) => {
@@ -123,57 +126,63 @@ export function ItemsClient({
               setPage(1);
             }}
           >
-            <option value="">All items</option>
-            <option value="in">In stock</option>
-            <option value="low">Low stock</option>
+            <option value="">{t('items.filterAll')}</option>
+            <option value="in">{t('items.filterIn')}</option>
+            <option value="low">{t('items.filterLow')}</option>
           </select>
           {canImport && !pricesSetByHeadOffice ? (
             <Link
               href="/items/import"
               className="inline-flex h-10 items-center rounded-[6px] border border-primary-600 px-4 text-sm font-semibold text-primary-600 hover:bg-primary-50"
             >
-              Import from Excel
+              {t('items.importExcel')}
             </Link>
           ) : null}
           {canCreate && !pricesSetByHeadOffice ? (
-            <Button onClick={() => setEditing('new')}>Add item</Button>
+            <Button onClick={() => setEditing('new')}>{t('items.addItem')}</Button>
           ) : null}
         </div>
       </div>
       <ErrorText message={list.error} />
       <div className="overflow-x-auto rounded-[10px] border border-border">
         <table className="w-full text-sm">
-          <thead className="bg-surface-2 text-left text-xs uppercase text-muted">
+          <thead className="bg-surface-2 text-start text-xs uppercase text-muted">
             <tr>
-              <th className="px-4 py-3">Code</th>
-              <th className="px-4 py-3">Name</th>
-              <th className="px-4 py-3">Generic</th>
-              <th className="px-4 py-3 text-end">On hand</th>
-              <th className="px-4 py-3 text-end">Expired</th>
-              <th className="px-4 py-3">Earliest expiry</th>
-              {canSeeCost ? <th className="px-4 py-3 text-end">Stock value</th> : null}
+              <th className="px-4 py-3">{t('items.col.code')}</th>
+              <th className="px-4 py-3">{t('common.name')}</th>
+              <th className="px-4 py-3">{t('items.col.generic')}</th>
+              <th className="px-4 py-3 text-end">{t('items.col.onHand')}</th>
+              <th className="px-4 py-3 text-end">{t('items.col.expired')}</th>
+              <th className="px-4 py-3">{t('items.col.earliestExpiry')}</th>
+              {canSeeCost ? (
+                <th className="px-4 py-3 text-end">{t('items.col.stockValue')}</th>
+              ) : null}
               <th className="px-4 py-3" />
             </tr>
           </thead>
           <tbody>
             {list.data?.rows.map((r) => (
               <tr key={r.itemId} className="border-t border-border">
-                <td className="px-4 py-3 font-mono text-xs">{r.sku}</td>
+                <td className="px-4 py-3 font-mono text-xs">
+                  <bdi>{r.sku}</bdi>
+                </td>
                 <td className="px-4 py-3 font-medium">
-                  {r.name} {r.low ? <Badge tone="warning">Low</Badge> : null}
+                  {r.name} {r.low ? <Badge tone="warning">{t('items.low')}</Badge> : null}
                 </td>
                 <td className="px-4 py-3 text-muted">{r.genericName ?? ''}</td>
                 <td className="px-4 py-3 text-end tabular-nums">{r.onHandBase}</td>
                 <td className="px-4 py-3 text-end tabular-nums">
                   {r.expiredBase > 0 ? <Badge tone="danger">{r.expiredBase}</Badge> : 0}
                 </td>
-                <td className="px-4 py-3">{r.nearestExpiry ?? '–'}</td>
+                <td className="px-4 py-3">
+                  <bdi>{r.nearestExpiry ?? '–'}</bdi>
+                </td>
                 {canSeeCost ? (
                   <td className="px-4 py-3 text-end tabular-nums">{pkr(r.costValueMinor ?? 0)}</td>
                 ) : null}
                 <td className="px-4 py-3 text-end">
                   <Button variant="ghost" className="h-8 px-2" onClick={() => setEditing(r.itemId)}>
-                    {canEdit ? 'Edit' : 'View'}
+                    {canEdit ? t('common.edit') : t('items.view')}
                   </Button>
                 </td>
               </tr>
@@ -181,14 +190,14 @@ export function ItemsClient({
             {list.data && list.data.rows.length === 0 ? (
               <tr>
                 <td colSpan={8} className="px-4 py-10 text-center text-muted">
-                  No items found. {canCreate ? 'Use “Add item”.' : ''}
+                  {t('items.empty')} {canCreate ? t('items.emptyHint') : ''}
                 </td>
               </tr>
             ) : null}
             {!list.data && !list.error ? (
               <tr>
                 <td colSpan={8} className="px-4 py-10 text-center text-muted">
-                  Loading…
+                  {t('common.loading')}
                 </td>
               </tr>
             ) : null}
@@ -196,7 +205,7 @@ export function ItemsClient({
         </table>
       </div>
       <div className="flex items-center justify-between text-sm text-muted">
-        <span>{list.data?.total ?? 0} items</span>
+        <span>{t('items.count', { count: list.data?.total ?? 0 })}</span>
         <span className="flex items-center gap-2">
           <Button
             variant="outline"
@@ -204,16 +213,16 @@ export function ItemsClient({
             disabled={page <= 1}
             onClick={() => setPage(page - 1)}
           >
-            Previous
+            {t('common.previous')}
           </Button>
-          Page {page} of {pages}
+          {t('items.pageOf', { page, pages })}
           <Button
             variant="outline"
             className="h-8 px-3"
             disabled={page >= pages}
             onClick={() => setPage(page + 1)}
           >
-            Next
+            {t('common.next')}
           </Button>
         </span>
       </div>
@@ -252,14 +261,15 @@ function ItemForm({
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const t = useT();
   const detail = useAsync(
     () => (id ? api<{ item: ItemDetail }>(`/api/items/${id}`) : Promise.resolve(null)),
     [id],
   );
   if (id && !detail.data)
     return (
-      <Modal title="Item" onClose={onClose}>
-        <p className="text-sm text-muted">{detail.error ?? 'Loading…'}</p>
+      <Modal title={t('items.modalTitle')} onClose={onClose}>
+        <p className="text-sm text-muted">{detail.error ?? t('common.loading')}</p>
       </Modal>
     );
   return (
@@ -300,6 +310,8 @@ function ItemFormBody({
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const t = useT();
+  const errorText = useErrorText();
   const tablet = lookups.units.find((u) => u.name === 'Tablet')?.id ?? lookups.units[0]?.id ?? '';
   const strip = lookups.units.find((u) => u.name === 'Strip')?.id;
   const [f, setF] = useState(() => ({
@@ -352,12 +364,12 @@ function ItemFormBody({
 
   const [adding, setAdding] = useState<{
     kind: 'categories' | 'manufacturers' | 'racks';
-    label: string;
+    label: 'category' | 'manufacturer' | 'rack';
     key: 'categoryId' | 'manufacturerId' | 'rackId';
   } | null>(null);
   const quickAdd = (
     kind: 'categories' | 'manufacturers' | 'racks',
-    label: string,
+    label: 'category' | 'manufacturer' | 'rack',
     key: 'categoryId' | 'manufacturerId' | 'rackId',
   ) => setAdding({ kind, label, key });
 
@@ -365,10 +377,9 @@ function ItemFormBody({
     e.preventDefault();
     setError(null);
     const packMicro = tryMicro(price);
-    if (packMicro === null) return setError('Enter the selling price, for example 18.50');
+    if (packMicro === null) return setError(t('items.errPrice'));
     const factors = unitRows.map((u) => Number(u.factor));
-    if (factors.some((n) => !Number.isInteger(n) || n < 1))
-      return setError('Units per pack must be whole numbers');
+    if (factors.some((n) => !Number.isInteger(n) || n < 1)) return setError(t('items.errUnits'));
     setBusy(true);
     const body = {
       name: f.name,
@@ -411,7 +422,7 @@ function ItemFormBody({
       else await api('/api/items', { body });
       onSaved();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not save');
+      setError(errorText(err, 'common.couldNotSave'));
       setBusy(false);
     }
   }
@@ -421,7 +432,13 @@ function ItemFormBody({
   const unitName = (id: string) => lookups.units.find((u) => u.id === id)?.name ?? '';
   return (
     <Modal
-      title={item ? (readOnly ? item.name : `Edit ${item.name}`) : 'Add item'}
+      title={
+        item
+          ? readOnly
+            ? item.name
+            : t('items.editTitle', { name: item.name })
+          : t('items.addItem')
+      }
       onClose={onClose}
       wide
     >
@@ -429,7 +446,7 @@ function ItemFormBody({
         <fieldset disabled={readOnly || busy} className="space-y-4">
           <div className="grid gap-3 sm:grid-cols-3">
             <label className="text-sm sm:col-span-2">
-              Name
+              {t('common.name')}
               <input
                 className={inputClass}
                 value={f.name}
@@ -438,7 +455,7 @@ function ItemFormBody({
               />
             </label>
             <label className="text-sm">
-              Generic name
+              {t('items.genericName')}
               <input
                 className={inputClass}
                 value={f.genericName}
@@ -446,7 +463,7 @@ function ItemFormBody({
               />
             </label>
             <label className="text-sm">
-              Strength
+              {t('items.strength')}
               <input
                 className={inputClass}
                 placeholder="500mg"
@@ -455,16 +472,16 @@ function ItemFormBody({
               />
             </label>
             <label className="text-sm">
-              Form
+              {t('items.form')}
               <input
                 className={inputClass}
-                placeholder="Tablet"
+                placeholder={t('items.formPlaceholder')}
                 value={f.dosageForm}
                 onChange={(e) => set('dosageForm', e.target.value)}
               />
             </label>
             <label className="text-sm">
-              Barcodes (comma separated)
+              {t('items.barcodes')}
               <input
                 className={`${inputClass} font-mono`}
                 value={f.barcodes}
@@ -472,14 +489,14 @@ function ItemFormBody({
               />
             </label>
             <label className="text-sm">
-              Category
+              {t('items.category')}
               <span className="flex gap-1">
                 <select
                   className={sel}
                   value={f.categoryId}
                   onChange={(e) => set('categoryId', e.target.value)}
                 >
-                  <option value="">None</option>
+                  <option value="">{t('items.none')}</option>
                   {lookups.categories.map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.name}
@@ -497,14 +514,14 @@ function ItemFormBody({
               </span>
             </label>
             <label className="text-sm">
-              Manufacturer
+              {t('items.manufacturer')}
               <span className="flex gap-1">
                 <select
                   className={sel}
                   value={f.manufacturerId}
                   onChange={(e) => set('manufacturerId', e.target.value)}
                 >
-                  <option value="">None</option>
+                  <option value="">{t('items.none')}</option>
                   {lookups.manufacturers.map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.name}
@@ -522,14 +539,14 @@ function ItemFormBody({
               </span>
             </label>
             <label className="text-sm">
-              Rack
+              {t('items.rack')}
               <span className="flex gap-1">
                 <select
                   className={sel}
                   value={f.rackId}
                   onChange={(e) => set('rackId', e.target.value)}
                 >
-                  <option value="">None</option>
+                  <option value="">{t('items.none')}</option>
                   {lookups.racks.map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.code}
@@ -540,7 +557,7 @@ function ItemFormBody({
                   type="button"
                   variant="outline"
                   className="h-10 px-2"
-                  onClick={() => void quickAdd('racks', 'rack code', 'rackId')}
+                  onClick={() => void quickAdd('racks', 'rack', 'rackId')}
                 >
                   +
                 </Button>
@@ -549,10 +566,9 @@ function ItemFormBody({
           </div>
 
           <div className="rounded-[10px] border border-border p-3">
-            <p className="mb-2 text-sm font-medium">Units and packs</p>
+            <p className="mb-2 text-sm font-medium">{t('items.unitsTitle')}</p>
             <p className="mb-2 text-xs text-muted">
-              Stock is kept in the smallest unit ({unitName(f.baseUnitId)}). Each other unit says
-              how many smallest units it holds (a strip of 10 tablets = 10).
+              {t('items.unitsHelp', { unit: unitName(f.baseUnitId) })}
             </p>
             {unitRows.map((u, i) => (
               <div
@@ -561,10 +577,10 @@ function ItemFormBody({
               >
                 <span>
                   {unitName(u.unitId)}
-                  {u.unitId === f.baseUnitId ? ' (smallest)' : ''}
+                  {u.unitId === f.baseUnitId ? ` ${t('items.smallest')}` : ''}
                 </span>
                 <input
-                  aria-label={`${unitName(u.unitId)} holds`}
+                  aria-label={t('items.unitHolds', { unit: unitName(u.unitId) })}
                   className={inputClass}
                   inputMode="numeric"
                   value={u.factor}
@@ -582,7 +598,7 @@ function ItemFormBody({
                     checked={u.sale}
                     onChange={() => setUnitRows((r) => r.map((x, j) => ({ ...x, sale: j === i })))}
                   />{' '}
-                  sell
+                  {t('items.sell')}
                 </label>
                 <label className="flex items-center gap-1">
                   <input
@@ -593,13 +609,13 @@ function ItemFormBody({
                       setUnitRows((r) => r.map((x, j) => ({ ...x, purchase: j === i })))
                     }
                   />{' '}
-                  buy
+                  {t('items.buy')}
                 </label>
               </div>
             ))}
             {!item ? (
               <select
-                aria-label="Add a unit"
+                aria-label={t('items.addUnit')}
                 className={`${sel} mt-2 max-w-xs`}
                 value=""
                 onChange={(e) =>
@@ -610,7 +626,7 @@ function ItemFormBody({
                   ])
                 }
               >
-                <option value="">+ Add a pack unit…</option>
+                <option value="">{t('items.addPackUnit')}</option>
                 {lookups.units
                   .filter((u) => !unitRows.some((x) => x.unitId === u.id))
                   .map((u) => (
@@ -620,22 +636,20 @@ function ItemFormBody({
                   ))}
               </select>
             ) : (
-              <p className="mt-2 text-xs text-muted">
-                Units per pack cannot be changed after an item is created.
-              </p>
+              <p className="mt-2 text-xs text-muted">{t('items.unitsLocked')}</p>
             )}
           </div>
 
           {priceLocked ? (
             <p className="rounded-[6px] bg-primary-50 px-3 py-2 text-sm text-primary-900">
-              Prices and tax rates are set by Head Office and cannot be changed on this branch.
+              {t('items.priceLocked')}
             </p>
           ) : null}
           <div className="grid gap-3 sm:grid-cols-4">
             <label className="text-sm">
-              Selling price per {unitName(saleRow?.unitId ?? '')} (PKR)
+              {t('items.sellingPricePer', { unit: unitName(saleRow?.unitId ?? '') })}
               <input
-                aria-label="Selling price"
+                aria-label={t('items.sellingPrice')}
                 className={inputClass}
                 inputMode="decimal"
                 value={price}
@@ -645,7 +659,7 @@ function ItemFormBody({
               />
             </label>
             <label className="text-sm">
-              Sales tax %
+              {t('items.salesTax')}
               <input
                 className={inputClass}
                 inputMode="decimal"
@@ -661,10 +675,10 @@ function ItemFormBody({
                 onChange={(e) => set('taxInclusive', e.target.checked)}
                 disabled={priceLocked}
               />{' '}
-              Price includes tax
+              {t('items.priceIncludesTax')}
             </label>
             <label className="text-sm">
-              Reorder level ({unitName(f.baseUnitId)})
+              {t('items.reorderLevel', { unit: unitName(f.baseUnitId) })}
               <input
                 className={inputClass}
                 inputMode="numeric"
@@ -680,7 +694,7 @@ function ItemFormBody({
                 checked={f.isPrescription}
                 onChange={(e) => set('isPrescription', e.target.checked)}
               />{' '}
-              Prescription required
+              {t('items.prescription')}
             </label>
             <label className="flex items-center gap-2">
               <input
@@ -688,7 +702,7 @@ function ItemFormBody({
                 checked={f.isNarcotic}
                 onChange={(e) => set('isNarcotic', e.target.checked)}
               />{' '}
-              Controlled / narcotic
+              {t('items.narcotic')}
             </label>
             <label className="flex items-center gap-2">
               <input
@@ -696,7 +710,7 @@ function ItemFormBody({
                 checked={f.isColdChain}
                 onChange={(e) => set('isColdChain', e.target.checked)}
               />{' '}
-              Cold chain
+              {t('items.coldChain')}
             </label>
             <label className="flex items-center gap-2">
               <input
@@ -704,7 +718,7 @@ function ItemFormBody({
                 checked={f.allowNegativeStock}
                 onChange={(e) => set('allowNegativeStock', e.target.checked)}
               />{' '}
-              Allow selling below zero stock
+              {t('items.allowNegative')}
             </label>
             <label className="flex items-center gap-2">
               <input
@@ -712,26 +726,26 @@ function ItemFormBody({
                 checked={f.isActive}
                 onChange={(e) => set('isActive', e.target.checked)}
               />{' '}
-              Active
+              {t('common.active')}
             </label>
           </div>
         </fieldset>
         <ErrorText message={error} />
         <div className="flex justify-end gap-2">
           <Button type="button" variant="outline" onClick={onClose}>
-            {readOnly ? 'Close' : 'Cancel'}
+            {readOnly ? t('common.close') : t('common.cancel')}
           </Button>
           {!readOnly ? (
             <Button type="submit" disabled={busy || f.name.trim().length < 2}>
-              {busy ? 'Saving…' : 'Save item'}
+              {busy ? t('common.saving') : t('items.saveItem')}
             </Button>
           ) : null}
         </div>
       </form>
       {adding ? (
         <NameDialog
-          title={`New ${adding.label}`}
-          label="Name"
+          title={t('items.new.' + adding.label)}
+          label={t('common.name')}
           onClose={() => setAdding(null)}
           onSubmit={async (name) => {
             const r = await api<{ id: string }>(`/api/lookups/${adding.kind}`, { body: { name } });

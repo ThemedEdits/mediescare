@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { api, Badge, Button, ErrorText, inputClass } from '@/components/ui';
+import { api, Badge, Button, ErrorText, inputClass, useErrorText } from '@/components/ui';
+import { useT } from '@/i18n/client';
 import type { ImportView, Issue } from './types';
 
 const NONE = '';
@@ -37,13 +38,10 @@ function Card({
   );
 }
 
-const SEVERITY: Record<
-  Issue['severity'],
-  { tone: 'danger' | 'warning' | 'neutral'; label: string }
-> = {
-  error: { tone: 'danger', label: 'Skipped' },
-  exists: { tone: 'neutral', label: 'Already exists' },
-  warning: { tone: 'warning', label: 'Warning' },
+const SEVERITY: Record<Issue['severity'], { tone: 'danger' | 'warning' | 'neutral' }> = {
+  error: { tone: 'danger' },
+  exists: { tone: 'neutral' },
+  warning: { tone: 'warning' },
 };
 
 /** Step 2: check the column mapping and options, read the validation summary, then start the import. */
@@ -56,6 +54,8 @@ export function ReviewStep({
   onView: (view: ImportView) => void;
   onRestart: () => void;
 }) {
+  const t = useT();
+  const errorText = useErrorText();
   const [mapping, setMapping] = useState<Record<string, number>>(view.mapping);
   const [importStock, setImportStock] = useState(false);
   const [defaultExpiry, setDefaultExpiry] = useState('');
@@ -76,7 +76,7 @@ export function ReviewStep({
       setMapping(nextMapping);
       setImportStock(nextStock);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not check the file');
+      setError(errorText(e, 'itemsImport.couldNotCheck'));
     } finally {
       setBusy(false);
     }
@@ -107,7 +107,7 @@ export function ReviewStep({
         }),
       );
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not start the import');
+      setError(errorText(e, 'itemsImport.couldNotStart'));
       setBusy(false);
     }
   }
@@ -116,25 +116,23 @@ export function ReviewStep({
     <div className="space-y-6">
       <div className="flex flex-wrap items-center gap-3">
         <p className="text-sm">
-          File <span className="font-medium">{view.fileName}</span>
+          {t('itemsImport.file')} <bdi className="font-medium">{view.fileName}</bdi>
         </p>
         <Button variant="ghost" className="ms-auto" onClick={onRestart} disabled={busy}>
-          Choose another file
+          {t('itemsImport.chooseAnother')}
         </Button>
       </div>
 
       <section className="space-y-3">
-        <h2 className="text-lg font-semibold">Columns</h2>
-        <p className="text-sm text-muted">
-          Mediescare matched the columns below. Change any that are wrong.
-        </p>
+        <h2 className="text-lg font-semibold">{t('itemsImport.columns')}</h2>
+        <p className="text-sm text-muted">{t('itemsImport.columnsHelp')}</p>
         <div className="overflow-x-auto rounded-[10px] border border-border">
           <table className="w-full text-sm">
-            <thead className="bg-surface-2 text-left text-xs uppercase text-muted">
+            <thead className="bg-surface-2 text-start text-xs uppercase text-muted">
               <tr>
-                <th className="px-4 py-3">Item field</th>
-                <th className="px-4 py-3">Column in your file</th>
-                <th className="px-4 py-3">Notes</th>
+                <th className="px-4 py-3">{t('itemsImport.col.itemField')}</th>
+                <th className="px-4 py-3">{t('itemsImport.col.fileColumn')}</th>
+                <th className="px-4 py-3">{t('common.notes')}</th>
               </tr>
             </thead>
             <tbody>
@@ -143,7 +141,7 @@ export function ReviewStep({
                   <td className="px-4 py-2 font-medium">
                     {f.label}
                     {f.required ? (
-                      <span className="text-danger" aria-label="required">
+                      <span className="text-danger" aria-label={t('itemsImport.required')}>
                         {' '}
                         *
                       </span>
@@ -151,14 +149,14 @@ export function ReviewStep({
                   </td>
                   <td className="px-4 py-2">
                     <select
-                      aria-label={`Column for ${f.label}`}
+                      aria-label={t('itemsImport.columnFor', { label: f.label })}
                       className={`${inputClass} max-w-xs`}
                       disabled={busy}
                       value={mapping[f.key] === undefined ? NONE : String(mapping[f.key])}
                       onChange={(e) => choose(f.key, e.target.value)}
                     >
                       <option value={NONE}>
-                        {f.required ? 'Choose a column' : 'Do not import'}
+                        {f.required ? t('itemsImport.chooseColumn') : t('itemsImport.doNotImport')}
                       </option>
                       {view.headers.map((h, i) => (
                         <option key={i} value={String(i)}>
@@ -176,7 +174,7 @@ export function ReviewStep({
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-lg font-semibold">Opening stock</h2>
+        <h2 className="text-lg font-semibold">{t('itemsImport.openingStock')}</h2>
         <label className="flex items-center gap-2 text-sm">
           <input
             type="checkbox"
@@ -184,22 +182,23 @@ export function ReviewStep({
             disabled={busy || mapping.quantity === undefined}
             onChange={(e) => void revalidate(mapping, e.target.checked)}
           />
-          Import quantity on hand as opening stock
+          {t('itemsImport.importStock')}
           {mapping.quantity === undefined ? (
-            <span className="text-muted">(map a quantity column first)</span>
+            <span className="text-muted">{t('itemsImport.mapQuantityFirst')}</span>
           ) : null}
         </label>
         {importStock ? (
           <p className="text-sm text-muted">
-            Stock needs a cost and a future expiry date. Rows without a cost get no stock (cost is
-            never guessed).
-            {s.stockRows > 0 ? ` ${s.stockRows.toLocaleString('en')} rows have a quantity.` : ''}
+            {t('itemsImport.stockNeeds')}
+            {s.stockRows > 0
+              ? ` ${t('itemsImport.stockRowsNote', { count: s.stockRows.toLocaleString('en') })}`
+              : ''}
           </p>
         ) : null}
         {needsExpiry ? (
           <div className="max-w-xs space-y-1">
             <label className="text-sm font-medium" htmlFor="default-expiry">
-              Default expiry for rows without one ({s.needsDefaultExpiry.toLocaleString('en')} rows)
+              {t('itemsImport.defaultExpiry', { count: s.needsDefaultExpiry.toLocaleString('en') })}
             </label>
             <input
               id="default-expiry"
@@ -209,58 +208,61 @@ export function ReviewStep({
               value={defaultExpiry}
               onChange={(e) => setDefaultExpiry(e.target.value)}
             />
-            {!expiryOk ? <p className="text-xs text-danger">Enter a date in the future.</p> : null}
+            {!expiryOk ? (
+              <p className="text-xs text-danger">{t('itemsImport.futureDate')}</p>
+            ) : null}
           </div>
         ) : null}
       </section>
 
       <section className="space-y-3" aria-live="polite">
         <h2 className="text-lg font-semibold">
-          Check result{' '}
-          {busy ? <span className="text-sm font-normal text-muted">checking...</span> : null}
+          {t('itemsImport.checkResult')}{' '}
+          {busy ? (
+            <span className="text-sm font-normal text-muted">{t('itemsImport.checking')}</span>
+          ) : null}
         </h2>
         <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
-          <Card label="Rows in file" value={s.totalRows} />
-          <Card label="Will import" value={s.willImport} tone="success" />
-          <Card label="Already exist" value={s.alreadyExist} />
+          <Card label={t('itemsImport.card.rows')} value={s.totalRows} />
+          <Card label={t('itemsImport.card.willImport')} value={s.willImport} tone="success" />
+          <Card label={t('itemsImport.card.exist')} value={s.alreadyExist} />
           <Card
-            label="Skipped (errors)"
+            label={t('itemsImport.stat.errors')}
             value={s.skippedWithErrors}
             tone={s.skippedWithErrors ? 'danger' : undefined}
           />
           <Card
-            label="With warnings"
+            label={t('itemsImport.stat.warnings')}
             value={s.rowsWithWarnings}
             tone={s.rowsWithWarnings ? 'warning' : undefined}
           />
         </div>
         {s.rowsWithSuppliers > 0 ? (
           <p className="text-sm text-muted">
-            Supplier names in {s.rowsWithSuppliers.toLocaleString('en')} rows are not imported. Add
-            suppliers separately.
+            {t('itemsImport.suppliersNote', { count: s.rowsWithSuppliers.toLocaleString('en') })}
           </p>
         ) : null}
         {mapping.name === undefined ? (
-          <p className="text-sm text-danger">Choose the column that holds the item name.</p>
+          <p className="text-sm text-danger">{t('itemsImport.chooseNameColumn')}</p>
         ) : null}
         <div className="flex flex-wrap items-center gap-3">
-          <h3 className="font-medium">Issues</h3>
+          <h3 className="font-medium">{t('itemsImport.issues')}</h3>
           <a
             className="ms-auto text-sm font-semibold text-primary-600 underline"
             href={`/api/imports/items/${view.importId}/report`}
             download
           >
-            Download full issue report
+            {t('itemsImport.downloadFullReport')}
           </a>
         </div>
         <div className="overflow-x-auto rounded-[10px] border border-border">
           <table className="w-full text-sm">
-            <thead className="bg-surface-2 text-left text-xs uppercase text-muted">
+            <thead className="bg-surface-2 text-start text-xs uppercase text-muted">
               <tr>
-                <th className="px-4 py-3">Row</th>
-                <th className="px-4 py-3">Result</th>
-                <th className="px-4 py-3">Item</th>
-                <th className="px-4 py-3">Reason</th>
+                <th className="px-4 py-3">{t('itemsImport.col.row')}</th>
+                <th className="px-4 py-3">{t('itemsImport.col.result')}</th>
+                <th className="px-4 py-3">{t('common.item')}</th>
+                <th className="px-4 py-3">{t('common.reason')}</th>
               </tr>
             </thead>
             <tbody>
@@ -268,7 +270,9 @@ export function ReviewStep({
                 <tr key={n} className="border-t border-border">
                   <td className="px-4 py-2 tabular-nums">{i.row}</td>
                   <td className="px-4 py-2">
-                    <Badge tone={SEVERITY[i.severity].tone}>{SEVERITY[i.severity].label}</Badge>
+                    <Badge tone={SEVERITY[i.severity].tone}>
+                      {t('itemsImport.severity.' + i.severity)}
+                    </Badge>
                   </td>
                   <td className="px-4 py-2">{i.name}</td>
                   <td className="px-4 py-2 text-muted">{i.message}</td>
@@ -277,7 +281,7 @@ export function ReviewStep({
               {view.sampleIssues.length === 0 ? (
                 <tr>
                   <td colSpan={4} className="px-4 py-8 text-center text-muted">
-                    No issues found.
+                    {t('itemsImport.noIssues')}
                   </td>
                 </tr>
               ) : null}
@@ -286,7 +290,7 @@ export function ReviewStep({
         </div>
         {view.sampleIssues.length < Object.values(s.issueCounts).reduce((a, b) => a + b, 0) ? (
           <p className="text-xs text-muted">
-            Showing the first {view.sampleIssues.length} issues. The report file has more.
+            {t('itemsImport.showingFirst', { count: view.sampleIssues.length })}
           </p>
         ) : null}
       </section>
@@ -294,7 +298,7 @@ export function ReviewStep({
       <ErrorText message={error} />
       <div className="flex justify-end">
         <Button onClick={() => void start()} disabled={!canStart}>
-          Import {s.willImport.toLocaleString('en')} items
+          {t('itemsImport.importCount', { count: s.willImport.toLocaleString('en') })}
         </Button>
       </div>
     </div>

@@ -2,14 +2,16 @@
 
 import Link from 'next/link';
 import { useEffect, useRef, useState, type DragEvent } from 'react';
-import { api, ApiError, Badge, Button, ErrorText } from '@/components/ui';
+import { api, ApiError, Badge, Button, ErrorText, useErrorText } from '@/components/ui';
+import type { Translator } from '@/i18n/core';
+import { useT } from '@/i18n/client';
 import { ReviewStep } from './review-step';
 import type { ImportView } from './types';
 
 const MAX_BYTES = 25 * 1024 * 1024;
 
 /** Multipart upload. api() sends JSON, so the file goes through fetch directly. */
-async function upload(file: File): Promise<ImportView> {
+async function upload(file: File, t: Translator): Promise<ImportView> {
   const form = new FormData();
   form.append('file', file);
   const res = await fetch('/api/imports/items/preview', { method: 'POST', body: form });
@@ -22,7 +24,7 @@ async function upload(file: File): Promise<ImportView> {
     throw new ApiError(
       data.error?.message ??
         data.error?.issues?.map((i) => i.message).join('. ') ??
-        `Upload failed (${res.status})`,
+        t('itemsImport.uploadFailedStatus', { status: res.status }),
       data.error?.code ?? 'ERROR',
       res.status,
     );
@@ -31,6 +33,8 @@ async function upload(file: File): Promise<ImportView> {
 }
 
 function UploadStep({ onView }: { onView: (view: ImportView) => void }) {
+  const t = useT();
+  const errorText = useErrorText();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [over, setOver] = useState(false);
@@ -39,14 +43,13 @@ function UploadStep({ onView }: { onView: (view: ImportView) => void }) {
   async function pick(file: File | undefined) {
     if (!file) return;
     setError(null);
-    if (!/\.(xlsx|csv)$/i.test(file.name))
-      return setError('Only .xlsx and .csv files can be imported.');
-    if (file.size > MAX_BYTES) return setError('The file is larger than 25 MB.');
+    if (!/\.(xlsx|csv)$/i.test(file.name)) return setError(t('itemsImport.errType'));
+    if (file.size > MAX_BYTES) return setError(t('itemsImport.errSize'));
     setBusy(true);
     try {
-      onView(await upload(file));
+      onView(await upload(file, t));
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Upload failed');
+      setError(errorText(e, 'itemsImport.uploadFailed'));
       setBusy(false);
     }
   }
@@ -68,38 +71,34 @@ function UploadStep({ onView }: { onView: (view: ImportView) => void }) {
         onDrop={drop}
         className={`flex flex-col items-center gap-3 rounded-[10px] border-2 border-dashed p-10 text-center ${over ? 'border-primary-600 bg-primary-50' : 'border-border'}`}
       >
-        <p className="font-medium">
-          {busy ? 'Reading and checking the file...' : 'Drop an Excel or CSV file here'}
-        </p>
+        <p className="font-medium">{busy ? t('itemsImport.reading') : t('itemsImport.drop')}</p>
         <input
           ref={input}
           type="file"
           accept=".xlsx,.csv"
           className="hidden"
-          aria-label="Choose file"
+          aria-label={t('itemsImport.chooseFile')}
           onChange={(e) => {
             void pick(e.target.files?.[0]);
             e.target.value = '';
           }}
         />
         <Button onClick={() => input.current?.click()} disabled={busy}>
-          Choose file
+          {t('itemsImport.chooseFile')}
         </Button>
-        <p className="text-xs text-muted">
-          .xlsx or .csv, up to 25 MB and 200,000 rows. The first row must hold the column names.
-        </p>
+        <p className="text-xs text-muted">{t('itemsImport.fileHint')}</p>
       </div>
       <ErrorText message={error} />
       <p className="text-sm">
-        Not sure how to lay out the file?{' '}
+        {t('itemsImport.templateLead')}{' '}
         <a
           className="font-semibold text-primary-600 underline"
           href="/api/imports/items/template"
           download
         >
-          Download the template
+          {t('itemsImport.templateLink')}
         </a>
-        . Files exported from your old system work too: the columns are matched by name.
+        {t('itemsImport.templateTail')}
       </p>
     </div>
   );
@@ -116,6 +115,7 @@ function Stat({ label, value }: { label: string; value: number }) {
 
 /** Step 3: progress while the server imports, then the result. */
 function ProgressStep({ view, onRestart }: { view: ImportView; onRestart: () => void }) {
+  const t = useT();
   const p = view.progress;
   const pct = p.total === 0 ? 100 : Math.min(100, Math.round((p.done / p.total) * 100));
   const r = view.result;
@@ -123,22 +123,23 @@ function ProgressStep({ view, onRestart }: { view: ImportView; onRestart: () => 
     <div className="space-y-4">
       {view.status === 'failed' ? (
         <div role="alert" className="space-y-1 rounded-[10px] border border-danger p-4">
-          <p className="font-semibold text-danger">The import stopped</p>
+          <p className="font-semibold text-danger">{t('itemsImport.stopped')}</p>
           <p className="text-sm">{view.error}</p>
         </div>
       ) : view.status === 'done' ? (
         <div className="flex items-center gap-2">
-          <Badge tone="success">Done</Badge>
+          <Badge tone="success">{t('common.done')}</Badge>
           <p className="text-sm">
             {r
-              ? `${r.created.toLocaleString('en')} items imported in ${(r.durationMs / 1000).toFixed(1)} s.`
-              : 'Import finished.'}
+              ? t('itemsImport.doneLine', {
+                  count: r.created.toLocaleString('en'),
+                  seconds: (r.durationMs / 1000).toFixed(1),
+                })
+              : t('itemsImport.finished')}
           </p>
         </div>
       ) : (
-        <p className="text-sm">
-          Importing {view.fileName}. You can keep working; do not close the app until it finishes.
-        </p>
+        <p className="text-sm">{t('itemsImport.importing', { fileName: view.fileName })}</p>
       )}
       <div
         role="progressbar"
@@ -150,25 +151,34 @@ function ProgressStep({ view, onRestart }: { view: ImportView; onRestart: () => 
         <div className="h-full bg-primary-600 transition-all" style={{ width: `${pct}%` }} />
       </div>
       <p className="text-sm text-muted tabular-nums">
-        {p.done.toLocaleString('en')} of {p.total.toLocaleString('en')} rows ({pct}%)
+        {t('itemsImport.progress', {
+          done: p.done.toLocaleString('en'),
+          total: p.total.toLocaleString('en'),
+          pct,
+        })}
       </p>
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <Stat label="Created" value={p.created} />
-        <Stat label="Skipped" value={p.skipped} />
-        <Stat label="Skipped (errors)" value={p.errors} />
-        <Stat label="With warnings" value={p.warnings} />
+        <Stat label={t('itemsImport.stat.created')} value={p.created} />
+        <Stat label={t('itemsImport.stat.skipped')} value={p.skipped} />
+        <Stat label={t('itemsImport.stat.errors')} value={p.errors} />
+        <Stat label={t('itemsImport.stat.warnings')} value={p.warnings} />
       </div>
       {r ? (
         <ul className="list-inside list-disc text-sm text-muted">
           <li>
-            New records: {r.unitsCreated} units, {r.categoriesCreated} categories,{' '}
-            {r.manufacturersCreated} manufacturers, {r.racksCreated} racks.
+            {t('itemsImport.newRecords', {
+              units: r.unitsCreated,
+              categories: r.categoriesCreated,
+              manufacturers: r.manufacturersCreated,
+              racks: r.racksCreated,
+            })}
           </li>
           {r.openingBatches > 0 || r.openingSkipped > 0 ? (
             <li>
-              Opening stock: {r.openingBatches.toLocaleString('en')} batches added,{' '}
-              {r.openingSkipped.toLocaleString('en')} rows left without stock (no cost or already
-              expired).
+              {t('itemsImport.openingResult', {
+                batches: r.openingBatches.toLocaleString('en'),
+                skipped: r.openingSkipped.toLocaleString('en'),
+              })}
             </li>
           ) : null}
         </ul>
@@ -179,17 +189,17 @@ function ProgressStep({ view, onRestart }: { view: ImportView; onRestart: () => 
             href="/items"
             className="inline-flex h-10 items-center rounded-[6px] bg-primary-600 px-4 text-sm font-semibold text-white hover:bg-primary-700"
           >
-            View items
+            {t('itemsImport.viewItems')}
           </Link>
           <a
             className="text-sm font-semibold text-primary-600 underline"
             href={`/api/imports/items/${view.importId}/report`}
             download
           >
-            Download issue report
+            {t('itemsImport.downloadReport')}
           </a>
           <Button variant="outline" onClick={onRestart}>
-            Import another file
+            {t('itemsImport.importAnother')}
           </Button>
         </div>
       ) : null}
@@ -198,6 +208,8 @@ function ProgressStep({ view, onRestart }: { view: ImportView; onRestart: () => 
 }
 
 export function ImportClient() {
+  const t = useT();
+  const errorText = useErrorText();
   const [view, setView] = useState<ImportView | null>(null);
   const [pollError, setPollError] = useState<string | null>(null);
   const active = view?.status === 'queued' || view?.status === 'running';
@@ -211,9 +223,7 @@ export function ImportClient() {
           setView(v);
           setPollError(null);
         })
-        .catch((e: unknown) =>
-          setPollError(e instanceof Error ? e.message : 'Lost contact with the server'),
-        );
+        .catch((e: unknown) => setPollError(errorText(e, 'itemsImport.lostContact')));
     }, 500);
     return () => clearInterval(timer);
   }, [active, id]);
@@ -221,13 +231,11 @@ export function ImportClient() {
   return (
     <>
       <div>
-        <h1 className="text-2xl font-semibold">Import items from Excel</h1>
-        <p className="text-sm text-muted">
-          Upload a file, check the columns, review the problems, then import.
-        </p>
+        <h1 className="text-2xl font-semibold">{t('itemsImport.title')}</h1>
+        <p className="text-sm text-muted">{t('itemsImport.subtitle')}</p>
         <p className="mt-1 text-sm">
           <Link href="/items" className="text-primary-600 underline">
-            Back to items
+            {t('itemsImport.backToItems')}
           </Link>
         </p>
       </div>
