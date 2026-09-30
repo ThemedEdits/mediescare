@@ -6,7 +6,7 @@ import type { Db, DbOrTx } from '../client';
 import { isoNow, type WriteContext } from '../context';
 import { DomainError } from '../errors';
 import { recordChange } from '../outbox';
-import { itemBarcodes, itemUnits, items, racks, units } from '../schema/sqlite-all';
+import { branches, itemBarcodes, itemUnits, items, racks, units } from '../schema/sqlite-all';
 import { branchToday, ftsQuery } from './common';
 import { getBatchStock } from './stock';
 
@@ -125,9 +125,41 @@ function assertBarcodesFree(
     );
 }
 
+/** Shown when a branch tries to do something only Head Office may do with the catalogue. */
+export const HEAD_OFFICE_PRICE_MESSAGE = 'Prices and tax rates are set by Head Office';
+
+/**
+ * True on a branch whose organisation has a separate Head Office. Head Office dictates retail
+ * prices and tax rates for every branch, so such a branch may not create items or change those
+ * fields (they arrive by sync). Head Office itself, and a single-PC organisation with no other
+ * Head Office branch, are not restricted.
+ */
+export function isPriceManagedElsewhere(
+  tx: DbOrTx,
+  ctx: Pick<WriteContext, 'tenantId' | 'branchId'>,
+): boolean {
+  const me = tx
+    .select({ isHeadOffice: branches.isHeadOffice })
+    .from(branches)
+    .where(eq(branches.id, ctx.branchId))
+    .get();
+  if (!me || me.isHeadOffice) return false;
+  const headOffice = tx
+    .select({ id: branches.id })
+    .from(branches)
+    .where(and(eq(branches.tenantId, ctx.tenantId), eq(branches.isHeadOffice, true)))
+    .get();
+  return headOffice !== undefined;
+}
+
 export function createItem(db: Db, ctx: WriteContext, input: ItemInput): string {
   validate(input);
   return db.transaction((tx) => {
+    if (isPriceManagedElsewhere(tx, ctx))
+      throw new DomainError(
+        'INVALID',
+        `New items are created by Head Office. ${HEAD_OFFICE_PRICE_MESSAGE}`,
+      );
     const sku = input.sku?.trim() || nextSku(tx, ctx);
     if (
       tx
@@ -242,6 +274,13 @@ export function updateItem(
       .where(and(eq(items.id, id), eq(items.tenantId, ctx.tenantId), isNull(items.deletedAt)))
       .get();
     if (!before) throw new DomainError('NOT_FOUND', 'Item not found');
+    if (
+      isPriceManagedElsewhere(tx, ctx) &&
+      (before.retailRateUnitMicro !== input.retailRateUnitMicro ||
+        before.taxBp !== (input.taxBp ?? 0) ||
+        before.taxInclusive !== (input.taxInclusive ?? false))
+    )
+      throw new DomainError('INVALID', HEAD_OFFICE_PRICE_MESSAGE);
     if (before.version !== input.expectedVersion)
       throw new DomainError(
         'VERSION_CONFLICT',

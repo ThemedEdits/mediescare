@@ -1,9 +1,11 @@
 import {
   backoffDelayMs,
+  DeviceRevokedError,
   type CloudAdapter,
   type HybridLogicalClock,
   type SyncState,
   type SyncStatusReport,
+  type TokenSession,
 } from '@mediescare/sync';
 import type { Db } from '../client';
 import type { WriteContext } from '../context';
@@ -11,6 +13,14 @@ import { clearBackoff, getSyncStatus, pushOutbox, type PushSummary } from '../sy
 import { getServerEpoch } from './epoch';
 import { exportUnsentTail } from './failover';
 import { pullChanges, type ChangeApplier } from './pull';
+import {
+  initialUploadProgress,
+  isInitialUploadDone,
+  markInitialUploadDone,
+} from './runner-progress';
+
+/** Events per batch while the first upload runs (the worker also caps a batch at about 1 MB). */
+const INITIAL_UPLOAD_BATCH = 500;
 
 export interface SyncRunnerOptions {
   db: Db;
@@ -28,6 +38,12 @@ export interface SyncRunnerOptions {
   pull?: { entityTypes: readonly string[]; apply: ChangeApplier; clock?: HybridLogicalClock };
   /** Shown in the status, host only. */
   cloudHost?: string | null;
+  /**
+   * Where access tokens come from. The runner refreshes before its first cycle (so a restart
+   * starts with a fresh token) and stops in state `revoked` when the cloud revokes the device,
+   * instead of retrying forever.
+   */
+  tokens?: TokenSession;
   now?: () => Date;
   random?: () => number;
 }
@@ -49,8 +65,12 @@ export class SyncRunner {
   private skewSuspected = false;
   private announced = false;
   private fencedAtEpoch: number | null = null;
+  private initialDone: boolean;
+  private backlogLeft = false;
 
-  constructor(private readonly o: SyncRunnerOptions) {}
+  constructor(private readonly o: SyncRunnerOptions) {
+    this.initialDone = isInitialUploadDone(o.db);
+  }
 
   private now(): Date {
     return (this.o.now ?? (() => new Date()))();
@@ -90,6 +110,8 @@ export class SyncRunner {
   private nextDelay(): number {
     const base = this.o.intervalMs ?? 5_000;
     if (this.state === 'fenced') return Math.max(base, 60_000);
+    // More is waiting and the last cycle worked: keep going instead of pausing (first upload, long backlogs).
+    if (this.backlogLeft && this.failures === 0) return 250;
     return this.failures > 0 ? Math.max(base, backoffDelayMs(this.failures, this.o.random)) : base;
   }
 
@@ -107,6 +129,18 @@ export class SyncRunner {
 
   private async cycle(): Promise<void> {
     const { db, adapter } = this.o;
+    if (this.o.tokens) {
+      try {
+        await this.o.tokens.ensureFresh();
+      } catch (error) {
+        if (error instanceof DeviceRevokedError || this.o.tokens.revoked)
+          return this.revoked(error);
+        return this.fail(
+          'offline',
+          error instanceof Error ? error.message : 'Could not get a cloud token',
+        );
+      }
+    }
     const epoch = getServerEpoch(db);
     if (this.fencedAtEpoch !== null && epoch <= this.fencedAtEpoch) {
       this.state = 'fenced';
@@ -139,7 +173,7 @@ export class SyncRunner {
 
     for (let i = 0; i < (this.o.maxBatchesPerCycle ?? 20); i++) {
       const summary = await pushOutbox(db, adapter, {
-        batchSize: this.o.batchSize,
+        batchSize: this.o.batchSize ?? (this.initialDone ? undefined : INITIAL_UPLOAD_BATCH),
         now: this.o.now,
         random: this.o.random,
         epoch,
@@ -151,6 +185,12 @@ export class SyncRunner {
       await new Promise((r) => setImmediate(r));
     }
     this.succeed();
+    const pending = getSyncStatus(db).pending;
+    this.backlogLeft = pending > 0;
+    if (!this.initialDone && pending === 0) {
+      markInitialUploadDone(db, this.now().toISOString());
+      this.initialDone = true;
+    }
 
     if (this.o.pull && adapter.pull) {
       try {
@@ -164,7 +204,20 @@ export class SyncRunner {
     }
   }
 
+  /** The cloud revoked this device: stop for good (no crash loop) and say how to recover. */
+  private revoked(error: unknown): void {
+    this.state = 'revoked';
+    this.backlogLeft = false;
+    this.recordError(
+      error instanceof Error ? error.message : 'This device was disconnected from the cloud.',
+    );
+    this.stop();
+  }
+
   private handle(summary: PushSummary, epoch: number): void {
+    if (summary.errorKind === 'auth' && this.o.tokens?.revoked) {
+      return this.revoked(new DeviceRevokedError());
+    }
     if (summary.fenced) {
       this.state = 'fenced';
       this.fencedAtEpoch = epoch;
@@ -213,6 +266,7 @@ export class SyncRunner {
       nextAttemptAt: this.stopped ? null : this.nextAttemptAt,
       clockSkewSuspected: this.skewSuspected,
       cloudHost: this.o.cloudHost ?? null,
+      initialUpload: initialUploadProgress(this.o.db, this.state === 'syncing' || !this.stopped),
       now: this.now(),
     });
   }
@@ -229,6 +283,7 @@ export function disabledSyncStatus(db: Db, now: Date = new Date()): SyncStatusRe
     nextAttemptAt: null,
     clockSkewSuspected: false,
     cloudHost: null,
+    initialUpload: null,
     now,
   });
 }

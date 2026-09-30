@@ -3,4 +3,7 @@ export * from './failover';
 export * from './pull';
 export * from './runner';
 export * from './pairing';
-export * from './appliers/registry';
+export * from './appliers';
+export * from './branch-registry';
+export * from './branch-join';
+export * from './join-organisation';

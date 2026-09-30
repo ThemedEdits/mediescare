@@ -27,6 +27,14 @@ export interface FirstRunInput {
   isHeadOffice: boolean;
   deviceName: string;
   admin: { username: string; fullName: string; passwordHash: string };
+  /**
+   * Joining an existing organisation (a new branch PC): reuse the organisation and branch ids that
+   * the cloud assigned (the device id too, because the cloud only accepts events from the device it
+   * enrolled), and do not seed units, payment modes or categories (they are pulled from
+   * Head Office, so every branch shares the same rows). The tenant and branch rows are not queued
+   * for sync: Head Office already announced them.
+   */
+  join?: { tenantId: string; branchId: string; deviceId?: string };
   now?: () => Date;
 }
 
@@ -64,9 +72,9 @@ export class AlreadyInitializedError extends Error {
 export function runFirstRunSetup(db: Db, input: FirstRunInput): FirstRunResult {
   if (isInitialized(db)) throw new AlreadyInitializedError();
 
-  const tenantId = newId();
-  const branchId = newId();
-  const deviceId = newId();
+  const tenantId = input.join?.tenantId ?? newId();
+  const branchId = input.join?.branchId ?? newId();
+  const deviceId = input.join?.deviceId ?? newId();
   const clock = new HybridLogicalClock(hlcDeviceId(deviceId));
   const storeId = newId();
   const adminId = newId();
@@ -87,7 +95,7 @@ export function runFirstRunSetup(db: Db, input: FirstRunInput): FirstRunResult {
 
     const tenantRow = { id: tenantId, name: input.tenantName, licenceRef: null, ...sync() };
     tx.insert(tenants).values(tenantRow).run();
-    emit('tenants', tenantId, tenantRow);
+    if (!input.join) emit('tenants', tenantId, tenantRow);
 
     const branchRow = {
       id: branchId,
@@ -103,7 +111,7 @@ export function runFirstRunSetup(db: Db, input: FirstRunInput): FirstRunResult {
       ...sync(),
     };
     tx.insert(branches).values(branchRow).run();
-    emit('branches', branchId, branchRow);
+    if (!input.join) emit('branches', branchId, branchRow);
 
     const storeRow = {
       id: storeId,
@@ -200,7 +208,7 @@ export function runFirstRunSetup(db: Db, input: FirstRunInput): FirstRunResult {
     tx.insert(userBranches).values(scopeRow).run();
     emit('user_branches', scopeId, scopeRow);
 
-    seedPharmacyDefaults(tx, ctx);
+    if (!input.join) seedPharmacyDefaults(tx, ctx);
 
     appendAudit(tx, ctx, {
       action: 'system.first_run',
@@ -209,6 +217,7 @@ export function runFirstRunSetup(db: Db, input: FirstRunInput): FirstRunResult {
       newValue: {
         branchCode: input.branchCode,
         isHeadOffice: input.isHeadOffice,
+        joined: input.join !== undefined,
         admin: input.admin.username,
       },
     });
