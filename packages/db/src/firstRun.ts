@@ -1,6 +1,8 @@
 import { count, eq } from 'drizzle-orm';
 import { ALL_PERMISSIONS, ROLE_CODES, ROLE_DEFAULTS, formatDocNo } from '@mediescare/core';
 import { HybridLogicalClock, newId } from '@mediescare/sync';
+import { hlcDeviceId } from './identity';
+import { seedPharmacyDefaults } from './pharmacy/defaults';
 import type { Db } from './client';
 import { appendAudit } from './audit';
 import type { WriteContext } from './context';
@@ -35,11 +37,6 @@ export interface FirstRunResult {
   adminUserId: string;
   /** Example of the first document number this branch will issue. */
   sampleDocNo: string;
-}
-
-/** 8 hex characters identifying a device inside HLC timestamps, derived from its id. */
-export function hlcDeviceId(deviceId: string): string {
-  return deviceId.replace(/-/g, '').slice(-8).toLowerCase();
 }
 
 export function isInitialized(db: Db): boolean {
@@ -202,6 +199,8 @@ export function runFirstRunSetup(db: Db, input: FirstRunInput): FirstRunResult {
     const scopeRow = { id: scopeId, userId: adminId, branchId: null, allBranches: true, ...sync() };
     tx.insert(userBranches).values(scopeRow).run();
     emit('user_branches', scopeId, scopeRow);
+
+    seedPharmacyDefaults(tx, ctx);
 
     appendAudit(tx, ctx, {
       action: 'system.first_run',

@@ -12,7 +12,7 @@ import {
   uniqueIndex,
 } from 'drizzle-orm/sqlite-core';
 
-const syncCols = () => ({
+export const syncCols = () => ({
   createdAt: text('created_at').notNull(),
   updatedAt: text('updated_at').notNull(),
   hlc: text('hlc').notNull(),

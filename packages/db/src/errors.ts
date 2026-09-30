@@ -10,7 +10,8 @@ export type DomainErrorCode =
   | 'OVERRIDE_INVALID'
   | 'INSUFFICIENT_STOCK'
   | 'EXPIRED_BATCH'
-  | 'SHIFT_REQUIRED';
+  | 'SHIFT_REQUIRED'
+  | 'OVERRIDE_REQUIRED';
 
 export class DomainError extends Error {
   constructor(
@@ -35,4 +36,5 @@ export const HTTP_STATUS: Record<DomainErrorCode, number> = {
   INSUFFICIENT_STOCK: 409,
   EXPIRED_BATCH: 409,
   SHIFT_REQUIRED: 409,
+  OVERRIDE_REQUIRED: 403,
 };

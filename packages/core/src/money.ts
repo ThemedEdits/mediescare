@@ -119,6 +119,26 @@ export function parseRateToMicro(text: string): number {
 }
 
 /**
+ * Price of one smallest unit from the price of a pack: `packRateMicro / factor`, rounded once (half up)
+ * to micro-PKR. Example: PKR 187.50 per pack of 30 tablets is 6.25 per tablet.
+ */
+export function unitRateFromPack(packRateMicro: number, factorToBase: number): number {
+  assertInt(packRateMicro, 'packRateMicro');
+  assertInt(factorToBase, 'factorToBase');
+  if (factorToBase <= 0) throw new RangeError('factorToBase must be positive');
+  return toSafeNumber(divRoundHalfUp(BigInt(packRateMicro), BigInt(factorToBase)));
+}
+
+/** `amount x part / whole` rounded once (half up). Used for partial refunds and cost splits. */
+export function proportionMinor(amountMinor: number, part: number, whole: number): number {
+  assertInt(amountMinor, 'amountMinor');
+  assertInt(part, 'part');
+  assertInt(whole, 'whole');
+  if (whole <= 0) throw new RangeError('whole must be positive');
+  return toSafeNumber(divRoundHalfUp(BigInt(amountMinor) * BigInt(part), BigInt(whole)));
+}
+
+/**
  * Split a tax-inclusive amount into the part without tax and the tax itself.
  * The net part is rounded once (half up) and the tax is the remainder, so net + tax always equals the amount.
  */

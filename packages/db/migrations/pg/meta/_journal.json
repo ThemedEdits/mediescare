@@ -15,6 +15,20 @@
       "when": 1790724739834,
       "tag": "0001_overrides",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790725735914,
+      "tag": "0002_pharmacy_core",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1790725816815,
+      "tag": "0003_narcotic_register",
+      "breakpoints": true
     }
   ]
 }

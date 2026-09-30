@@ -36,13 +36,13 @@ export interface OverrideRequest {
   reason?: string;
 }
 
-interface ApproverLimits {
+export interface ApproverLimits {
   discountBp: number;
   refundMinor: number | null;
   priceBp: number;
 }
 
-function approverLimits(db: DbOrTx, userId: string): ApproverLimits {
+export function roleLimitsFor(db: DbOrTx, userId: string): ApproverLimits {
   const rows = db
     .select()
     .from(userRoles)
@@ -147,7 +147,7 @@ export async function grantOverride(
       return deny('no_permission');
     if (!access.allBranches && !access.branchIds.includes(ctx.branchId))
       return deny('wrong_branch');
-    const problem = limitProblem(req.kind, approverLimits(tx, approver.id), req);
+    const problem = limitProblem(req.kind, roleLimitsFor(tx, approver.id), req);
     if (problem) return { kind: 'limit', message: problem };
 
     const id = newId();

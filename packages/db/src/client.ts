@@ -2,7 +2,7 @@ import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import Database from 'better-sqlite3';
 import { drizzle, type BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
-import * as schema from './schema/sqlite';
+import * as schema from './schema/sqlite-all';
 
 export type Db = BetterSQLite3Database<typeof schema>;
 export type Tx = Parameters<Parameters<Db['transaction']>[0]>[0];
@@ -51,7 +51,9 @@ export function openDatabase(options: OpenOptions): OpenDatabase {
     try {
       raw.prepare('SELECT count(*) FROM sqlite_master').get();
     } catch {
-      throw new DatabaseKeyError('Cannot open database: wrong key or the file is not a Mediescare database');
+      throw new DatabaseKeyError(
+        'Cannot open database: wrong key or the file is not a Mediescare database',
+      );
     }
     raw.pragma('journal_mode = WAL');
     raw.pragma('synchronous = FULL');

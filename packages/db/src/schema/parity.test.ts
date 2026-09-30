@@ -2,20 +2,26 @@ import { getTableConfig as pgConfig, type PgTable } from 'drizzle-orm/pg-core';
 import { getTableConfig as sqliteConfig, type SQLiteTable } from 'drizzle-orm/sqlite-core';
 import { getTableName, is, Table } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
-import * as pg from './pg';
-import * as sqlite from './sqlite';
+import * as pg from './pg-all';
+import * as sqlite from './sqlite-all';
 
 function tables<T extends Table>(mod: Record<string, unknown>): T[] {
   return Object.values(mod).filter((v): v is T => is(v, Table));
 }
 
-const sqliteTables = tables<SQLiteTable>(sqlite).map((t) => ({ name: getTableName(t), cfg: sqliteConfig(t) }));
+const sqliteTables = tables<SQLiteTable>(sqlite).map((t) => ({
+  name: getTableName(t),
+  cfg: sqliteConfig(t),
+}));
 const pgTables = tables<PgTable>(pg).map((t) => ({ name: getTableName(t), cfg: pgConfig(t) }));
 const localOnly = new Set<string>(sqlite.LOCAL_ONLY_TABLES);
 
 describe('SQLite and Postgres schema parity', () => {
   it('has the same tables (except the declared local-only ones)', () => {
-    const shared = sqliteTables.map((t) => t.name).filter((n) => !localOnly.has(n)).sort();
+    const shared = sqliteTables
+      .map((t) => t.name)
+      .filter((n) => !localOnly.has(n))
+      .sort();
     expect(pgTables.map((t) => t.name).sort()).toEqual(shared);
   });
 
