@@ -1,0 +1,147 @@
+{
+  "pos": {
+    "ariaPos": "Point of sale",
+    "ariaCart": "Cart",
+    "ariaTotals": "Totals and payment",
+    "shift": "Shift {docNo}",
+    "hold": "Hold",
+    "recall": "Recall",
+    "missedSale": "Missed sale",
+    "closeShift": "Close shift",
+    "searchAria": "Search item or scan barcode",
+    "searchPlaceholder": "Scan barcode or type item name (F3)",
+    "searching": "Searching…",
+    "walkinCustomer": "Walk-in customer",
+    "rack": "Rack {code}",
+    "earliestExpiry": "earliest expiry {date}",
+    "noSellableStock": "no sellable stock",
+    "controlled": "Controlled",
+    "rx": "Rx",
+    "inStock": "{count} in stock",
+    "outOfStock": "Out of stock",
+    "cart": {
+      "unit": "Unit",
+      "batch": "Batch",
+      "qty": "Qty",
+      "discPct": "Disc %",
+      "amount": "Amount",
+      "patientRecorded": "Patient recorded",
+      "needsPatient": "Needs patient",
+      "onlyInStock": "Only {count} in stock",
+      "batchAuto": "Auto (first expiry)",
+      "daysShort": "{count}d",
+      "discountPercent": "Discount percent",
+      "patient": "Patient",
+      "removeLine": "Remove line",
+      "empty": "Scan a barcode or type an item name to start a sale."
+    },
+    "totals": {
+      "subTotal": "Sub-total",
+      "billDiscountPct": "Bill discount %",
+      "billDiscountAria": "Bill discount percent",
+      "tax": "Tax",
+      "rounding": "Rounding",
+      "grandTotal": "Grand total (PKR)"
+    },
+    "payment": {
+      "title": "Payment",
+      "exactHint": "F9 = exact cash",
+      "method": "Payment method",
+      "received": "Amount received",
+      "remove": "Remove payment",
+      "exactCash": "Exact cash",
+      "add": "+ Add payment",
+      "due": "Due",
+      "change": "Change"
+    },
+    "invoiceNote": "Invoice note",
+    "invoiceNotePlaceholder": "Invoice note (optional)",
+    "clear": "Clear",
+    "saveF10": "Save (F10)",
+    "err": {
+      "searchFailed": "Search failed",
+      "nothingFound": "Nothing found for \"{query}\". Press F8 to record a missed sale.",
+      "lineDiscountRange": "Line discount must be between 0 and 100 percent",
+      "billDiscountRange": "Bill discount must be between 0 and 100 percent",
+      "checkQuantities": "Check the quantities and prices",
+      "checkPayment": "Check the payment",
+      "enterPayment": "Enter the payment",
+      "couldNotHold": "Could not hold this cart",
+      "couldNotOpenCart": "Could not open that cart",
+      "couldNotSaleSave": "Could not save the sale",
+      "approvalRejected": "Approval was not accepted",
+      "couldNotAddCustomer": "Could not add the customer",
+      "failed": "Failed",
+      "couldNotOpenShift": "Could not open the shift",
+      "couldNotCloseShift": "Could not close the shift",
+      "printingFailed": "Printing failed"
+    },
+    "override": {
+      "title": "Manager approval needed",
+      "discount": "A manager must approve a {percent}% discount. They enter their own username and PIN.",
+      "overridePrice": "A manager must approve a price change. They enter their own username and PIN.",
+      "refund": "A manager must approve a refund of PKR {amount}. They enter their own username and PIN.",
+      "void": "A manager must approve voiding this sale. They enter their own username and PIN.",
+      "username": "Manager username",
+      "pin": "Manager PIN",
+      "checking": "Checking…",
+      "approve": "Approve"
+    },
+    "narcotic": {
+      "title": "Controlled item",
+      "introRest": "is a controlled drug. Patient, CNIC and doctor are recorded in the narcotic register.",
+      "patientName": "Patient name",
+      "patientCnic": "Patient CNIC",
+      "cnicHint": "13 digits, for example 42101-1234567-1",
+      "doctorName": "Doctor name",
+      "prescriptionRef": "Prescription reference (optional)",
+      "saveDetails": "Save details"
+    },
+    "customer": {
+      "searchPlaceholder": "Search name, phone or MR number",
+      "walkin": "walk-in",
+      "none": "No customer found",
+      "fullName": "Full name",
+      "phone": "Phone",
+      "creditLimit": "Credit limit PKR (optional)",
+      "add": "Add customer",
+      "new": "+ New customer"
+    },
+    "held": {
+      "title": "Held invoices",
+      "heldCart": "Held cart",
+      "empty": "Nothing is on hold."
+    },
+    "missed": {
+      "intro": "Something the customer wanted that you did not have. Purchasing will see it.",
+      "customerPhone": "Customer phone"
+    },
+    "openShift": {
+      "title": "Open your shift",
+      "intro": "Count the cash in your drawer and enter it. You must open a shift before selling.",
+      "openingCash": "Opening cash (PKR)",
+      "open": "Open shift"
+    },
+    "closeShiftDlg": {
+      "title": "Close shift {docNo}",
+      "intro": "Count all the cash in the drawer and enter the total. The system total is shown only after you save.",
+      "counted": "Cash counted (PKR)",
+      "closedTitle": "Shift closed",
+      "expected": "Expected in drawer",
+      "youCounted": "You counted",
+      "difference": "Difference",
+      "matches": "The drawer matches.",
+      "over": "The drawer has more than expected.",
+      "short": "The drawer is short. A manager will review it."
+    },
+    "saved": {
+      "title": "Saved {docNo}",
+      "giveBack": "Give back",
+      "onAccount": "On account",
+      "profit": "Profit",
+      "printing": "Printing...",
+      "printReceipt": "Print receipt",
+      "newSale": "New sale"
+    }
+  }
+}

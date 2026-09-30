@@ -1,0 +1,186 @@
+{
+  "purchasing": {
+    "title": "Purchasing",
+    "tabs": {
+      "orders": "Purchase orders",
+      "bills": "Supplier bills",
+      "returns": "Returns to suppliers",
+      "suppliers": "Suppliers & payments"
+    },
+    "actions": {
+      "newOrder": "New purchase order",
+      "addStockNoOrder": "Add stock without an order",
+      "returnToSupplier": "Return to supplier"
+    },
+    "toast": {
+      "orderSaved": "Order {docNo} saved as a draft.",
+      "orderUpdated": "Order updated.",
+      "stockReceived": "Stock received as {docNo}.",
+      "goodsReturned": "Goods returned as {docNo}."
+    },
+    "newSupplier": "New supplier",
+    "supplierName": "Supplier name",
+    "note": "Note",
+    "choose": "Choose…",
+    "status": {
+      "draft": "draft",
+      "approved": "approved",
+      "partial": "partial",
+      "received": "received",
+      "cancelled": "cancelled"
+    },
+    "col": {
+      "amount": "Amount",
+      "unit": "Unit",
+      "qty": "Qty",
+      "batch": "Batch",
+      "expiry": "Expiry",
+      "credit": "Credit"
+    },
+    "orders": {
+      "searchAria": "Search orders",
+      "searchPlaceholder": "Order no. or supplier",
+      "allStatuses": "All statuses",
+      "order": "Order",
+      "expected": "Expected",
+      "items": "Items",
+      "empty": "No purchase orders yet. Create one, or use “Fill from low stock” inside it."
+    },
+    "bills": {
+      "searchAria": "Search bills",
+      "searchPlaceholder": "Bill no., invoice no. or supplier",
+      "unpaidOnly": "Unpaid only",
+      "bill": "Bill",
+      "supplierInvoice": "Supplier invoice",
+      "order": "Order",
+      "payable": "Payable",
+      "paid": "Paid",
+      "due": "Due",
+      "empty": "No supplier bills found."
+    },
+    "suppliers": {
+      "searchAria": "Search suppliers",
+      "onlyWithBalance": "Only with a balance",
+      "add": "Add supplier",
+      "totalPayable": "Total payable:",
+      "supplier": "Supplier",
+      "phone": "Phone",
+      "terms": "Terms",
+      "termsDays": "{days} d",
+      "lastPayment": "Last payment",
+      "weOwe": "We owe",
+      "empty": "No suppliers found."
+    },
+    "form": {
+      "editTitle": "Edit purchase order",
+      "expectedOn": "Expected on",
+      "expectedDateAria": "Expected date",
+      "addItemAria": "Add item",
+      "addItemPlaceholder": "Type an item name to add a row",
+      "fillLowStock": "Fill from low stock",
+      "priceUnitCol": "Price / unit",
+      "priceAria": "Price per unit",
+      "removeRow": "Remove row",
+      "empty": "Search for an item, or use “Fill from low stock”.",
+      "nothingLow": "Nothing is low on stock right now.",
+      "couldNotAddItem": "Could not add the item",
+      "couldNotLoadSuggestions": "Could not load suggestions",
+      "couldNotSaveOrder": "Could not save the order",
+      "saveChanges": "Save changes",
+      "saveAsDraft": "Save as draft"
+    },
+    "detail": {
+      "title": "Purchase order {docNo}",
+      "titleFallback": "Purchase order",
+      "heading": "{branch} · Purchase order",
+      "supplierLabel": "Supplier:",
+      "dateLabel": "Date:",
+      "expectedLabel": "Expected:",
+      "noteLabel": "Note:",
+      "cancelled": "Cancelled: {reason}",
+      "ordered": "Ordered",
+      "received": "Received",
+      "receivedOn": "Received on:",
+      "approve": "Approve",
+      "receiveGoods": "Receive goods",
+      "cancelOrder": "Cancel order",
+      "cancelTitle": "Cancel purchase order",
+      "couldNotApprove": "Could not approve"
+    },
+    "returns": {
+      "return": "Return",
+      "creditNote": "Credit note",
+      "empty": "No returns to suppliers yet.",
+      "viewTitle": "Return {docNo}",
+      "viewFallback": "Return",
+      "creditNoteRef": "credit note {no}",
+      "reasonShort": {
+        "damaged": "damaged",
+        "expired": "expired",
+        "near_expiry": "near expiry",
+        "wrong_item": "wrong item",
+        "overstock": "overstock",
+        "recall": "recall",
+        "other": "other"
+      }
+    },
+    "returnForm": {
+      "title": "Return goods to a supplier",
+      "reason": {
+        "damaged": "Damaged",
+        "expired": "Expired",
+        "near_expiry": "Near expiry",
+        "wrong_item": "Wrong item sent",
+        "overstock": "Overstock",
+        "recall": "Recall",
+        "other": "Other (describe)"
+      },
+      "creditNoteLabel": "Supplier credit note no.",
+      "creditNoteAria": "Credit note number",
+      "findItemAria": "Find item",
+      "findItemPlaceholder": "Type an item name to choose the batch to return",
+      "batchesOf": "Batches of {name}",
+      "batchMeta": "exp {expiry} · {available} in stock",
+      "inStock": "In stock",
+      "returnQty": "Return qty",
+      "returnQuantityAria": "Return quantity",
+      "empty": "Search for an item and choose the batch that is going back.",
+      "credit": "Credit",
+      "returnGoods": "Return goods",
+      "noStock": "{name} has no stock to return.",
+      "couldNotLoadBatches": "Could not load the batches",
+      "couldNotSaveReturn": "Could not save the return"
+    },
+    "ledger": {
+      "accountTitle": "{name} · account",
+      "accountFallback": "Supplier account",
+      "statement": "{branch} · Supplier statement",
+      "terms": "{name} · terms {days} days",
+      "aging": {
+        "notDue": "Not due",
+        "days1to30": "1–30 days",
+        "days31to60": "31–60 days",
+        "days61to90": "61–90 days",
+        "over90": "Over 90"
+      },
+      "document": "Document",
+      "details": "Details",
+      "bills": "Bills",
+      "balance": "Balance",
+      "unpaidBills": "Unpaid bills",
+      "due": "due {date}",
+      "pay": "Pay",
+      "recordPayment": "Record payment",
+      "payBillTitle": "Pay bill {docNo}",
+      "payOnAccount": "Payment on account",
+      "amountPkr": "Amount (PKR)",
+      "amountAria": "Payment amount",
+      "paidBy": "Paid by",
+      "methodAria": "Payment method",
+      "reference": "Reference (cheque / transfer no.)",
+      "referenceAria": "Reference",
+      "savePayment": "Save payment",
+      "couldNotSavePayment": "Could not save the payment"
+    }
+  }
+}

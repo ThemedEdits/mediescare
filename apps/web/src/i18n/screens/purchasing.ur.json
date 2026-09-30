@@ -1,0 +1,186 @@
+{
+  "purchasing": {
+    "title": "خریداری",
+    "tabs": {
+      "orders": "خریداری کے آرڈر",
+      "bills": "سپلائر بل",
+      "returns": "سپلائر کو واپسی",
+      "suppliers": "سپلائرز اور ادائیگیاں"
+    },
+    "actions": {
+      "newOrder": "نیا خریداری آرڈر",
+      "addStockNoOrder": "بغیر آرڈر کے اسٹاک شامل کریں",
+      "returnToSupplier": "سپلائر کو واپس کریں"
+    },
+    "toast": {
+      "orderSaved": "آرڈر {docNo} مسودے کے طور پر محفوظ ہو گیا۔",
+      "orderUpdated": "آرڈر اپ ڈیٹ ہو گیا۔",
+      "stockReceived": "اسٹاک {docNo} کے طور پر وصول ہو گیا۔",
+      "goodsReturned": "سامان {docNo} کے طور پر واپس ہو گیا۔"
+    },
+    "newSupplier": "نیا سپلائر",
+    "supplierName": "سپلائر کا نام",
+    "note": "نوٹ",
+    "choose": "منتخب کریں…",
+    "status": {
+      "draft": "مسودہ",
+      "approved": "منظور شدہ",
+      "partial": "جزوی",
+      "received": "وصول شدہ",
+      "cancelled": "منسوخ"
+    },
+    "col": {
+      "amount": "رقم",
+      "unit": "یونٹ",
+      "qty": "مقدار",
+      "batch": "بیچ",
+      "expiry": "میعاد",
+      "credit": "کریڈٹ"
+    },
+    "orders": {
+      "searchAria": "آرڈر تلاش کریں",
+      "searchPlaceholder": "آرڈر نمبر یا سپلائر",
+      "allStatuses": "تمام حالتیں",
+      "order": "آرڈر",
+      "expected": "متوقع",
+      "items": "اشیاء",
+      "empty": "ابھی کوئی خریداری آرڈر نہیں۔ نیا بنائیں، یا اس کے اندر “کم اسٹاک سے بھریں” استعمال کریں۔"
+    },
+    "bills": {
+      "searchAria": "بل تلاش کریں",
+      "searchPlaceholder": "بل نمبر، انوائس نمبر یا سپلائر",
+      "unpaidOnly": "صرف غیر ادا شدہ",
+      "bill": "بل",
+      "supplierInvoice": "سپلائر انوائس",
+      "order": "آرڈر",
+      "payable": "قابل ادائیگی",
+      "paid": "ادا شدہ",
+      "due": "واجب الادا",
+      "empty": "کوئی سپلائر بل نہیں ملا۔"
+    },
+    "suppliers": {
+      "searchAria": "سپلائر تلاش کریں",
+      "onlyWithBalance": "صرف بیلنس والے",
+      "add": "سپلائر شامل کریں",
+      "totalPayable": "کل قابل ادائیگی:",
+      "supplier": "سپلائر",
+      "phone": "فون",
+      "terms": "مدت",
+      "termsDays": "{days} دن",
+      "lastPayment": "آخری ادائیگی",
+      "weOwe": "ہمارے ذمے",
+      "empty": "کوئی سپلائر نہیں ملا۔"
+    },
+    "form": {
+      "editTitle": "خریداری آرڈر میں ترمیم",
+      "expectedOn": "متوقع تاریخ",
+      "expectedDateAria": "متوقع تاریخ",
+      "addItemAria": "آئٹم شامل کریں",
+      "addItemPlaceholder": "قطار شامل کرنے کے لیے آئٹم کا نام لکھیں",
+      "fillLowStock": "کم اسٹاک سے بھریں",
+      "priceUnitCol": "قیمت / یونٹ",
+      "priceAria": "فی یونٹ قیمت",
+      "removeRow": "قطار ہٹائیں",
+      "empty": "آئٹم تلاش کریں، یا “کم اسٹاک سے بھریں” استعمال کریں۔",
+      "nothingLow": "اس وقت کوئی آئٹم کم اسٹاک میں نہیں ہے۔",
+      "couldNotAddItem": "آئٹم شامل نہیں ہو سکا",
+      "couldNotLoadSuggestions": "تجاویز لوڈ نہیں ہو سکیں",
+      "couldNotSaveOrder": "آرڈر محفوظ نہیں ہو سکا",
+      "saveChanges": "تبدیلیاں محفوظ کریں",
+      "saveAsDraft": "مسودے کے طور پر محفوظ کریں"
+    },
+    "detail": {
+      "title": "خریداری آرڈر {docNo}",
+      "titleFallback": "خریداری آرڈر",
+      "heading": "{branch} · خریداری آرڈر",
+      "supplierLabel": "سپلائر:",
+      "dateLabel": "تاریخ:",
+      "expectedLabel": "متوقع:",
+      "noteLabel": "نوٹ:",
+      "cancelled": "منسوخ: {reason}",
+      "ordered": "آرڈر شدہ",
+      "received": "وصول شدہ",
+      "receivedOn": "وصولی:",
+      "approve": "منظور کریں",
+      "receiveGoods": "سامان وصول کریں",
+      "cancelOrder": "آرڈر منسوخ کریں",
+      "cancelTitle": "خریداری آرڈر منسوخ کریں",
+      "couldNotApprove": "منظور نہیں ہو سکا"
+    },
+    "returns": {
+      "return": "واپسی",
+      "creditNote": "کریڈٹ نوٹ",
+      "empty": "ابھی سپلائرز کو کوئی واپسی نہیں ہوئی۔",
+      "viewTitle": "واپسی {docNo}",
+      "viewFallback": "واپسی",
+      "creditNoteRef": "کریڈٹ نوٹ {no}",
+      "reasonShort": {
+        "damaged": "خراب",
+        "expired": "میعاد ختم",
+        "near_expiry": "میعاد قریب",
+        "wrong_item": "غلط آئٹم",
+        "overstock": "ضرورت سے زیادہ اسٹاک",
+        "recall": "ریکال",
+        "other": "دیگر"
+      }
+    },
+    "returnForm": {
+      "title": "سپلائر کو سامان واپس کریں",
+      "reason": {
+        "damaged": "خراب",
+        "expired": "میعاد ختم",
+        "near_expiry": "میعاد قریب",
+        "wrong_item": "غلط آئٹم بھیجا گیا",
+        "overstock": "ضرورت سے زیادہ اسٹاک",
+        "recall": "ریکال",
+        "other": "دیگر (تفصیل لکھیں)"
+      },
+      "creditNoteLabel": "سپلائر کریڈٹ نوٹ نمبر",
+      "creditNoteAria": "کریڈٹ نوٹ نمبر",
+      "findItemAria": "آئٹم تلاش کریں",
+      "findItemPlaceholder": "واپس کرنے کا بیچ چننے کے لیے آئٹم کا نام لکھیں",
+      "batchesOf": "{name} کے بیچ",
+      "batchMeta": "میعاد {expiry} · {available} اسٹاک میں",
+      "inStock": "اسٹاک میں",
+      "returnQty": "واپسی مقدار",
+      "returnQuantityAria": "واپسی کی مقدار",
+      "empty": "آئٹم تلاش کریں اور وہ بیچ چنیں جو واپس جا رہا ہے۔",
+      "credit": "کریڈٹ",
+      "returnGoods": "سامان واپس کریں",
+      "noStock": "{name} کا واپس کرنے کے لیے کوئی اسٹاک نہیں ہے۔",
+      "couldNotLoadBatches": "بیچ لوڈ نہیں ہو سکے",
+      "couldNotSaveReturn": "واپسی محفوظ نہیں ہو سکی"
+    },
+    "ledger": {
+      "accountTitle": "{name} · اکاؤنٹ",
+      "accountFallback": "سپلائر اکاؤنٹ",
+      "statement": "{branch} · سپلائر اسٹیٹمنٹ",
+      "terms": "{name} · مدت {days} دن",
+      "aging": {
+        "notDue": "ابھی واجب نہیں",
+        "days1to30": "1–30 دن",
+        "days31to60": "31–60 دن",
+        "days61to90": "61–90 دن",
+        "over90": "90 سے زیادہ"
+      },
+      "document": "دستاویز",
+      "details": "تفصیل",
+      "bills": "بل",
+      "balance": "بیلنس",
+      "unpaidBills": "غیر ادا شدہ بل",
+      "due": "واجب الادا {date}",
+      "pay": "ادا کریں",
+      "recordPayment": "ادائیگی درج کریں",
+      "payBillTitle": "بل {docNo} ادا کریں",
+      "payOnAccount": "اکاؤنٹ پر ادائیگی",
+      "amountPkr": "رقم (PKR)",
+      "amountAria": "ادائیگی کی رقم",
+      "paidBy": "ادائیگی کا طریقہ",
+      "methodAria": "ادائیگی کا طریقہ",
+      "reference": "حوالہ (چیک / ٹرانسفر نمبر)",
+      "referenceAria": "حوالہ",
+      "savePayment": "ادائیگی محفوظ کریں",
+      "couldNotSavePayment": "ادائیگی محفوظ نہیں ہو سکی"
+    }
+  }
+}

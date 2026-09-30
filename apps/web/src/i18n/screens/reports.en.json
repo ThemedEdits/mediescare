@@ -1,0 +1,181 @@
+{
+  "reports": {
+    "heading": "Reports",
+    "report": "Report",
+    "loadListFailed": "Could not load reports",
+    "runFailed": "Could not run the report",
+    "printFailed": "Could not print",
+    "dateRange": "{from} to {to}",
+    "dateRangeLabel": "Date range",
+    "filterSearch": "Search: {text}",
+    "filterBucket": "Bucket: {bucket}",
+    "searchPlaceholder": "Search…",
+    "expiryBucket": "Expiry bucket",
+    "showFirst": "Show first",
+    "defaultPlaceholder": "Default",
+    "exportExcel": "Export Excel",
+    "printPdf": "Print / Save as PDF",
+    "savedTo": "Saved to {path}",
+    "generated": "Generated {at}",
+    "empty": "Nothing to show for these filters.",
+    "truncated": "Only the first rows are shown. Narrow the dates or search, or raise the limit.",
+    "groups": {
+      "sales": "Sales",
+      "stock": "Stock",
+      "expiry": "Expiry",
+      "profit": "Profitability",
+      "compliance": "Compliance"
+    },
+    "preset": {
+      "today": "Today",
+      "yesterday": "Yesterday",
+      "week": "This week",
+      "month": "This month",
+      "last30": "Last 30 days",
+      "custom": "Custom"
+    },
+    "bucket": {
+      "all": "All up to 180 days",
+      "expired": "Expired",
+      "b0_30": "0-30 days",
+      "b31_60": "31-60 days",
+      "b61_90": "61-90 days",
+      "b91_180": "91-180 days"
+    },
+    "cell": {
+      "void": "Void",
+      "posted": "Posted",
+      "walkIn": "Walk-in"
+    },
+    "kind": {
+      "cash": "cash",
+      "card": "card",
+      "wallet": "wallet",
+      "bank": "bank",
+      "qr": "qr",
+      "credit": "credit"
+    },
+    "titles": {
+      "sales-daily": "Sales by day",
+      "sales-invoices": "Invoices",
+      "sales-by-item": "Sales by item",
+      "sales-by-cashier": "Sales by cashier",
+      "sales-by-payment-mode": "Sales by payment mode",
+      "discounts": "Discounts given",
+      "stock-current": "Current stock",
+      "stock-valuation": "Stock valuation",
+      "low-stock": "Low stock",
+      "expiry": "Expiry",
+      "profit-loss": "Profit and loss",
+      "narcotic-register": "Narcotic register",
+      "missed-sales": "Missed sales"
+    },
+    "headings": {
+      "stock-valuation": "Stock valuation by category"
+    },
+    "notes": {
+      "sales-daily": "Voided invoices are not counted as sales. Returns are taken off on the day they were made. Net revenue is without tax.",
+      "sales-invoices": "Totals count posted invoices only. Void invoices are listed but not added up.",
+      "sales-by-item": "Quantities are in the smallest unit. Revenue is without tax and before returns; returns are shown beside it. Totals cover all items, not only the rows shown.",
+      "sales-by-payment-mode": "Cash is shown after change was given. Sales on account appear under their own mode.",
+      "discounts": "Posted invoices with a discount, largest first. Totals add up the rows shown.",
+      "stock-current": "Items with stock on hand, in the smallest unit. Sellable leaves out expired and blocked batches.",
+      "stock-valuation": "Retail value uses each item price per smallest unit. Quantities include expired batches still on the shelf.",
+      "expiry": "Batches with stock that are expired or expire within 180 days. A batch can be sold through its expiry date.",
+      "low-stock": "Items at or below their reorder level, and items out of stock that customers asked for. Missed sales are counted from {from} to {to} (last 30 days if no dates are given).",
+      "profit-loss": "Gross profit = revenue without tax, minus the batch cost of what was sold. Returns reduce revenue and, for goods put back on the shelf, cost. Expenses are not included.",
+      "narcotic-register": "Controlled-drug sales. Entries of voided invoices stay in the register and are marked Void.",
+      "missed-sales": "Items customers asked for that were not available, most asked first. Use it to decide what to order."
+    },
+    "kpi": {
+      "invoices": "Invoices",
+      "netRevenue": "Net revenue",
+      "returns": "Returns",
+      "profit": "Profit",
+      "postedInvoices": "Posted invoices",
+      "billedTotal": "Billed total",
+      "itemsInStock": "Items in stock",
+      "valueAtCost": "Value at cost",
+      "valueAtRetail": "Value at retail",
+      "expiredBatches": "Expired batches",
+      "expiringIn30Days": "Expiring in 30 days",
+      "expiredValueAtCost": "Expired value at cost",
+      "grossProfit": "Gross profit",
+      "margin": "Margin"
+    },
+    "col": {
+      "date": "Date",
+      "invoices": "Invoices",
+      "gross": "Gross",
+      "discount": "Discount",
+      "tax": "Tax",
+      "billed": "Billed total",
+      "returns": "Returns",
+      "netRevenue": "Net revenue",
+      "voids": "Voids",
+      "cost": "Cost",
+      "profit": "Profit",
+      "docNo": "Invoice",
+      "time": "Time",
+      "cashier": "Cashier",
+      "customer": "Customer",
+      "modes": "Payment",
+      "total": "Total",
+      "status": "Status",
+      "sku": "Code",
+      "item": "Item",
+      "qty": "Quantity",
+      "returnedQty": "Qty returned",
+      "revenue": "Revenue",
+      "marginPct": "Margin %",
+      "average": "Average bill",
+      "mode": "Payment mode",
+      "kind": "Kind",
+      "payments": "Payments",
+      "received": "Received",
+      "refunds": "Refunded",
+      "net": "Net",
+      "discountPct": "Discount %",
+      "onHand": "On hand",
+      "sellable": "Sellable",
+      "expired": "Expired",
+      "reorder": "Reorder level",
+      "costValueMinor": "Value at cost",
+      "category": "Category",
+      "items": "Items",
+      "retailValueMinor": "Value at retail",
+      "batchNo": "Batch",
+      "expiryDate": "Expiry",
+      "daysLeft": "Days left",
+      "bucket": "Bucket",
+      "shortfall": "Shortfall",
+      "missed": "Missed sales",
+      "patient": "Patient",
+      "cnic": "CNIC",
+      "doctor": "Doctor",
+      "prescriptionRef": "Prescription",
+      "soldBy": "Sold by",
+      "count": "Times asked",
+      "phones": "Customer phones"
+    },
+    "columns": {
+      "sales-daily": {
+        "cost": "Cost of goods"
+      },
+      "sales-by-item": {
+        "qty": "Qty sold"
+      },
+      "profit-loss": {
+        "cost": "Cost of goods",
+        "profit": "Gross profit"
+      },
+      "narcotic-register": {
+        "time": "Date and time",
+        "status": "Invoice status"
+      },
+      "missed-sales": {
+        "qty": "Quantity asked"
+      }
+    }
+  }
+}

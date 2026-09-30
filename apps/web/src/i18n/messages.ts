@@ -1,9 +1,5 @@
-import en from './en.json';
-import ur from './ur.json';
-import { flatten, withFallback, type FlatMessages, type Locale, type Messages } from './core';
-
-const flatEn = flatten(en as Messages);
-const flatUr = flatten(ur as Messages);
+import { flatEn, flatUr } from './catalog';
+import { withFallback, type FlatMessages, type Locale } from './core';
 
 /** Messages for a language with English filled in for anything not yet translated. */
 export function messagesFor(locale: Locale): FlatMessages {

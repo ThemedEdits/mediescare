@@ -1,0 +1,147 @@
+{
+  "pos": {
+    "ariaPos": "پوائنٹ آف سیل",
+    "ariaCart": "کارٹ",
+    "ariaTotals": "کل اور ادائیگی",
+    "shift": "شفٹ ⁨{docNo}⁩",
+    "hold": "روکیں",
+    "recall": "واپس بلائیں",
+    "missedSale": "چھوٹی ہوئی سیل",
+    "closeShift": "شفٹ بند کریں",
+    "searchAria": "آئٹم تلاش کریں یا بارکوڈ اسکین کریں",
+    "searchPlaceholder": "بارکوڈ اسکین کریں یا آئٹم کا نام لکھیں (F3)",
+    "searching": "تلاش ہو رہی ہے…",
+    "walkinCustomer": "عام گاہک",
+    "rack": "ریک ⁨{code}⁩",
+    "earliestExpiry": "سب سے پہلی میعاد ⁨{date}⁩",
+    "noSellableStock": "بکنے کے قابل اسٹاک نہیں",
+    "controlled": "کنٹرولڈ",
+    "rx": "نسخہ",
+    "inStock": "اسٹاک میں {count}",
+    "outOfStock": "اسٹاک ختم",
+    "cart": {
+      "unit": "یونٹ",
+      "batch": "بیچ",
+      "qty": "مقدار",
+      "discPct": "رعایت %",
+      "amount": "رقم",
+      "patientRecorded": "مریض درج ہے",
+      "needsPatient": "مریض درکار ہے",
+      "onlyInStock": "اسٹاک میں صرف {count}",
+      "batchAuto": "خودکار (پہلی میعاد)",
+      "daysShort": "{count} دن",
+      "discountPercent": "رعایت فیصد",
+      "patient": "مریض",
+      "removeLine": "لائن ہٹائیں",
+      "empty": "سیل شروع کرنے کے لیے بارکوڈ اسکین کریں یا آئٹم کا نام لکھیں۔"
+    },
+    "totals": {
+      "subTotal": "ذیلی کل",
+      "billDiscountPct": "بل رعایت %",
+      "billDiscountAria": "بل رعایت فیصد",
+      "tax": "ٹیکس",
+      "rounding": "راؤنڈنگ",
+      "grandTotal": "کل رقم (PKR)"
+    },
+    "payment": {
+      "title": "ادائیگی",
+      "exactHint": "F9 = پوری نقد رقم",
+      "method": "ادائیگی کا طریقہ",
+      "received": "وصول شدہ رقم",
+      "remove": "ادائیگی ہٹائیں",
+      "exactCash": "پوری نقد رقم",
+      "add": "+ ادائیگی شامل کریں",
+      "due": "باقی",
+      "change": "واپسی رقم"
+    },
+    "invoiceNote": "بل کا نوٹ",
+    "invoiceNotePlaceholder": "بل کا نوٹ (اختیاری)",
+    "clear": "صاف کریں",
+    "saveF10": "محفوظ کریں (F10)",
+    "err": {
+      "searchFailed": "تلاش ناکام ہو گئی",
+      "nothingFound": "\"⁨{query}⁩\" نہیں ملا۔ چھوٹی ہوئی سیل درج کرنے کے لیے F8 دبائیں۔",
+      "lineDiscountRange": "لائن کی رعایت 0 سے 100 فیصد کے درمیان ہونی چاہیے",
+      "billDiscountRange": "بل کی رعایت 0 سے 100 فیصد کے درمیان ہونی چاہیے",
+      "checkQuantities": "مقدار اور قیمتیں چیک کریں",
+      "checkPayment": "ادائیگی چیک کریں",
+      "enterPayment": "ادائیگی درج کریں",
+      "couldNotHold": "یہ کارٹ روکا نہیں جا سکا",
+      "couldNotOpenCart": "وہ کارٹ کھولا نہیں جا سکا",
+      "couldNotSaleSave": "سیل محفوظ نہیں ہو سکی",
+      "approvalRejected": "منظوری قبول نہیں ہوئی",
+      "couldNotAddCustomer": "گاہک شامل نہیں ہو سکا",
+      "failed": "ناکام",
+      "couldNotOpenShift": "شفٹ کھل نہیں سکی",
+      "couldNotCloseShift": "شفٹ بند نہیں ہو سکی",
+      "printingFailed": "پرنٹنگ ناکام ہو گئی"
+    },
+    "override": {
+      "title": "مینیجر کی منظوری درکار ہے",
+      "discount": "مینیجر کو ⁨{percent}⁩% رعایت منظور کرنی ہو گی۔ وہ اپنا یوزر نیم اور PIN خود درج کریں گے۔",
+      "overridePrice": "مینیجر کو قیمت میں تبدیلی منظور کرنی ہو گی۔ وہ اپنا یوزر نیم اور PIN خود درج کریں گے۔",
+      "refund": "مینیجر کو PKR ⁨{amount}⁩ کی واپسی منظور کرنی ہو گی۔ وہ اپنا یوزر نیم اور PIN خود درج کریں گے۔",
+      "void": "مینیجر کو اس سیل کی منسوخی منظور کرنی ہو گی۔ وہ اپنا یوزر نیم اور PIN خود درج کریں گے۔",
+      "username": "مینیجر کا یوزر نیم",
+      "pin": "مینیجر PIN",
+      "checking": "چیک ہو رہا ہے…",
+      "approve": "منظور کریں"
+    },
+    "narcotic": {
+      "title": "کنٹرولڈ آئٹم",
+      "introRest": "کنٹرولڈ دوا ہے۔ مریض، CNIC اور ڈاکٹر کی تفصیل نارکوٹک رجسٹر میں درج ہو گی۔",
+      "patientName": "مریض کا نام",
+      "patientCnic": "مریض کا CNIC",
+      "cnicHint": "13 ہندسے، مثلاً 42101-1234567-1",
+      "doctorName": "ڈاکٹر کا نام",
+      "prescriptionRef": "نسخے کا حوالہ (اختیاری)",
+      "saveDetails": "تفصیل محفوظ کریں"
+    },
+    "customer": {
+      "searchPlaceholder": "نام، فون یا MR نمبر سے تلاش کریں",
+      "walkin": "عام گاہک",
+      "none": "کوئی گاہک نہیں ملا",
+      "fullName": "پورا نام",
+      "phone": "فون",
+      "creditLimit": "ادھار کی حد PKR (اختیاری)",
+      "add": "گاہک شامل کریں",
+      "new": "+ نیا گاہک"
+    },
+    "held": {
+      "title": "رکے ہوئے بل",
+      "heldCart": "رکا ہوا کارٹ",
+      "empty": "کوئی بل رکا ہوا نہیں ہے۔"
+    },
+    "missed": {
+      "intro": "جو چیز گاہک کو چاہیے تھی اور آپ کے پاس نہیں تھی۔ پرچیزنگ کو نظر آئے گی۔",
+      "customerPhone": "گاہک کا فون"
+    },
+    "openShift": {
+      "title": "اپنی شفٹ کھولیں",
+      "intro": "دراز میں موجود نقد رقم گن کر درج کریں۔ سیل سے پہلے شفٹ کھولنا ضروری ہے۔",
+      "openingCash": "ابتدائی نقد رقم (PKR)",
+      "open": "شفٹ کھولیں"
+    },
+    "closeShiftDlg": {
+      "title": "شفٹ ⁨{docNo}⁩ بند کریں",
+      "intro": "دراز کی ساری نقد رقم گن کر کل رقم درج کریں۔ سسٹم کی رقم محفوظ کرنے کے بعد ہی نظر آئے گی۔",
+      "counted": "گنی ہوئی نقد رقم (PKR)",
+      "closedTitle": "شفٹ بند ہو گئی",
+      "expected": "دراز میں متوقع رقم",
+      "youCounted": "آپ نے گنا",
+      "difference": "فرق",
+      "matches": "دراز کی رقم ٹھیک ہے۔",
+      "over": "دراز میں متوقع سے زیادہ رقم ہے۔",
+      "short": "دراز میں رقم کم ہے۔ مینیجر جائزہ لے گا۔"
+    },
+    "saved": {
+      "title": "محفوظ ہو گیا ⁨{docNo}⁩",
+      "giveBack": "واپس دیں",
+      "onAccount": "کھاتے میں",
+      "profit": "منافع",
+      "printing": "پرنٹ ہو رہا ہے...",
+      "printReceipt": "رسید پرنٹ کریں",
+      "newSale": "نئی سیل"
+    }
+  }
+}

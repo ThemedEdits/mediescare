@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, type ComponentProps, type ReactNode } from 'react';
+import { useLocale, useT } from '@/i18n/client';
 
 /** fetch wrapper for the app's own API. Throws an Error with a message safe to show to the user. */
 export async function api<T = unknown>(
@@ -95,6 +96,24 @@ export function Badge({
   );
 }
 
+/**
+ * Turns any thrown value into text for the screen. English shows the server message unchanged; other
+ * languages show a translated generic message for well-known error codes, followed by the server
+ * message as detail when there is one.
+ */
+export function useErrorText(): (err: unknown, fallbackKey?: string) => string {
+  const t = useT();
+  const { locale } = useLocale();
+  return (err, fallbackKey = 'common.couldNotSave') => {
+    if (!(err instanceof Error)) return t(fallbackKey);
+    if (locale === 'en' || !(err instanceof ApiError)) return err.message;
+    const key = `errors.${err.code}`;
+    if (!t.has(key)) return err.message;
+    const generic = t(key);
+    return err.message && err.message !== generic ? `${generic}: ${err.message}` : generic;
+  };
+}
+
 export function Modal({
   title,
   onClose,
@@ -106,6 +125,7 @@ export function Modal({
   children: ReactNode;
   wide?: boolean;
 }) {
+  const t = useT();
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
     window.addEventListener('keydown', onKey);
@@ -127,7 +147,7 @@ export function Modal({
             type="button"
             onClick={onClose}
             className="h-8 w-8 rounded-full text-slate-500 hover:bg-slate-100"
-            aria-label="Close"
+            aria-label={t('common.close')}
           >
             ✕
           </button>
@@ -148,6 +168,7 @@ export function ErrorText({ message }: { message: string | null }) {
 
 /** One-time secret (temporary password, recovery key) with copy button. */
 export function SecretBox({ label, value, note }: { label: string; value: string; note?: string }) {
+  const t = useT();
   const [copied, setCopied] = useState(false);
   return (
     <div className="space-y-2 rounded-[10px] border border-primary-600 bg-primary-50 p-4">
@@ -167,13 +188,14 @@ export function SecretBox({ label, value, note }: { label: string; value: string
           setCopied(true);
         }}
       >
-        {copied ? 'Copied' : 'Copy'}
+        {copied ? t('common.copied') : t('common.copy')}
       </Button>
     </div>
   );
 }
 
 export function useAsync<T>(load: () => Promise<T>, deps: unknown[] = []) {
+  const errorText = useErrorText();
   const [data, setData] = useState<T | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
@@ -181,7 +203,7 @@ export function useAsync<T>(load: () => Promise<T>, deps: unknown[] = []) {
     let alive = true;
     load()
       .then((d) => alive && (setData(d), setError(null)))
-      .catch((e: unknown) => alive && setError(e instanceof Error ? e.message : 'Failed to load'));
+      .catch((e: unknown) => alive && setError(errorText(e, 'common.loadFailed')));
     return () => {
       alive = false;
     };
@@ -196,7 +218,7 @@ export const inputClass =
 export function NameDialog({
   title,
   label,
-  submitLabel = 'Add',
+  submitLabel,
   onSubmit,
   onClose,
 }: {
@@ -206,6 +228,8 @@ export function NameDialog({
   onSubmit: (value: string) => Promise<void>;
   onClose: () => void;
 }) {
+  const t = useT();
+  const errorText = useErrorText();
   const [value, setValue] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -220,7 +244,7 @@ export function NameDialog({
           try {
             await onSubmit(value.trim());
           } catch (err) {
-            setError(err instanceof Error ? err.message : 'Could not save');
+            setError(errorText(err, 'common.couldNotSave'));
             setBusy(false);
           }
         }}
@@ -238,10 +262,10 @@ export function NameDialog({
         <ErrorText message={error} />
         <div className="flex justify-end gap-2">
           <Button type="button" variant="outline" onClick={onClose}>
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button type="submit" disabled={busy || value.trim().length < 1}>
-            {busy ? 'Saving…' : submitLabel}
+            {busy ? t('common.saving') : (submitLabel ?? t('common.add'))}
           </Button>
         </div>
       </form>

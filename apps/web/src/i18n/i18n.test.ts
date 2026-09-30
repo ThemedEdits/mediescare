@@ -1,26 +1,32 @@
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import en from './en.json';
-import ur from './ur.json';
+import { EN_FILES, UR_FILES, flatEn, flatUr } from './catalog';
 import {
   createTranslator,
   dirOf,
-  flatten,
   interpolate,
   isLocale,
   navKey,
   placeholders,
   resolveLocale,
   withFallback,
-  type Messages,
 } from './core';
 import { messagesFor } from './messages';
 
-const flatEn = flatten(en as Messages);
-const flatUr = flatten(ur as Messages);
-
 describe('message files', () => {
+  it('no top-level namespace is defined in two files of the same language', () => {
+    for (const files of [EN_FILES, UR_FILES]) {
+      const seen = new Set<string>();
+      for (const f of files)
+        for (const ns of Object.keys(f)) {
+          expect(seen.has(ns), ns).toBe(false);
+          seen.add(ns);
+        }
+    }
+    expect(EN_FILES.map((f) => Object.keys(f).sort())).toHaveLength(UR_FILES.length);
+  });
+
   it('ur.json and en.json have exactly the same keys', () => {
     const missingInUr = Object.keys(flatEn).filter((k) => !(k in flatUr));
     const missingInEn = Object.keys(flatUr).filter((k) => !(k in flatEn));
@@ -128,5 +134,27 @@ describe('Urdu font ships with the app', () => {
       'OFL-NotoNastaliqUrdu.txt',
     ])
       expect(readFileSync(join(__dirname, '../../public/fonts', f)).length).toBeGreaterThan(1000);
+  });
+});
+
+function sourceFiles(dir: string): string[] {
+  return readdirSync(dir).flatMap((name) => {
+    const p = join(dir, name);
+    if (statSync(p).isDirectory()) return name === 'api' ? [] : sourceFiles(p);
+    return /\.tsx?$/.test(name) && !name.endsWith('.test.ts') ? [p] : [];
+  });
+}
+
+describe('translation keys used in code', () => {
+  it("every literal t('a.b') call refers to a key that exists in both languages", () => {
+    const missing: string[] = [];
+    for (const file of sourceFiles(join(__dirname, '..'))) {
+      const text = readFileSync(file, 'utf8');
+      for (const m of text.matchAll(/\bt\(\s*'([A-Za-z]\w*(?:\.\w+)+)'/g)) {
+        const key = m[1] as string;
+        if (!(key in flatEn) || !(key in flatUr)) missing.push(`${file}: ${key}`);
+      }
+    }
+    expect(missing).toEqual([]);
   });
 });
