@@ -9,7 +9,8 @@
     ".": "./src/index.ts",
     "./backup": "./src/backup/index.ts",
     "./sqlite-schema": "./src/schema/sqlite.ts",
-    "./pg-schema": "./src/schema/pg.ts"
+    "./pg-schema": "./src/schema/pg.ts",
+    "./cloud": "./src/sync/cloud/index.ts"
   },
   "scripts": {
     "db:generate": "drizzle-kit generate --config drizzle.sqlite.config.ts && drizzle-kit generate --config drizzle.pg.config.ts",
@@ -17,18 +18,22 @@
     "db:seed": "node ../../scripts/electron-node.mjs --import tsx src/cli/seed.ts",
     "test": "node ../../scripts/electron-node.mjs ../../node_modules/vitest/vitest.mjs run",
     "typecheck": "tsc --noEmit",
-    "bench": "node ../../scripts/electron-node.mjs --import tsx src/cli/bench.ts"
+    "bench": "node ../../scripts/electron-node.mjs --import tsx src/cli/bench.ts",
+    "cloud:migrate": "node ../../scripts/electron-node.mjs --import tsx src/cli/cloud-migrate.ts"
   },
   "dependencies": {
+    "@electric-sql/pglite": "^0.5.8",
     "@mediescare/core": "workspace:*",
     "@mediescare/sync": "workspace:*",
     "@node-rs/argon2": "^2.2.1",
     "better-sqlite3": "npm:better-sqlite3-multiple-ciphers@13.0.3",
     "drizzle-orm": "^0.45.3",
     "exceljs": "^4.4.0",
-    "jose": "^6.2.12"
+    "jose": "^6.2.12",
+    "postgres": "^3.4.9"
   },
   "devDependencies": {
+    "@electric-sql/pglite-socket": "^0.2.11",
     "@types/better-sqlite3": "^9.6.0",
     "@types/node": "^22.20.4",
     "drizzle-kit": "^0.31.11",

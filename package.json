@@ -22,7 +22,9 @@
     "verify:packaged": "node scripts/verify-packaged.mjs",
     "format": "prettier --write .",
     "prepare": "husky",
-    "bench": "pnpm --filter @mediescare/db bench"
+    "bench": "pnpm --filter @mediescare/db bench",
+    "cloud:migrate": "pnpm --filter @mediescare/db cloud:migrate",
+    "cloud:dev": "node scripts/cloud-dev.mjs"
   },
   "lint-staged": {
     "*.{ts,tsx,js,mjs,json,md,css}": "prettier --write"
