@@ -73,7 +73,17 @@ function client() {
       body: body !== undefined ? JSON.stringify(body) : undefined,
     });
     const set = res.headers.getSetCookie?.() ?? [];
-    if (set.length) cookie = set.map((c) => c.split(';')[0]).join('; ');
+    if (set.length) {
+      // Merge into the jar: a new cookie replaces the same name, others are kept.
+      const jar = new Map(
+        cookie
+          .split('; ')
+          .filter(Boolean)
+          .map((c) => [c.slice(0, c.indexOf('=')), c]),
+      );
+      for (const c of set.map((x) => x.split(';')[0])) jar.set(c.slice(0, c.indexOf('=')), c);
+      cookie = [...jar.values()].join('; ');
+    }
     const text = await res.text();
     let data;
     try {
@@ -87,6 +97,7 @@ function client() {
     get: (p) => call('GET', p),
     post: (p, b = {}) => call('POST', p, b),
     put: (p, b) => call('PUT', p, b),
+    patch: (p, b) => call('PATCH', p, b),
     cookie: () => cookie,
   };
 }
@@ -1078,6 +1089,44 @@ try {
     xlsxRes.status === 200 &&
       /spreadsheetml/.test(xlsxRes.headers.get('content-type') ?? '') &&
       xlsxBytes.subarray(0, 2).toString() === 'PK',
+  );
+
+  // --- Urdu: every screen renders in Urdu, right to left, without errors ---
+  check(
+    'admin switches the display language to Urdu',
+    (await admin.patch('/api/me', { language: 'ur' })).status === 200,
+  );
+  for (const path of [
+    '/',
+    '/pos',
+    '/sales',
+    '/items',
+    '/items/import',
+    '/stock',
+    '/stock-take',
+    '/purchasing',
+    '/transfers',
+    '/branches',
+    '/reports',
+    '/users',
+    '/roles',
+    '/backups',
+    '/settings',
+  ]) {
+    const page = await admin.get(path);
+    check(
+      'Urdu page ' + path + ' renders right to left',
+      page.status === 200 &&
+        page.data.raw.includes('dir="rtl"') &&
+        page.data.raw.includes('lang="ur"'),
+      String(page.status),
+    );
+  }
+  const backToEn = await admin.patch('/api/me', { language: 'en' });
+  check(
+    'admin switches back to English',
+    backToEn.status === 200,
+    JSON.stringify(backToEn.data).slice(0, 200),
   );
 
   // --- backups ---
