@@ -38,3 +38,10 @@ Outbox push worker with backoff, epoch fencing, status and "sync now"; LAN disco
 4. How cloud device tokens are issued and rotated.
 5. Receipt labels: Sub total is the sum of lines; Discount and Tax are shown as included information.
 6. Printer name is per branch; terminals on other PCs with different printer names need per-terminal settings later.
+
+## Owner decisions (recorded 2026-09-30)
+
+1. **Tax fill formula** on the receive form: confirmed as built.
+2. **Invoice number gap after failover promotion:** accepted.
+3. **Head Office wins** retail rate, tax rules and discount cap on conflicts: confirmed.
+4. **Cloud device tokens:** short-lived JWTs, rotated with a refresh token when the sync worker starts. Approved as the design; **not built yet** (today the token comes from `MEDIESCARE_CLOUD_TOKEN` or a sealed file). To do with the Postgres cloud store.
