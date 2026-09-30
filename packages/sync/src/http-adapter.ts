@@ -1,3 +1,4 @@
+import type { TokenProvider } from './cloud-auth';
 import {
   CloudAuthError,
   StaleEpochError,
@@ -11,8 +12,12 @@ import {
 export interface HttpCloudOptions {
   /** Origin of a cloud-mode instance, for example https://cloud.example.pk */
   baseUrl: string;
-  /** Device token issued when the branch server was registered. Sent as a bearer token. */
-  token: string;
+  /** Returns a fresh access token before every request (see RefreshingTokenProvider). */
+  tokenProvider?: TokenProvider;
+  /** Called once after a 401: fetch a new token (refresh) and retry the request one time. */
+  forceRefresh?: () => Promise<string>;
+  /** A fixed token, for tests and the legacy static-token setup. Ignored when tokenProvider is set. */
+  token?: string;
   /** Per request timeout. The worker runs off the request path, so a slow cloud only delays sync. */
   timeoutMs?: number;
   /** Plain http is refused except for loopback, unless this is set (tests, private networks). */
@@ -77,23 +82,29 @@ export class HttpCloudAdapter implements CloudAdapter {
     };
   }
 
+  private async token(): Promise<string> {
+    if (this.options.tokenProvider) return this.options.tokenProvider();
+    if (this.options.token) return this.options.token;
+    throw new CloudAuthError('No cloud token is configured');
+  }
+
   private async post(
     path: string,
     payload: unknown,
     signal?: AbortSignal,
     idempotencyKey?: string,
   ): Promise<unknown> {
-    const timeout = AbortSignal.timeout(this.options.timeoutMs ?? 30_000);
-    const res = await this.doFetch(`${this.base}${path}`, {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        authorization: `Bearer ${this.options.token}`,
-        ...(idempotencyKey ? { 'idempotency-key': idempotencyKey } : {}),
-      },
-      body: JSON.stringify(payload),
-      signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
-    });
+    let res = await this.send(path, payload, await this.token(), signal, idempotencyKey);
+    if ((res.status === 401 || res.status === 403) && this.options.forceRefresh) {
+      // The access token may have expired or been replaced: refresh once and retry once.
+      res = await this.send(
+        path,
+        payload,
+        await this.options.forceRefresh(),
+        signal,
+        idempotencyKey,
+      );
+    }
     if (res.status === 401 || res.status === 403) throw new CloudAuthError();
     const text = await res.text();
     let json: unknown = null;
@@ -113,5 +124,25 @@ export class HttpCloudAdapter implements CloudAdapter {
     }
     if (!res.ok) throw new Error(`Cloud responded with HTTP ${res.status}`);
     return json;
+  }
+
+  private send(
+    path: string,
+    payload: unknown,
+    token: string,
+    signal: AbortSignal | undefined,
+    idempotencyKey: string | undefined,
+  ): Promise<Response> {
+    const timeout = AbortSignal.timeout(this.options.timeoutMs ?? 30_000);
+    return this.doFetch(`${this.base}${path}`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        authorization: `Bearer ${token}`,
+        ...(idempotencyKey ? { 'idempotency-key': idempotencyKey } : {}),
+      },
+      body: JSON.stringify(payload),
+      signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
+    });
   }
 }

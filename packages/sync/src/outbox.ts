@@ -125,7 +125,16 @@ export function partitionResults(results: readonly EventResult[]): {
 }
 
 /** Status shown in Settings. Produced by the sync runner; safe to send to the browser. */
-export const SYNC_STATES = ['disabled', 'idle', 'syncing', 'offline', 'fenced', 'error'] as const;
+export const SYNC_STATES = [
+  'disabled',
+  'idle',
+  'syncing',
+  'offline',
+  'fenced',
+  'error',
+  /** The cloud revoked this device (or its refresh token is unusable). The runner stopped; reconnect from Settings. */
+  'revoked',
+] as const;
 export type SyncState = (typeof SYNC_STATES)[number];
 
 export interface SyncStatusReport {
@@ -145,4 +154,17 @@ export interface SyncStatusReport {
   serverEpoch: number;
   /** Host of the cloud endpoint only, never a token. */
   cloudHost: string | null;
+  /**
+   * Progress of the first upload of everything written before this PC was connected. Null once the
+   * first upload finished (or when sync is off). Survives restarts: it is derived from the outbox.
+   */
+  initialUpload: InitialUploadProgress | null;
+}
+
+export interface InitialUploadProgress {
+  active: boolean;
+  /** Events the cloud has acknowledged so far. */
+  sent: number;
+  /** Every event in the outbox (acknowledged, waiting and refused). */
+  total: number;
 }

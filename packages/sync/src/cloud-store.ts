@@ -27,8 +27,8 @@ export interface DeviceAuth {
  * in a real database (`SELECT ... FOR UPDATE` on the branch epoch row), so a fenced device can
  * never sneak in a write between check and insert.
  *
- * Implementations: `InMemoryCloudStore` (tests, local development). The PostgreSQL store is NOT
- * written yet (docs/sync.md, "What remains").
+ * Implementations: `InMemoryCloudStore` (tests, local development) and `PostgresCloudStore`
+ * (packages/db/src/sync/cloud). Both run the same contract suite (`runCloudStoreContract`).
  */
 export interface CloudStore {
   authenticate(token: string): Promise<DeviceAuth | null>;
@@ -38,6 +38,7 @@ export interface CloudStore {
 
 /** Entities edited by many users and branches (LWW with conflict notes). Everything else is append-only. */
 export const DEFAULT_MASTER_ENTITIES: readonly string[] = [
+  'branches',
   'items',
   'suppliers',
   'customers',
@@ -54,6 +55,11 @@ export const DEFAULT_PRICE_FIELDS: Readonly<Record<string, readonly string[]>> =
 };
 
 export const MAX_BATCH_EVENTS = 500;
+
+/** One event's payload (JSON text) may not exceed this. Keeps a batch under Vercel's 4.5 MB body limit. */
+export const MAX_EVENT_PAYLOAD_CHARS = 512_000;
+
+const hasNul = (v: string) => v.includes(String.fromCharCode(0));
 
 /** Structural checks the cloud repeats on every event (a compromised branch cannot post for another). */
 export function validateEvent(
@@ -73,6 +79,18 @@ export function validateEvent(
   } catch {
     return { reason: 'invalid_hlc' };
   }
+  // PostgreSQL text and jsonb cannot hold NUL, and one such event would fail its whole batch forever.
+  if (hasNul(event.id) || hasNul(event.entityType) || hasNul(event.entityId))
+    return { reason: 'invalid_identifier' };
+  let payloadText: string;
+  try {
+    payloadText = JSON.stringify(event.payload ?? null);
+  } catch {
+    return { reason: 'invalid_payload' };
+  }
+  if (payloadText.length > MAX_EVENT_PAYLOAD_CHARS) return { reason: 'payload_too_large' };
+  // JSON.stringify writes a NUL inside a string as the six characters backslash-u-0-0-0-0.
+  if (payloadText.includes('\\u0000')) return { reason: 'invalid_payload' };
   return { flags: wallMs - nowMs > MAX_SKEW_MS ? ['clock_skew'] : [] };
 }
 

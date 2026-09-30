@@ -6,3 +6,7 @@ export * from './conflict';
 export * from './cloud-store';
 export * from './fake-cloud';
 export * from './http-adapter';
+export * from './cloud-auth';
+export * from './cloud-client';
+export * from './token-store';
+export * from './refreshing-token-provider';
