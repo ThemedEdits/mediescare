@@ -2,10 +2,16 @@ import { and, eq, sql } from 'drizzle-orm';
 import type { DbOrTx } from '../client';
 import type { WriteContext } from '../context';
 import { DomainError } from '../errors';
-import { grns, paymentModes, supplierPayments, suppliers } from '../schema/sqlite-all';
+import {
+  grns,
+  paymentModes,
+  purchaseReturns,
+  supplierPayments,
+  suppliers,
+} from '../schema/sqlite-all';
 import { payableMinor } from './payments';
 
-export type LedgerEntryKind = 'opening' | 'bill' | 'payment';
+export type LedgerEntryKind = 'opening' | 'bill' | 'payment' | 'return';
 
 export interface LedgerEntry {
   date: string;
@@ -114,6 +120,14 @@ export function getSupplierLedger(
     )
     .all();
 
+  const returns = db
+    .select()
+    .from(purchaseReturns)
+    .where(
+      and(eq(purchaseReturns.supplierId, supplierId), eq(purchaseReturns.branchId, ctx.branchId)),
+    )
+    .all();
+
   const all: Omit<LedgerEntry, 'balanceMinor'>[] = [
     ...bills.map((g) => ({
       date: dayOf(g.createdAt),
@@ -134,6 +148,16 @@ export function getSupplierLedger(
       debitMinor: 0,
       creditMinor: p.amountMinor,
       sort: p.paidAt,
+    })),
+    ...returns.map((x) => ({
+      date: dayOf(x.createdAt),
+      kind: 'return' as const,
+      docId: x.id,
+      docNo: x.docNo,
+      description: `Goods returned (${x.reason.replace('_', ' ')})${x.creditNoteNo ? ` · credit note ${x.creditNoteNo}` : ''}`,
+      debitMinor: 0,
+      creditMinor: x.totalMinor,
+      sort: x.createdAt,
     })),
   ]
     .sort((a, b) => a.sort.localeCompare(b.sort))
@@ -169,7 +193,7 @@ export function getSupplierLedger(
       due: addDays(g.supplierInvoiceDate ?? dayOf(g.createdAt), supplier.termsDays),
       amount: payableMinor(g),
     })),
-    pays.reduce((s, { p }) => s + p.amountMinor, 0),
+    pays.reduce((s, { p }) => s + p.amountMinor, 0) + returns.reduce((s, x) => s + x.totalMinor, 0),
     today,
   );
   return {
@@ -212,7 +236,8 @@ export function listSupplierBalances(
     SELECT s.id, s.name, s.phone, s.terms_days AS terms,
       s.opening_balance_minor
         + COALESCE((SELECT SUM(g.total_minor - g.wht_minor) FROM grns g WHERE g.supplier_id = s.id AND g.branch_id = ${ctx.branchId}), 0)
-        - COALESCE((SELECT SUM(p.amount_minor) FROM supplier_payments p WHERE p.supplier_id = s.id AND p.branch_id = ${ctx.branchId}), 0) AS bal,
+        - COALESCE((SELECT SUM(p.amount_minor) FROM supplier_payments p WHERE p.supplier_id = s.id AND p.branch_id = ${ctx.branchId}), 0)
+        - COALESCE((SELECT SUM(x.total_minor) FROM purchase_returns x WHERE x.supplier_id = s.id AND x.branch_id = ${ctx.branchId}), 0) AS bal,
       (SELECT MAX(p.paid_at) FROM supplier_payments p WHERE p.supplier_id = s.id AND p.branch_id = ${ctx.branchId}) AS last_pay
     FROM suppliers s
     WHERE s.tenant_id = ${ctx.tenantId} AND s.is_active = 1 ${q ? sql`AND s.name LIKE ${`%${q}%`}` : sql``}
