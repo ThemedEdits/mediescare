@@ -1,0 +1,91 @@
+{
+  "common": {
+    "save": "محفوظ کریں",
+    "cancel": "منسوخ کریں",
+    "close": "بند کریں",
+    "search": "تلاش کریں",
+    "print": "پرنٹ",
+    "export": "ایکسپورٹ",
+    "add": "شامل کریں",
+    "edit": "ترمیم",
+    "delete": "حذف کریں",
+    "yes": "جی ہاں",
+    "no": "نہیں",
+    "loading": "لوڈ ہو رہا ہے…",
+    "error": "کچھ غلط ہو گیا"
+  },
+  "language": {
+    "label": "زبان",
+    "switchTo": "زبان تبدیل کر کے {name} کریں",
+    "en": "English",
+    "ur": "اردو"
+  },
+  "nav": {
+    "main": "مین مینو",
+    "dashboard": "ڈیش بورڈ",
+    "pos": "POS",
+    "sales": "فروخت",
+    "items": "آئٹمز",
+    "stock": "اسٹاک",
+    "stockTake": "اسٹاک گنتی",
+    "purchasing": "خریداری",
+    "reports": "رپورٹس",
+    "users": "صارفین",
+    "roles": "کردار",
+    "settings": "سیٹنگز",
+    "backups": "بیک اپ"
+  },
+  "topbar": {
+    "quickPin": "فوری پن",
+    "password": "پاس ورڈ"
+  },
+  "auth": {
+    "signIn": "سائن ان",
+    "signingIn": "سائن ان ہو رہا ہے…",
+    "signInFailed": "سائن ان نہیں ہو سکا",
+    "signOut": "سائن آؤٹ",
+    "tabPassword": "پاس ورڈ",
+    "tabPin": "فوری پن (کاؤنٹر)",
+    "username": "صارف نام",
+    "password": "پاس ورڈ",
+    "pin": "پن"
+  },
+  "changePassword": {
+    "titleChange": "پاس ورڈ تبدیل کریں",
+    "titleChoose": "نیا پاس ورڈ منتخب کریں",
+    "tempHint": "آپ نے عارضی پاس ورڈ سے سائن ان کیا ہے۔ آگے بڑھنے کے لیے اپنا پاس ورڈ منتخب کریں۔",
+    "current": "موجودہ (یا عارضی) پاس ورڈ",
+    "new": "نیا پاس ورڈ (کم از کم 10 حروف)",
+    "confirm": "نئے پاس ورڈ کی تصدیق کریں",
+    "mismatch": "نئے پاس ورڈ آپس میں نہیں ملتے",
+    "save": "نیا پاس ورڈ محفوظ کریں",
+    "saving": "محفوظ ہو رہا ہے…",
+    "failed": "پاس ورڈ تبدیل نہیں ہو سکا"
+  },
+  "setup": {
+    "title": "اس سرور کی سیٹ اپ",
+    "intro": "اپنی تنظیم، یہ برانچ اور سپر ایڈمن اکاؤنٹ بنائیں۔"
+  },
+  "dashboard": {
+    "denied": "آپ کو وہ صفحہ کھولنے کی اجازت نہیں ہے۔",
+    "salesToday": "آج کی فروخت",
+    "invoices": "{count} انوائسز",
+    "invoicesVoided": "{count} انوائسز، {voided} منسوخ",
+    "grossProfitToday": "آج کا مجموعی منافع",
+    "grossProfitNote": "ٹیکس کے بغیر فروخت منفی بیچ کی لاگت",
+    "discountsToday": "آج کی رعایت",
+    "discountsNote": "کاؤنٹر پر دی گئی",
+    "stockValue": "اسٹاک کی مالیت",
+    "stockValueNote": "بیچ کی لاگت پر",
+    "signedInAs": "سائن ان صارف",
+    "permissions": "{count} اجازتیں",
+    "syncQueue": "سنک قطار",
+    "syncNothing": "کلاؤڈ کے لیے کچھ انتظار میں نہیں",
+    "syncWaiting": "کلاؤڈ کے انتظار میں (آف لائن بھی چلتا ہے)",
+    "auditChain": "آڈٹ چین",
+    "verified": "تصدیق شدہ",
+    "broken": "خراب",
+    "entries": "{count} اندراجات",
+    "brokenAt": "اندراج {seq} پر خراب"
+  }
+}

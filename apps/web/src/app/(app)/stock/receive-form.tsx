@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { unitRateFromPack } from '@mediescare/core/money';
-import { lineAmountMinor } from '@mediescare/core/money';
+import { lineAmountMinor, percentOfMinor } from '@mediescare/core/money';
 import { api, Button, ErrorText, inputClass, Modal, NameDialog, useAsync } from '@/components/ui';
 import { pkr, rate, tryMicro, tryMinor } from '@/lib/format';
 
@@ -62,6 +62,7 @@ export function ReceiveForm({
   onSaved: (docNo: string) => void;
 }) {
   const suppliers = useAsync(() => api<{ suppliers: Supplier[] }>('/api/suppliers'));
+  const defaults = useAsync(() => api<{ settings?: Record<string, number> }>('/api/lookups'));
   const [supplierId, setSupplierId] = useState(po?.supplierId ?? '');
   const [invNo, setInvNo] = useState('');
   const [invDate, setInvDate] = useState('');
@@ -156,6 +157,21 @@ export function ReceiveForm({
   };
   const subTotal = lines.reduce((s, l) => s + (lineTotal(l) ?? 0), 0);
   const m = (t: string) => tryMinor(t) ?? 0;
+  const bp = (k: string) => Number(defaults.data?.settings?.[k] ?? 0);
+  const hasDefaultRates =
+    bp('tax.default_sales_tax_bp') + bp('tax.default_advance_tax_bp') + bp('tax.default_wht_bp') >
+    0;
+  /** Fill the tax boxes from the branch rates. Sales tax and WHT apply to goods after discount; advance tax to that plus sales tax. All can be edited. */
+  function applyDefaultRates() {
+    const base = Math.max(0, subTotal - m(discount));
+    const st = percentOfMinor(base, bp('tax.default_sales_tax_bp'));
+    const at = percentOfMinor(base + st, bp('tax.default_advance_tax_bp'));
+    const w = percentOfMinor(base, bp('tax.default_wht_bp'));
+    const text = (n: number) => `${Math.trunc(n / 100)}.${String(n % 100).padStart(2, '0')}`;
+    setSalesTax(st ? text(st) : '');
+    setAdvTax(at ? text(at) : '');
+    setWht(w ? text(w) : '');
+  }
   const total = subTotal - m(discount) + m(salesTax) + m(advTax) + m(freight);
   const ready =
     supplierId &&
@@ -405,6 +421,17 @@ export function ReceiveForm({
             </label>
           ))}
         </div>
+        {hasDefaultRates ? (
+          <Button
+            type="button"
+            variant="outline"
+            className="h-8"
+            onClick={applyDefaultRates}
+            disabled={subTotal === 0}
+          >
+            Fill taxes from branch rates
+          </Button>
+        ) : null}
         <div className="flex flex-wrap items-end gap-3">
           <label className="min-w-64 flex-1 text-sm">
             Stock note

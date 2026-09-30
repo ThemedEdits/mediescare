@@ -6,6 +6,8 @@ import { pkr } from '@/lib/format';
 import { ReceiveForm, type ReceivePo } from '../stock/receive-form';
 import { PoDetail, PO_TONE, type PoView } from './po-detail';
 import { PoForm, type EditablePo } from './po-form';
+import { ReturnForm } from './return-form';
+import { ReturnsTab } from './returns-tab';
 import { SupplierLedger } from './supplier-ledger';
 
 export interface PurchasingCan {
@@ -16,11 +18,13 @@ export interface PurchasingCan {
   viewBills: boolean;
   receive: boolean;
   viewAccounts: boolean;
+  viewReturns: boolean;
+  createReturn: boolean;
   pay: boolean;
   addSupplier: boolean;
 }
 
-type Tab = 'orders' | 'bills' | 'suppliers';
+type Tab = 'orders' | 'bills' | 'returns' | 'suppliers';
 
 interface PoRow {
   id: string;
@@ -56,6 +60,7 @@ export function PurchasingClient({ branchName, can }: { branchName: string; can:
   const tabs: [Tab, string, boolean][] = [
     ['orders', 'Purchase orders', can.viewOrders],
     ['bills', 'Supplier bills', can.viewBills],
+    ['returns', 'Returns to suppliers', can.viewReturns],
     ['suppliers', 'Suppliers & payments', can.viewAccounts],
   ];
   const visible = tabs.filter(([, , ok]) => ok);
@@ -69,6 +74,7 @@ export function PurchasingClient({ branchName, can }: { branchName: string; can:
   const [receivePo, setReceivePo] = useState<ReceivePo | 'new' | null>(null);
   const [ledger, setLedger] = useState<string | null>(null);
   const [addingSupplier, setAddingSupplier] = useState(false);
+  const [returning, setReturning] = useState(false);
 
   return (
     <div className="space-y-4">
@@ -81,6 +87,11 @@ export function PurchasingClient({ branchName, can }: { branchName: string; can:
           {can.receive ? (
             <Button variant="outline" onClick={() => setReceivePo('new')}>
               Add stock without an order
+            </Button>
+          ) : null}
+          {can.createReturn ? (
+            <Button variant="outline" onClick={() => setReturning(true)}>
+              Return to supplier
             </Button>
           ) : null}
         </div>
@@ -107,6 +118,7 @@ export function PurchasingClient({ branchName, can }: { branchName: string; can:
 
       {tab === 'orders' ? <OrdersTab version={version} onOpen={setOpenPo} /> : null}
       {tab === 'bills' ? <BillsTab version={version} /> : null}
+      {tab === 'returns' ? <ReturnsTab version={version} /> : null}
       {tab === 'suppliers' ? (
         <SuppliersTab
           version={version}
@@ -148,6 +160,16 @@ export function PurchasingClient({ branchName, can }: { branchName: string; can:
           onSaved={(docNo) => {
             setReceivePo(null);
             setToast(`Stock received as ${docNo}.`);
+            refresh();
+          }}
+        />
+      ) : null}
+      {returning ? (
+        <ReturnForm
+          onClose={() => setReturning(false)}
+          onSaved={(docNo) => {
+            setReturning(false);
+            setToast(`Goods returned as ${docNo}.`);
             refresh();
           }}
         />

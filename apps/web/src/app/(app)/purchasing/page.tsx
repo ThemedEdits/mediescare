@@ -20,6 +20,8 @@ export default async function PurchasingPage() {
           receive: allow('purchasing.grn.create'),
           viewAccounts: allow('purchasing.supplier_payment.view'),
           pay: allow('purchasing.supplier_payment.create'),
+          viewReturns: allow('purchasing.purchase_return.view'),
+          createReturn: allow('purchasing.purchase_return.create'),
           addSupplier: allow('purchasing.supplier.create'),
         }}
       />

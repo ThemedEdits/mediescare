@@ -11,6 +11,7 @@ import {
 import { unitRateFromPack } from '@mediescare/core/money';
 import { api, ApiError, Badge, Button, ErrorText, inputClass, useAsync } from '@/components/ui';
 import { newKey, pkr, rate, tryMicro, tryMinor } from '@/lib/format';
+import { readPrintSettings, type ReceiptPaymentInput } from '@/lib/receipt';
 import {
   CloseShiftDialog,
   CustomerDialog,
@@ -38,6 +39,7 @@ interface Lookups {
   paymentModes: PaymentMode[];
   walkinCustomerId: string | null;
   rounding: 'none' | 'rupee' | 'half_rupee';
+  settings?: Record<string, unknown>;
 }
 
 type Dialog =
@@ -99,6 +101,7 @@ export function PosClient({
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState<SaleResult | null>(null);
+  const [savedPays, setSavedPays] = useState<ReceiptPaymentInput[]>([]);
   const [overrides, setOverrides] = useState<{ discount?: string; price?: string }>({});
   const keyRef = useRef(newKey());
   const searchRef = useRef<HTMLInputElement>(null);
@@ -371,6 +374,20 @@ export function PosClient({
         },
       });
       if (holdId) await api(`/api/holds/${holdId}`, { method: 'DELETE' }).catch(() => undefined);
+      setSavedPays(
+        payments.flatMap((p) => {
+          const m = modes.find((x) => x.id === p.modeId);
+          return m && m.kind !== 'credit'
+            ? [
+                {
+                  label: m.name,
+                  amountMinor: p.amountMinor,
+                  cash: m.kind === 'cash' || m.opensDrawer,
+                },
+              ]
+            : [];
+        }),
+      );
       setSaved(result);
     } catch (e) {
       if (e instanceof ApiError && e.code === 'OVERRIDE_REQUIRED' && e.details) {
@@ -965,6 +982,9 @@ export function PosClient({
           branchName={branchName}
           cashier={cashier}
           lineUnit={unitName}
+          payments={savedPays}
+          customerName={customer && !customer.isWalkin ? customer.name : undefined}
+          settings={readPrintSettings(lookups.data?.settings)}
           onNew={() => {
             setSaved(null);
             clearCart();

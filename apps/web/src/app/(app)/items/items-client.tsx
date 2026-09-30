@@ -13,6 +13,7 @@ import {
   NameDialog,
   useAsync,
 } from '@/components/ui';
+import { bpToPercent, percentToBp } from '../settings/percent';
 import { pkr, rate, tryMicro } from '@/lib/format';
 
 interface StockRow {
@@ -33,6 +34,7 @@ interface Lookups {
   categories: { id: string; name: string }[];
   manufacturers: { id: string; name: string }[];
   racks: { id: string; code: string }[];
+  settings?: Record<string, string | number | boolean>;
 }
 interface ItemDetail {
   id: string;
@@ -298,7 +300,9 @@ function ItemFormBody({
     manufacturerId: item?.manufacturerId ?? '',
     rackId: item?.rackId ?? '',
     baseUnitId: item?.baseUnitId ?? tablet,
-    taxPct: item ? String(item.taxBp / 100) : '0',
+    taxPct: item
+      ? bpToPercent(item.taxBp)
+      : bpToPercent(Number(lookups.settings?.['tax.default_sales_tax_bp'] ?? 0)),
     taxInclusive: item?.taxInclusive ?? false,
     reorder: String(item?.reorderLevelBase ?? 0),
     isPrescription: item?.isPrescription ?? false,
@@ -375,7 +379,7 @@ function ItemFormBody({
         .map((b) => b.trim())
         .filter(Boolean),
       retailRateUnitMicro: unitRateFromPack(packMicro, saleFactor),
-      taxBp: Math.floor(Number(f.taxPct || 0) * 100 + 0.5),
+      taxBp: percentToBp(f.taxPct) ?? 0,
       taxInclusive: f.taxInclusive,
       reorderLevelBase: Math.max(0, Math.floor(Number(f.reorder) || 0)),
       isPrescription: f.isPrescription,

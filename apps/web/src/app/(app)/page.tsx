@@ -1,6 +1,7 @@
 import { can } from '@mediescare/core/permissions';
 import { getSyncStatus, salesSummary, stockValueMinor, verifyAuditChain } from '@mediescare/db';
 import { pkr } from '@/lib/format';
+import { getT } from '@/i18n/server';
 import { requirePage } from '@/server/page-auth';
 import { getDb } from '@/server/runtime';
 
@@ -12,6 +13,7 @@ export default async function DashboardPage({
   searchParams: Promise<{ denied?: string }>;
 }) {
   const auth = await requirePage();
+  const { t } = await getT();
   const denied = (await searchParams).denied === '1';
   const db = getDb();
   const sync = getSyncStatus(db);
@@ -42,63 +44,66 @@ export default async function DashboardPage({
     <main className="mx-auto max-w-5xl space-y-4 p-6">
       {denied ? (
         <p role="alert" className="rounded-[6px] bg-[#FEE2E2] px-4 py-3 text-sm text-danger">
-          You do not have permission to open that page.
+          {t('dashboard.denied')}
         </p>
       ) : null}
       {summary ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Card
-            title="Sales today"
+            title={t('dashboard.salesToday')}
             value={`PKR ${pkr(summary.revenueMinor)}`}
-            note={`${summary.salesCount} invoices${summary.voidCount ? `, ${summary.voidCount} voided` : ''}`}
+            note={
+              summary.voidCount
+                ? t('dashboard.invoicesVoided', {
+                    count: summary.salesCount,
+                    voided: summary.voidCount,
+                  })
+                : t('dashboard.invoices', { count: summary.salesCount })
+            }
           />
           {showProfit ? (
             <Card
-              title="Gross profit today"
+              title={t('dashboard.grossProfitToday')}
               value={`PKR ${pkr(summary.grossProfitMinor)}`}
-              note="Sales without tax minus batch cost"
+              note={t('dashboard.grossProfitNote')}
               bad={summary.grossProfitMinor < 0}
             />
           ) : null}
           {showProfit ? (
             <Card
-              title="Discounts today"
+              title={t('dashboard.discountsToday')}
               value={`PKR ${pkr(summary.discountMinor)}`}
-              note="Given at the counter"
+              note={t('dashboard.discountsNote')}
             />
           ) : null}
           {showValue && auth.branchId ? (
             <Card
-              title="Stock value"
+              title={t('dashboard.stockValue')}
               value={`PKR ${pkr(stockValueMinor(db, auth.branchId))}`}
-              note="At batch cost"
+              note={t('dashboard.stockValueNote')}
             />
           ) : null}
         </div>
       ) : null}
       <div className="grid gap-4 sm:grid-cols-3">
         <Card
-          title="Signed in as"
+          title={t('dashboard.signedInAs')}
           value={auth.username}
-          note={`${auth.access.permissions.size} permissions`}
+          note={t('dashboard.permissions', { count: auth.access.permissions.size })}
         />
         <Card
-          title="Sync queue"
+          title={t('dashboard.syncQueue')}
           value={String(sync.pending)}
-          note={
-            sync.pending === 0
-              ? 'Nothing waiting for the cloud'
-              : 'Waiting for the cloud (works offline)'
-          }
+          note={sync.pending === 0 ? t('dashboard.syncNothing') : t('dashboard.syncWaiting')}
         />
         <Card
-          title="Audit chain"
-          value={chain?.ok ? 'Verified' : 'BROKEN'}
+          title={t('dashboard.auditChain')}
+          value={chain?.ok ? t('dashboard.verified') : t('dashboard.broken')}
           note={
             chain?.ok
-              ? `${chain.count} entries`
+              ? t('dashboard.entries', { count: chain.count })
               : chain
-                ? `Broken at entry ${chain.brokenAtSeq}`
+                ? t('dashboard.brokenAt', { seq: chain.brokenAtSeq ?? 0 })
                 : ''
           }
           bad={chain ? !chain.ok : false}

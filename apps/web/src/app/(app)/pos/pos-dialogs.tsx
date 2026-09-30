@@ -3,6 +3,13 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { api, Button, ErrorText, inputClass, Modal } from '@/components/ui';
 import { pkr, tryMinor } from '@/lib/format';
+import {
+  buildReceiptData,
+  hasNativePrinting,
+  printReceiptNative,
+  type PrintSettings,
+  type ReceiptPaymentInput,
+} from '@/lib/receipt';
 import type { Customer, Narcotic, OverrideNeed, SaleResult, Shift } from './pos-types';
 
 function useAutoFocus<T extends HTMLElement>() {
@@ -581,21 +588,60 @@ function Row({ label, value, tone }: { label: string; value: string; tone?: 'ok'
   );
 }
 
-/** After saving: the change to give back (big), and an 80 mm receipt that prints with the browser. */
+/**
+ * After saving: the change to give back (big) and the receipt. In the desktop app the receipt goes to
+ * the thermal printer (ESC/POS) and opens the drawer on cash; in a plain browser, or when native
+ * printing fails, it falls back to the browser print dialog. The sale is already saved either way.
+ */
 export function ReceiptDialog({
   sale,
   branchName,
   cashier,
   lineUnit,
+  payments,
+  customerName,
+  settings,
   onNew,
 }: {
   sale: SaleResult;
   branchName: string;
   cashier: string;
   lineUnit: (unitId: string) => string;
+  payments: ReceiptPaymentInput[];
+  customerName?: string;
+  settings: PrintSettings;
   onNew: () => void;
 }) {
   const ref = useAutoFocus<HTMLButtonElement>();
+  const [printError, setPrintError] = useState<string | null>(null);
+  const [printing, setPrinting] = useState(false);
+  const [when] = useState(() => new Date().toLocaleString());
+  const autoDone = useRef(false);
+
+  /** Returns false when the native attempt failed (the message is shown). */
+  const printNative = async (): Promise<boolean> => {
+    setPrinting(true);
+    const data = buildReceiptData(
+      sale,
+      { branchName, cashier, customer: customerName, dateTime: when, lineUnit, payments },
+      settings,
+    );
+    const result = await printReceiptNative(data, settings, {
+      openDrawer: payments.some((p) => p.cash),
+    });
+    setPrinting(false);
+    setPrintError(result.ok ? null : (result.error ?? 'Printing failed'));
+    return result.ok;
+  };
+  const printClick = async () => {
+    if (hasNativePrinting() && (await printNative())) return;
+    window.print();
+  };
+  useEffect(() => {
+    if (autoDone.current || !settings.autoPrint || !hasNativePrinting()) return;
+    autoDone.current = true;
+    void printNative();
+  }, []);
   return (
     <Modal title={`Saved ${sale.docNo}`} onClose={onNew}>
       <div className="space-y-3">
@@ -623,12 +669,18 @@ export function ReceiptDialog({
             <strong>PKR {pkr(sale.profitMinor)}</strong>
           </div>
         ) : null}
+        <ErrorText message={printError} />
         <div id="receipt" className="hidden print:block">
           <Receipt sale={sale} branchName={branchName} cashier={cashier} lineUnit={lineUnit} />
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" className="flex-1" onClick={() => window.print()}>
-            Print receipt
+          <Button
+            variant="outline"
+            className="flex-1"
+            disabled={printing}
+            onClick={() => void printClick()}
+          >
+            {printing ? 'Printing...' : 'Print receipt'}
           </Button>
           <Button ref={ref} className="flex-1" onClick={onNew}>
             New sale

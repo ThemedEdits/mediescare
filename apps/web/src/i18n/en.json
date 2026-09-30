@@ -1,0 +1,91 @@
+{
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "close": "Close",
+    "search": "Search",
+    "print": "Print",
+    "export": "Export",
+    "add": "Add",
+    "edit": "Edit",
+    "delete": "Delete",
+    "yes": "Yes",
+    "no": "No",
+    "loading": "Loading…",
+    "error": "Something went wrong"
+  },
+  "language": {
+    "label": "Language",
+    "switchTo": "Switch language to {name}",
+    "en": "English",
+    "ur": "اردو"
+  },
+  "nav": {
+    "main": "Main",
+    "dashboard": "Dashboard",
+    "pos": "POS",
+    "sales": "Sales",
+    "items": "Items",
+    "stock": "Stock",
+    "stockTake": "Stock take",
+    "purchasing": "Purchasing",
+    "reports": "Reports",
+    "users": "Users",
+    "roles": "Roles",
+    "settings": "Settings",
+    "backups": "Backups"
+  },
+  "topbar": {
+    "quickPin": "quick PIN",
+    "password": "Password"
+  },
+  "auth": {
+    "signIn": "Sign in",
+    "signingIn": "Signing in…",
+    "signInFailed": "Sign in failed",
+    "signOut": "Sign out",
+    "tabPassword": "Password",
+    "tabPin": "Quick PIN (counter)",
+    "username": "Username",
+    "password": "Password",
+    "pin": "PIN"
+  },
+  "changePassword": {
+    "titleChange": "Change password",
+    "titleChoose": "Choose a new password",
+    "tempHint": "You signed in with a temporary password. Choose your own to continue.",
+    "current": "Current (or temporary) password",
+    "new": "New password (10+ characters)",
+    "confirm": "Confirm new password",
+    "mismatch": "The new passwords do not match",
+    "save": "Save new password",
+    "saving": "Saving…",
+    "failed": "Could not change the password"
+  },
+  "setup": {
+    "title": "Set up this server",
+    "intro": "Create your organisation, this branch, and the Super Admin account."
+  },
+  "dashboard": {
+    "denied": "You do not have permission to open that page.",
+    "salesToday": "Sales today",
+    "invoices": "{count} invoices",
+    "invoicesVoided": "{count} invoices, {voided} voided",
+    "grossProfitToday": "Gross profit today",
+    "grossProfitNote": "Sales without tax minus batch cost",
+    "discountsToday": "Discounts today",
+    "discountsNote": "Given at the counter",
+    "stockValue": "Stock value",
+    "stockValueNote": "At batch cost",
+    "signedInAs": "Signed in as",
+    "permissions": "{count} permissions",
+    "syncQueue": "Sync queue",
+    "syncNothing": "Nothing waiting for the cloud",
+    "syncWaiting": "Waiting for the cloud (works offline)",
+    "auditChain": "Audit chain",
+    "verified": "Verified",
+    "broken": "BROKEN",
+    "entries": "{count} entries",
+    "brokenAt": "Broken at entry {seq}"
+  }
+}
