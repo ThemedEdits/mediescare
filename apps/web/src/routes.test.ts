@@ -21,6 +21,11 @@ const OPEN_ROUTES = new Set([
   'auth/change-password',
   'overrides',
   'me',
+  // Cloud and LAN sync: authenticated by device token or one-time pairing code, not a user session.
+  'sync/push',
+  'sync/pull',
+  'sync/pair',
+  'sync/announce',
 ]);
 
 describe('API routes are guarded (CLAUDE.md §4.2: authorize every action)', () => {

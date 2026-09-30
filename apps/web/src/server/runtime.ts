@@ -19,6 +19,7 @@ import {
   type WriteContext,
 } from '@mediescare/db';
 import { HybridLogicalClock } from '@mediescare/sync';
+import { startSyncIfConfigured } from './sync-runtime';
 
 interface Runtime {
   mode: RuntimeMode;
@@ -91,6 +92,18 @@ export function getRuntime(): Runtime {
   };
   holder.__mediescareRuntime = runtime;
   startBackgroundJobs(runtime);
+  // Opt-in cloud sync worker (MEDIESCARE_CLOUD_URL). Runs on timers, never on the request path.
+  startSyncIfConfigured({
+    db: handle.db,
+    dataDir,
+    auditContext: () => {
+      try {
+        return writeContext(null);
+      } catch {
+        return null; // not set up yet
+      }
+    },
+  });
   return runtime;
 }
 
