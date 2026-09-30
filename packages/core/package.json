@@ -8,6 +8,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./money": "./src/money.ts",
+    "./escpos": "./src/escpos.ts",
     "./sales": "./src/sales.ts",
     "./stock": "./src/stock.ts",
     "./permissions": "./src/permissions.ts"
