@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { inputClass } from '@/components/ui';
+import { useT } from '@/i18n/client';
 import type { UnitInfo } from './types';
 
 /**
@@ -22,6 +23,7 @@ export function QtyInput({
   label: string;
   className?: string;
 }) {
+  const tr = useT();
   const smallest = Math.max(units.length - 1, 0);
   const [unit, setUnit] = useState(smallest);
   const [text, setText] = useState(valueBase > 0 ? String(valueBase) : '');
@@ -44,7 +46,7 @@ export function QtyInput({
       />
       {units.length > 1 ? (
         <select
-          aria-label={`${label} unit`}
+          aria-label={tr('transfers.unitOf', { label })}
           className={`${inputClass} w-28`}
           value={unit}
           onChange={(e) => {

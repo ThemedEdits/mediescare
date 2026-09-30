@@ -1,21 +1,19 @@
 'use client';
 
 import { useEffect, useState, type ReactNode } from 'react';
-import { api, Button, ErrorText, inputClass } from '@/components/ui';
+import { api, Button, ErrorText, inputClass, useErrorText } from '@/components/ui';
+import { useT } from '@/i18n/client';
 import { PrinterSettings } from './printer-settings';
 import { SyncPanel } from './sync-panel';
 import { bpToPercent, percentToBp } from './percent';
 
 type Values = Record<string, string | number | boolean>;
 
+/** Setting key, then the message keys (under settings.) of its label and hint. */
 const TAX_FIELDS: [string, string, string][] = [
-  [
-    'tax.default_sales_tax_bp',
-    'Sales tax',
-    'Pre-fills the tax rate of new items and the sales tax on purchase bills.',
-  ],
-  ['tax.default_advance_tax_bp', 'Advance tax', 'Pre-fills advance tax on purchase bills.'],
-  ['tax.default_wht_bp', 'Withholding tax (WHT)', 'Pre-fills WHT on purchase bills.'],
+  ['tax.default_sales_tax_bp', 'salesTax', 'salesTaxHint'],
+  ['tax.default_advance_tax_bp', 'advanceTax', 'advanceTaxHint'],
+  ['tax.default_wht_bp', 'wht', 'whtHint'],
 ];
 
 function Section({ title, hint, children }: { title: string; hint?: string; children: ReactNode }) {
@@ -42,6 +40,8 @@ export function SettingsClient({
   canSync: boolean;
   canPair: boolean;
 }) {
+  const t = useT();
+  const errorText = useErrorText();
   const [saved, setSaved] = useState<Values | null>(null);
   const [values, setValues] = useState<Values>({});
   const [taxText, setTaxText] = useState<Record<string, string>>({});
@@ -58,12 +58,12 @@ export function SettingsClient({
   useEffect(() => {
     api<{ settings: Values }>('/api/settings/pos')
       .then((r) => adopt(r.settings))
-      .catch((e: unknown) => setError(e instanceof Error ? e.message : 'Could not load settings'));
+      .catch((e: unknown) => setError(errorText(e, 'settings.loadFailed')));
   }, []);
 
   const patch = (p: Values) => setValues((v) => ({ ...v, ...p }));
   const badTax = TAX_FIELDS.filter(([k]) => percentToBp(taxText[k] ?? '') === null).map(
-    ([, label]) => label,
+    ([, label]) => t(`settings.${label}`),
   );
   const changed = saved ? Object.keys(values).filter((k) => values[k] !== saved[k]) : [];
 
@@ -85,9 +85,9 @@ export function SettingsClient({
         body: { settings: send },
       });
       adopt(r.settings);
-      setDone('Settings saved.');
+      setDone(t('settings.saved'));
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not save the settings');
+      setError(errorText(e, 'settings.saveFailed'));
     } finally {
       setBusy(false);
     }
@@ -98,23 +98,25 @@ export function SettingsClient({
     : false;
   const dirty = changed.length > 0 || taxChanged;
 
-  if (!saved) return <p className="py-10 text-center text-muted">{error ?? 'Loading…'}</p>;
+  if (!saved) return <p className="py-10 text-center text-muted">{error ?? t('common.loading')}</p>;
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h1 className="text-2xl font-semibold">Settings</h1>
+          <h1 className="text-2xl font-semibold">{t('settings.title')}</h1>
           <p className="text-sm text-muted">
-            {branchName ? `For ${branchName}` : 'For this branch'}
+            {branchName
+              ? t('settings.forBranch', { name: branchName })
+              : t('settings.forThisBranch')}
           </p>
         </div>
         {canEdit ? (
           <Button onClick={() => void save()} disabled={busy || !dirty || badTax.length > 0}>
-            {busy ? 'Saving…' : 'Save settings'}
+            {busy ? t('common.saving') : t('settings.saveSettings')}
           </Button>
         ) : (
-          <p className="text-sm text-muted">You can view but not change settings.</p>
+          <p className="text-sm text-muted">{t('settings.viewOnly')}</p>
         )}
       </div>
       {done ? (
@@ -124,31 +126,28 @@ export function SettingsClient({
       ) : null}
       <ErrorText message={error} />
       {badTax.length > 0 ? (
-        <ErrorText message={`Enter ${badTax.join(', ')} as a percentage such as 17 or 0.5.`} />
+        <ErrorText message={t('settings.badTax', { fields: badTax.join(', ') })} />
       ) : null}
 
       <fieldset disabled={!canEdit} className="space-y-4">
-        <Section
-          title="Billing"
-          hint="Applied by the server on every sale, so no terminal can differ."
-        >
+        <Section title={t('settings.billing')} hint={t('settings.billingHint')}>
           <label className="block text-sm">
-            Round the bill total to
+            {t('settings.roundLabel')}
             <select
-              aria-label="Rounding"
+              aria-label={t('settings.rounding')}
               className={`${inputClass} max-w-xs`}
               value={String(values['pos.rounding'])}
               onChange={(e) => patch({ 'pos.rounding': e.target.value })}
             >
-              <option value="rupee">Nearest whole rupee</option>
-              <option value="half_rupee">Nearest 50 paisa</option>
-              <option value="none">No rounding (exact paisa)</option>
+              <option value="rupee">{t('settings.roundRupee')}</option>
+              <option value="half_rupee">{t('settings.roundHalf')}</option>
+              <option value="none">{t('settings.roundNone')}</option>
             </select>
           </label>
           <label className="block text-sm">
-            Note printed on invoices
+            {t('settings.invoiceNoteLabel')}
             <input
-              aria-label="Invoice note"
+              aria-label={t('settings.invoiceNote')}
               className={inputClass}
               maxLength={500}
               value={String(values['pos.invoice_note'] ?? '')}
@@ -157,39 +156,30 @@ export function SettingsClient({
           </label>
         </Section>
 
-        <Section
-          title="Tax rates"
-          hint="Rates are yours to set; nothing is assumed. They only pre-fill forms and can be changed on each document."
-        >
+        <Section title={t('settings.taxRates')} hint={t('settings.taxHint')}>
           <div className="grid gap-3 sm:grid-cols-3">
-            {TAX_FIELDS.map(([k, label, hint]) => (
+            {TAX_FIELDS.map(([k, labelKey, hintKey]) => (
               <label key={k} className="block text-sm">
-                {label} (%)
+                {t('settings.taxLabel', { label: t(`settings.${labelKey}`) })}
                 <input
-                  aria-label={label}
+                  aria-label={t(`settings.${labelKey}`)}
                   className={inputClass}
                   inputMode="decimal"
                   value={taxText[k] ?? ''}
                   onChange={(e) => setTaxText((t) => ({ ...t, [k]: e.target.value }))}
                 />
-                <span className="text-xs text-muted">{hint}</span>
+                <span className="text-xs text-muted">{t(`settings.${hintKey}`)}</span>
               </label>
             ))}
           </div>
         </Section>
 
-        <Section
-          title="Receipt printer"
-          hint="Thermal receipt printer and cash drawer (RJ11 through the printer)."
-        >
+        <Section title={t('settings.receiptPrinter')} hint={t('settings.receiptPrinterHint')}>
           <PrinterSettings values={values} onChange={patch} />
         </Section>
       </fieldset>
 
-      <Section
-        title="Cloud sync and terminals"
-        hint="Data always saves on this PC first; syncing happens in the background and never slows the counter."
-      >
+      <Section title={t('settings.syncSection')} hint={t('settings.syncSectionHint')}>
         <SyncPanel canSync={canSync} canPair={canPair} />
       </Section>
     </div>

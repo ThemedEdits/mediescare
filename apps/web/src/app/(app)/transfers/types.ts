@@ -1,4 +1,5 @@
 import { formatMixedQty } from '@mediescare/core/stock';
+import type { Translator } from '@/i18n/core';
 
 /** Shapes returned by /api/requisitions and /api/transfers. Cost fields are absent without the cost right. */
 
@@ -122,3 +123,7 @@ export interface TransferAbilities {
   print: boolean;
   viewStock: boolean;
 }
+
+/** Label of a fixed status value, falling back to the raw value when there is no translation. */
+export const statusLabel = (t: Translator, group: string, value: string): string =>
+  t.has(`transfers.${group}.${value}`) ? t(`transfers.${group}.${value}`) : value;

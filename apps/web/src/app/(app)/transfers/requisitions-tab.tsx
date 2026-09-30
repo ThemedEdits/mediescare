@@ -1,7 +1,17 @@
 'use client';
 
 import { useState } from 'react';
-import { api, Badge, Button, ErrorText, inputClass, Modal, useAsync } from '@/components/ui';
+import {
+  api,
+  Badge,
+  Button,
+  ErrorText,
+  inputClass,
+  Modal,
+  useAsync,
+  useErrorText,
+} from '@/components/ui';
+import { useT } from '@/i18n/client';
 import { today } from '@/lib/format';
 import { ItemPicker } from './item-picker';
 import { QtyInput } from './qty-input';
@@ -11,6 +21,7 @@ import {
   type ItemRef,
   type RequisitionDetail,
   type RequisitionRow,
+  statusLabel,
   type TransferAbilities,
 } from './types';
 
@@ -22,6 +33,7 @@ interface Props {
 
 /** Requisitions: a branch asks Head Office for stock; Head Office approves (and may lower quantities). */
 export function RequisitionsTab({ abilities, version, onChanged }: Props) {
+  const t = useT();
   const [status, setStatus] = useState('');
   const { data, error } = useAsync(
     () =>
@@ -38,32 +50,34 @@ export function RequisitionsTab({ abilities, version, onChanged }: Props) {
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
         <select
-          aria-label="Filter by status"
+          aria-label={t('transfers.filter.aria')}
           className={`${inputClass} w-44`}
           value={status}
           onChange={(e) => setStatus(e.target.value)}
         >
-          <option value="">All statuses</option>
-          <option value="submitted">Waiting for approval</option>
-          <option value="approved">Approved</option>
-          <option value="fulfilled">Shipped</option>
-          <option value="cancelled">Cancelled</option>
+          <option value="">{t('transfers.filter.allStatuses')}</option>
+          <option value="submitted">{t('transfers.filter.waiting')}</option>
+          <option value="approved">{t('transfers.filter.approved')}</option>
+          <option value="fulfilled">{t('transfers.filter.shipped')}</option>
+          <option value="cancelled">{t('transfers.filter.cancelled')}</option>
         </select>
         <span className="flex-1" />
-        {canAsk ? <Button onClick={() => setCreating(true)}>New requisition</Button> : null}
+        {canAsk ? (
+          <Button onClick={() => setCreating(true)}>{t('transfers.requisitions.new')}</Button>
+        ) : null}
       </div>
       <ErrorText message={error} />
       <div className="overflow-x-auto rounded-[10px] border border-border">
         <table className="w-full text-sm">
-          <thead className="bg-surface-2 text-left text-xs uppercase text-muted">
+          <thead className="bg-surface-2 text-start text-xs uppercase text-muted">
             <tr>
-              <th className="px-3 py-2">Requisition</th>
-              <th>Date</th>
-              <th>From</th>
-              <th>To</th>
-              <th className="text-end">Items</th>
-              <th>Needed by</th>
-              <th className="px-3">Status</th>
+              <th className="px-3 py-2">{t('transfers.requisition')}</th>
+              <th>{t('common.date')}</th>
+              <th>{t('common.from')}</th>
+              <th>{t('common.to')}</th>
+              <th className="text-end">{t('transfers.requisitions.items')}</th>
+              <th>{t('transfers.requisitions.neededBy')}</th>
+              <th className="px-3">{t('common.status')}</th>
             </tr>
           </thead>
           <tbody>
@@ -73,23 +87,23 @@ export function RequisitionsTab({ abilities, version, onChanged }: Props) {
                 className="cursor-pointer border-t border-border hover:bg-primary-50"
                 onClick={() => setOpenId(r.id)}
               >
-                <td className="px-3 py-2 font-mono text-xs">{r.docNo}</td>
-                <td>{r.createdAt.slice(0, 10)}</td>
+                <td className="px-3 py-2 font-mono text-xs" dir="ltr">
+                  {r.docNo}
+                </td>
+                <td dir="ltr">{r.createdAt.slice(0, 10)}</td>
                 <td>{r.fromBranchName}</td>
                 <td>{r.toBranchName}</td>
                 <td className="text-end tabular-nums">{r.lineCount}</td>
-                <td>{r.neededBy ?? '–'}</td>
+                <td dir="ltr">{r.neededBy ?? '–'}</td>
                 <td className="px-3">
-                  <Badge tone={REQ_TONE[r.status]}>
-                    {r.status === 'submitted' ? 'waiting' : r.status}
-                  </Badge>
+                  <Badge tone={REQ_TONE[r.status]}>{statusLabel(t, 'reqBadge', r.status)}</Badge>
                 </td>
               </tr>
             ))}
             {data && data.rows.length === 0 ? (
               <tr>
                 <td colSpan={7} className="px-3 py-10 text-center text-muted">
-                  No requisitions.
+                  {t('transfers.requisitions.empty')}
                 </td>
               </tr>
             ) : null}
@@ -101,7 +115,7 @@ export function RequisitionsTab({ abilities, version, onChanged }: Props) {
           onClose={() => setCreating(false)}
           onSaved={(docNo) => {
             setCreating(false);
-            onChanged(`Requisition ${docNo} sent to Head Office`);
+            onChanged(t('transfers.requisitions.sentToast', { docNo }));
           }}
         />
       ) : null}
@@ -132,6 +146,8 @@ function RequisitionForm({
   onClose: () => void;
   onSaved: (docNo: string) => void;
 }) {
+  const t = useT();
+  const errorText = useErrorText();
   const [lines, setLines] = useState<FormLine[]>([]);
   const [neededBy, setNeededBy] = useState('');
   const [note, setNote] = useState('');
@@ -152,13 +168,13 @@ function RequisitionForm({
       });
       onSaved(r.docNo);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not send the requisition');
+      setError(errorText(e, 'transfers.requisitions.sendFailed'));
       setBusy(false);
     }
   }
 
   return (
-    <Modal title="New requisition" onClose={onClose} wide>
+    <Modal title={t('transfers.requisitions.new')} onClose={onClose} wide>
       <div className="space-y-3">
         <ItemPicker
           onError={setError}
@@ -170,10 +186,10 @@ function RequisitionForm({
         />
         <div className="overflow-x-auto rounded-[10px] border border-border">
           <table className="w-full text-sm">
-            <thead className="bg-surface-2 text-left text-xs uppercase text-muted">
+            <thead className="bg-surface-2 text-start text-xs uppercase text-muted">
               <tr>
-                <th className="px-3 py-2">Item</th>
-                <th>Quantity</th>
+                <th className="px-3 py-2">{t('common.item')}</th>
+                <th>{t('common.quantity')}</th>
                 <th />
               </tr>
             </thead>
@@ -183,7 +199,7 @@ function RequisitionForm({
                   <td className="px-3 py-2 font-medium">{l.item.name}</td>
                   <td>
                     <QtyInput
-                      label={`Quantity of ${l.item.name}`}
+                      label={t('transfers.requisitions.quantityOf', { name: l.item.name })}
                       units={l.item.units}
                       valueBase={l.qtyBase}
                       onChange={(b) =>
@@ -197,7 +213,7 @@ function RequisitionForm({
                       className="text-sm text-danger"
                       onClick={() => setLines((prev) => prev.filter((_, j) => j !== i))}
                     >
-                      Remove
+                      {t('common.remove')}
                     </button>
                   </td>
                 </tr>
@@ -205,7 +221,7 @@ function RequisitionForm({
               {lines.length === 0 ? (
                 <tr>
                   <td colSpan={3} className="px-3 py-6 text-center text-muted">
-                    Search an item above to add it.
+                    {t('transfers.requisitions.searchToAdd')}
                   </td>
                 </tr>
               ) : null}
@@ -214,7 +230,7 @@ function RequisitionForm({
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="block text-sm">
-            Needed by
+            {t('transfers.requisitions.neededBy')}
             <input
               type="date"
               min={today()}
@@ -224,17 +240,17 @@ function RequisitionForm({
             />
           </label>
           <label className="block text-sm">
-            Note
+            {t('transfers.note')}
             <input className={inputClass} value={note} onChange={(e) => setNote(e.target.value)} />
           </label>
         </div>
         <ErrorText message={error} />
         <div className="flex justify-end gap-2">
           <Button variant="outline" onClick={onClose}>
-            Close
+            {t('common.close')}
           </Button>
           <Button onClick={() => void save()} disabled={busy || !ready}>
-            {busy ? 'Sending…' : 'Send to Head Office'}
+            {busy ? t('transfers.requisitions.sending') : t('transfers.requisitions.send')}
           </Button>
         </div>
       </div>
@@ -253,6 +269,8 @@ function RequisitionModal({
   onClose: () => void;
   onChanged: (message: string) => void;
 }) {
+  const t = useT();
+  const errorText = useErrorText();
   const { data, error: loadError } = useAsync(() =>
     api<{ requisition: RequisitionDetail }>(`/api/requisitions/${id}`),
   );
@@ -275,11 +293,9 @@ function RequisitionModal({
     setError(null);
     try {
       const r = await api<{ docNo: string }>('/api/transfers', { body: { requisitionId: id } });
-      onChanged(
-        `Transfer note ${r.docNo} written as a draft. Review it in Transfers, then dispatch`,
-      );
+      onChanged(t('transfers.requisitions.noteWrittenToast', { docNo: r.docNo }));
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not write the transfer note');
+      setError(errorText(e, 'transfers.requisitions.noteFailed'));
       setBusy(false);
     }
   }
@@ -291,32 +307,44 @@ function RequisitionModal({
       await api(`/api/requisitions/${id}/${path}`, { body });
       onChanged(message);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not save');
+      setError(errorText(e, 'common.couldNotSave'));
       setBusy(false);
     }
   }
 
   return (
-    <Modal title={req ? `Requisition ${req.docNo}` : 'Requisition'} onClose={onClose} wide>
+    <Modal
+      title={
+        req
+          ? t('transfers.requisitions.modalTitle', { docNo: req.docNo })
+          : t('transfers.requisition')
+      }
+      onClose={onClose}
+      wide
+    >
       <ErrorText message={loadError} />
       {req ? (
         <div className="space-y-3">
           <p className="text-sm">
-            {req.fromBranchName} asks {req.toBranchName} ·{' '}
-            <Badge tone={REQ_TONE[req.status]}>{req.status}</Badge>
-            {req.neededBy ? ` · needed by ${req.neededBy}` : ''}
+            {t('transfers.requisitions.asks', { from: req.fromBranchName, to: req.toBranchName })} ·{' '}
+            <Badge tone={REQ_TONE[req.status]}>{statusLabel(t, 'reqStatus', req.status)}</Badge>
+            {req.neededBy
+              ? ` · ${t('transfers.requisitions.neededByDate', { date: req.neededBy })}`
+              : ''}
           </p>
           {req.note ? <p className="text-sm text-muted">{req.note}</p> : null}
           {req.cancelReason ? (
-            <p className="text-sm text-danger">Cancelled: {req.cancelReason}</p>
+            <p className="text-sm text-danger">
+              {t('transfers.requisitions.cancelledReason', { reason: req.cancelReason })}
+            </p>
           ) : null}
           <div className="overflow-x-auto rounded-[10px] border border-border">
             <table className="w-full text-sm">
-              <thead className="bg-surface-2 text-left text-xs uppercase text-muted">
+              <thead className="bg-surface-2 text-start text-xs uppercase text-muted">
                 <tr>
-                  <th className="px-3 py-2">Item</th>
-                  <th>Asked</th>
-                  <th>Approved</th>
+                  <th className="px-3 py-2">{t('common.item')}</th>
+                  <th>{t('transfers.requisitions.asked')}</th>
+                  <th>{t('transfers.requisitions.approved')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -327,7 +355,9 @@ function RequisitionModal({
                     <td>
                       {canApprove ? (
                         <QtyInput
-                          label={`Approved quantity of ${l.item.name}`}
+                          label={t('transfers.requisitions.approvedQuantityOf', {
+                            name: l.item.name,
+                          })}
                           units={l.item.units}
                           valueBase={granted[l.id] ?? l.qtyRequestedBase}
                           onChange={(b) => setGranted((g) => ({ ...g, [l.id]: b }))}
@@ -344,26 +374,29 @@ function RequisitionModal({
             </table>
           </div>
           {canApprove ? (
-            <p className="text-xs text-muted">
-              You can lower a quantity (0 leaves the item out). You cannot approve more than was
-              asked.
-            </p>
+            <p className="text-xs text-muted">{t('transfers.requisitions.approveHint')}</p>
           ) : null}
           {cancelling ? (
             <div className="space-y-2">
               <input
-                aria-label="Reason for cancelling"
+                aria-label={t('transfers.requisitions.cancelReasonAria')}
                 className={inputClass}
-                placeholder="Reason"
+                placeholder={t('common.reason')}
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
               />
               <Button
                 variant="danger"
                 disabled={busy || reason.trim().length < 3}
-                onClick={() => void run('cancel', { reason }, `Requisition ${req.docNo} cancelled`)}
+                onClick={() =>
+                  void run(
+                    'cancel',
+                    { reason },
+                    t('transfers.requisitions.cancelledToast', { docNo: req.docNo }),
+                  )
+                }
               >
-                Confirm cancel
+                {t('transfers.requisitions.confirmCancel')}
               </Button>
             </div>
           ) : null}
@@ -371,7 +404,7 @@ function RequisitionModal({
           <div className="flex justify-end gap-2">
             {canCancel && !cancelling ? (
               <Button variant="outline" onClick={() => setCancelling(true)}>
-                Cancel requisition
+                {t('transfers.requisitions.cancel')}
               </Button>
             ) : null}
             {canApprove ? (
@@ -386,20 +419,20 @@ function RequisitionModal({
                         qtyApprovedBase,
                       })),
                     },
-                    `Requisition ${req.docNo} approved. Write the transfer note next`,
+                    t('transfers.requisitions.approvedToast', { docNo: req.docNo }),
                   )
                 }
               >
-                {busy ? 'Saving…' : 'Approve'}
+                {busy ? t('common.saving') : t('transfers.requisitions.approve')}
               </Button>
             ) : null}
             {canWriteNote ? (
               <Button disabled={busy} onClick={() => void writeNote()}>
-                {busy ? 'Writing…' : 'Write transfer note'}
+                {busy ? t('transfers.requisitions.writing') : t('transfers.requisitions.writeNote')}
               </Button>
             ) : null}
             <Button variant="outline" onClick={onClose}>
-              Close
+              {t('common.close')}
             </Button>
           </div>
         </div>

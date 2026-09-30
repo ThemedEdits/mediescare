@@ -1,6 +1,8 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { useT } from '@/i18n/client';
+import { kpiLabel, reportCellText, reportColumn } from './report-i18n';
 import { formatCell, sortRows, type Cell, type Column, type Row } from './report-format';
 
 export interface ReportData {
@@ -15,11 +17,12 @@ export interface ReportData {
 }
 
 export function KpiCards({ kpis }: { kpis: NonNullable<ReportData['kpis']> }) {
+  const t = useT();
   return (
     <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
       {kpis.map((k) => (
         <div key={k.label} className="rounded-[10px] border border-border bg-surface px-4 py-3">
-          <p className="text-xs uppercase text-muted">{k.label}</p>
+          <p className="text-xs uppercase text-muted">{kpiLabel(t, k.label)}</p>
           <p className="mt-1 text-xl font-semibold tabular-nums">{formatCell(k.type, k.value)}</p>
         </div>
       ))}
@@ -29,6 +32,7 @@ export function KpiCards({ kpis }: { kpis: NonNullable<ReportData['kpis']> }) {
 
 /** Data grid with click-to-sort headers (sorts the rows already loaded) and a sticky header. */
 export function ReportTable({ data }: { data: ReportData }) {
+  const t = useT();
   const [sort, setSort] = useState<{ key: string; dir: 'asc' | 'desc' } | null>(null);
   const rows = useMemo(
     () => sortRows(data.rows, sort?.key ?? null, sort?.dir ?? 'asc'),
@@ -38,6 +42,10 @@ export function ReportTable({ data }: { data: ReportData }) {
     setSort((s) =>
       s?.key === key ? { key, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'asc' },
     );
+  const cellText = (c: Column, v: Cell | undefined) => {
+    const text = formatCell(c.type, v);
+    return c.type === 'text' ? reportCellText(t, c.key, text) : text;
+  };
   const cellClass = (c: Column) =>
     `px-3 py-2 ${c.align === 'end' ? 'text-end tabular-nums' : 'text-start'}`;
 
@@ -60,7 +68,7 @@ export function ReportTable({ data }: { data: ReportData }) {
                   onClick={() => toggle(c.key)}
                   className="inline-flex items-center gap-1 uppercase hover:text-primary-600"
                 >
-                  {c.label}
+                  {reportColumn(t, data.id, c)}
                   <span aria-hidden className="no-print w-3 text-[10px]">
                     {sort?.key === c.key ? (sort.dir === 'asc' ? '▲' : '▼') : ''}
                   </span>
@@ -74,7 +82,7 @@ export function ReportTable({ data }: { data: ReportData }) {
             <tr key={i} className="border-t border-border hover:bg-primary-50/40">
               {data.columns.map((c) => (
                 <td key={c.key} className={cellClass(c)}>
-                  {formatCell(c.type, r[c.key])}
+                  {cellText(c, r[c.key])}
                 </td>
               ))}
             </tr>
@@ -87,7 +95,7 @@ export function ReportTable({ data }: { data: ReportData }) {
                 <td key={c.key} className={cellClass(c)}>
                   {data.totals?.[c.key] === undefined || data.totals?.[c.key] === null
                     ? i === 0
-                      ? 'Total'
+                      ? t('common.total')
                       : ''
                     : formatCell(c.type, data.totals[c.key])}
                 </td>

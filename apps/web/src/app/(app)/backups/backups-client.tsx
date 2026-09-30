@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useT } from '@/i18n/client';
 import {
   api,
   Badge,
@@ -10,6 +11,7 @@ import {
   Modal,
   SecretBox,
   useAsync,
+  useErrorText,
 } from '@/components/ui';
 
 interface BackupRow {
@@ -26,12 +28,6 @@ interface Listing {
   recoveryKeyConfigured: boolean;
 }
 
-const KIND: Record<string, string> = {
-  scheduled: 'Automatic',
-  manual: 'Manual',
-  pre_migration: 'Before update',
-  pre_restore: 'Before restore',
-};
 const mb = (b: number) => `${(b / 1024 / 1024).toFixed(1)} MB`;
 
 export function BackupsClient({
@@ -41,6 +37,8 @@ export function BackupsClient({
   canCreate: boolean;
   canRotate: boolean;
 }) {
+  const t = useT();
+  const errorText = useErrorText();
   const list = useAsync(() => api<Listing>('/api/backups'));
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -56,7 +54,7 @@ export function BackupsClient({
       setNotice(extra || label);
       list.reload();
     } catch (e) {
-      setNotice(e instanceof Error ? e.message : 'Failed');
+      setNotice(errorText(e, 'backups.failed'));
     } finally {
       setBusy(false);
     }
@@ -66,36 +64,34 @@ export function BackupsClient({
     <>
       <div className="flex flex-wrap items-end gap-3">
         <div>
-          <h1 className="text-2xl font-semibold">Backups</h1>
+          <h1 className="text-2xl font-semibold">{t('backups.title')}</h1>
           <p className="text-sm text-muted">
-            Encrypted copies of all data. A backup is made automatically every day
-            {list.data ? ` in ${list.data.folder}` : ''}. Copy some to an external drive.
+            {list.data ? t('backups.introIn', { folder: list.data.folder }) : t('backups.intro')}
           </p>
         </div>
         <span className="ms-auto flex gap-2">
           {canRotate ? (
             <Button variant="outline" onClick={() => setRotating(true)}>
-              New recovery key
+              {t('backups.newKey')}
             </Button>
           ) : null}
           {canCreate ? (
             <Button
               disabled={busy}
               onClick={() =>
-                run('Backup created and verified', async () => {
+                run(t('backups.created'), async () => {
                   await api('/api/backups', { method: 'POST', body: {} });
                 })
               }
             >
-              {busy ? 'Working…' : 'Back up now'}
+              {busy ? t('backups.working') : t('backups.backUpNow')}
             </Button>
           ) : null}
         </span>
       </div>
       {list.data && !list.data.recoveryKeyConfigured ? (
         <p role="alert" className="rounded-[6px] bg-[#FEF3C7] px-4 py-3 text-sm text-warning">
-          No recovery key is set. Backups cannot be restored on another computer until you create
-          one (New recovery key).
+          {t('backups.noKeyWarning')}
         </p>
       ) : null}
       {notice ? (
@@ -106,13 +102,13 @@ export function BackupsClient({
       <ErrorText message={list.error} />
       <div className="overflow-x-auto rounded-[10px] border border-border">
         <table className="w-full text-sm">
-          <thead className="bg-surface-2 text-left text-xs uppercase text-muted">
+          <thead className="bg-surface-2 text-start text-xs uppercase text-muted">
             <tr>
-              <th className="px-4 py-3">Created</th>
-              <th className="px-4 py-3">Type</th>
-              <th className="px-4 py-3">Size</th>
-              <th className="px-4 py-3">Checksum</th>
-              <th className="px-4 py-3 text-end">Actions</th>
+              <th className="px-4 py-3">{t('backups.colCreated')}</th>
+              <th className="px-4 py-3">{t('backups.colType')}</th>
+              <th className="px-4 py-3">{t('backups.colSize')}</th>
+              <th className="px-4 py-3">{t('backups.colChecksum')}</th>
+              <th className="px-4 py-3 text-end">{t('common.actions')}</th>
             </tr>
           </thead>
           <tbody>
@@ -121,11 +117,15 @@ export function BackupsClient({
                 <td className="px-4 py-3">{new Date(b.createdAt).toLocaleString()}</td>
                 <td className="px-4 py-3">
                   <Badge tone={b.kind === 'manual' ? 'warning' : 'neutral'}>
-                    {KIND[b.kind] ?? b.kind}
+                    {t.has(`backups.kind.${b.kind}`) ? t(`backups.kind.${b.kind}`) : b.kind}
                   </Badge>
                 </td>
-                <td className="px-4 py-3">{mb(b.sizeBytes)}</td>
-                <td className="px-4 py-3 font-mono text-xs">{b.sha256.slice(0, 12)}…</td>
+                <td className="px-4 py-3" dir="ltr">
+                  {mb(b.sizeBytes)}
+                </td>
+                <td className="px-4 py-3 font-mono text-xs" dir="ltr">
+                  {b.sha256.slice(0, 12)}…
+                </td>
                 <td className="px-4 py-3 text-end">
                   <Button
                     variant="ghost"
@@ -138,16 +138,16 @@ export function BackupsClient({
                           { body: { id: b.id } },
                         );
                         return r.ok
-                          ? 'Backup verified: the file is intact and opens correctly.'
-                          : `Problem: ${r.problem}`;
+                          ? t('backups.verified')
+                          : t('backups.problem', { problem: r.problem ?? '' });
                       })
                     }
                   >
-                    Verify
+                    {t('backups.verify')}
                   </Button>
                   {canCreate ? (
                     <Button variant="ghost" className="h-8 px-2" onClick={() => setExporting(b)}>
-                      Copy to drive
+                      {t('backups.copyToDrive')}
                     </Button>
                   ) : null}
                 </td>
@@ -156,14 +156,14 @@ export function BackupsClient({
             {list.data && list.data.backups.length === 0 ? (
               <tr>
                 <td colSpan={5} className="px-4 py-10 text-center text-muted">
-                  No backups yet. Press “Back up now”.
+                  {t('backups.empty')}
                 </td>
               </tr>
             ) : null}
             {!list.data && !list.error ? (
               <tr>
                 <td colSpan={5} className="px-4 py-10 text-center text-muted">
-                  Loading…
+                  {t('common.loading')}
                 </td>
               </tr>
             ) : null}
@@ -171,8 +171,8 @@ export function BackupsClient({
         </table>
       </div>
       <p className="text-sm text-muted">
-        To restore, use the desktop menu <strong>Data → Restore from backup…</strong>. That replaces
-        all data on this computer, so it is done outside the web page on purpose.
+        {t('backups.restoreLead')} <strong>{t('backups.restoreMenu')}</strong>
+        {t('backups.restoreStop')} {t('backups.restoreTail')}
       </p>
 
       {exporting ? (
@@ -181,7 +181,7 @@ export function BackupsClient({
           onClose={() => setExporting(null)}
           onDone={(file) => {
             setExporting(null);
-            setNotice(`Copied and verified: ${file}`);
+            setNotice(t('backups.copiedVerified', { file }));
           }}
         />
       ) : null}
@@ -196,14 +196,14 @@ export function BackupsClient({
         />
       ) : null}
       {newKey ? (
-        <Modal title="Your new recovery key" onClose={() => undefined}>
+        <Modal title={t('backups.newKeyTitle')} onClose={() => undefined}>
           <SecretBox
-            label="Print it or write it down. It is shown only once."
+            label={t('backups.newKeyLabel')}
             value={newKey}
-            note="Backups made from now on use this key. Older backups still need the key that was current when they were made."
+            note={t('backups.newKeyNote')}
           />
           <Button className="mt-4 w-full" onClick={() => setNewKey(null)}>
-            I have saved it
+            {t('backups.savedIt')}
           </Button>
         </Modal>
       ) : null}
@@ -220,11 +220,13 @@ function ExportDialog({
   onClose: () => void;
   onDone: (file: string) => void;
 }) {
+  const t = useT();
+  const errorText = useErrorText();
   const [dest, setDest] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   return (
-    <Modal title="Copy backup to a drive" onClose={onClose}>
+    <Modal title={t('backups.exportTitle')} onClose={onClose}>
       <form
         className="space-y-3"
         onSubmit={async (e) => {
@@ -236,16 +238,17 @@ function ExportDialog({
             });
             onDone(r.file);
           } catch (err) {
-            setError(err instanceof Error ? err.message : 'Copy failed');
+            setError(errorText(err, 'backups.copyFailed'));
             setBusy(false);
           }
         }}
       >
         <label className="block text-sm">
-          Folder on the drive (full path)
+          {t('backups.exportFolder')}
           <input
             className={`${inputClass} mt-1`}
             placeholder="E:\Mediescare Backups"
+            dir="ltr"
             value={dest}
             onChange={(e) => setDest(e.target.value)}
             required
@@ -254,10 +257,10 @@ function ExportDialog({
         <ErrorText message={error} />
         <div className="flex justify-end gap-2">
           <Button type="button" variant="outline" onClick={onClose}>
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button type="submit" disabled={busy || dest.length < 3}>
-            {busy ? 'Copying…' : 'Copy and verify'}
+            {busy ? t('backups.copying') : t('backups.copyAndVerify')}
           </Button>
         </div>
       </form>
@@ -266,10 +269,12 @@ function ExportDialog({
 }
 
 function RotateDialog({ onClose, onKey }: { onClose: () => void; onKey: (key: string) => void }) {
+  const t = useT();
+  const errorText = useErrorText();
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   return (
-    <Modal title="Create a new recovery key" onClose={onClose}>
+    <Modal title={t('backups.rotateTitle')} onClose={onClose}>
       <form
         className="space-y-3"
         onSubmit={async (e) => {
@@ -280,18 +285,16 @@ function RotateDialog({ onClose, onKey }: { onClose: () => void; onKey: (key: st
             });
             onKey(r.recoveryKey);
           } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed');
+            setError(errorText(err, 'backups.failed'));
           }
         }}
       >
-        <p className="text-sm text-muted">
-          Enter your password to confirm. The current recovery key stops being used for new backups.
-        </p>
+        <p className="text-sm text-muted">{t('backups.rotateHelp')}</p>
         <input
           className={inputClass}
           type="password"
           autoComplete="current-password"
-          aria-label="Your password"
+          aria-label={t('backups.yourPassword')}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
@@ -299,10 +302,10 @@ function RotateDialog({ onClose, onKey }: { onClose: () => void; onKey: (key: st
         <ErrorText message={error} />
         <div className="flex justify-end gap-2">
           <Button type="button" variant="outline" onClick={onClose}>
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button type="submit" disabled={!password}>
-            Create key
+            {t('backups.createKey')}
           </Button>
         </div>
       </form>

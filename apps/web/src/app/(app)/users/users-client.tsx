@@ -10,7 +10,9 @@ import {
   Modal,
   SecretBox,
   useAsync,
+  useErrorText,
 } from '@/components/ui';
+import { useT } from '@/i18n/client';
 
 interface UserRow {
   id: string;
@@ -47,6 +49,8 @@ export function UsersClient({
   canCreate: boolean;
   canEdit: boolean;
 }) {
+  const t = useT();
+  const errorText = useErrorText();
   const [q, setQ] = useState('');
   const [status, setStatus] = useState('');
   const users = useAsync(
@@ -69,7 +73,7 @@ export function UsersClient({
       users.reload();
       setNotice(label);
     } catch (e) {
-      setNotice(e instanceof Error ? e.message : 'Failed');
+      setNotice(errorText(e, 'users.failed'));
     }
   }
 
@@ -77,28 +81,28 @@ export function UsersClient({
     <>
       <div className="flex flex-wrap items-end gap-3">
         <div>
-          <h1 className="text-2xl font-semibold">Users</h1>
-          <p className="text-sm text-muted">Staff who can sign in to Mediescare.</p>
+          <h1 className="text-2xl font-semibold">{t('users.title')}</h1>
+          <p className="text-sm text-muted">{t('users.subtitle')}</p>
         </div>
         <div className="ms-auto flex flex-wrap gap-2">
           <input
-            aria-label="Search users"
+            aria-label={t('users.searchLabel')}
             className={`${inputClass} w-64`}
-            placeholder="Search name, username, phone…"
+            placeholder={t('users.searchPlaceholder')}
             value={q}
             onChange={(e) => setQ(e.target.value)}
           />
           <select
-            aria-label="Filter by status"
+            aria-label={t('users.filterStatus')}
             className={`${inputClass} w-36`}
             value={status}
             onChange={(e) => setStatus(e.target.value)}
           >
-            <option value="">All</option>
-            <option value="active">Active</option>
-            <option value="disabled">Disabled</option>
+            <option value="">{t('common.all')}</option>
+            <option value="active">{t('common.active')}</option>
+            <option value="disabled">{t('users.disabled')}</option>
           </select>
-          {canCreate ? <Button onClick={() => setEditing('new')}>Add user</Button> : null}
+          {canCreate ? <Button onClick={() => setEditing('new')}>{t('users.add')}</Button> : null}
         </div>
       </div>
 
@@ -111,92 +115,94 @@ export function UsersClient({
 
       <div className="overflow-x-auto rounded-[10px] border border-border">
         <table className="w-full text-sm">
-          <thead className="bg-surface-2 text-left text-xs uppercase text-muted">
+          <thead className="bg-surface-2 text-start text-xs uppercase text-muted">
             <tr>
-              <th className="px-4 py-3">Name</th>
-              <th className="px-4 py-3">Username</th>
-              <th className="px-4 py-3">Roles</th>
-              <th className="px-4 py-3">Status</th>
-              <th className="px-4 py-3">Last sign-in</th>
-              <th className="px-4 py-3 text-end">Actions</th>
+              <th className="px-4 py-3">{t('common.name')}</th>
+              <th className="px-4 py-3">{t('users.username')}</th>
+              <th className="px-4 py-3">{t('users.roles')}</th>
+              <th className="px-4 py-3">{t('common.status')}</th>
+              <th className="px-4 py-3">{t('users.lastSignIn')}</th>
+              <th className="px-4 py-3 text-end">{t('common.actions')}</th>
             </tr>
           </thead>
           <tbody>
             {users.data?.users.map((u) => (
               <tr key={u.id} className="border-t border-border">
                 <td className="px-4 py-3 font-medium">{u.fullName}</td>
-                <td className="px-4 py-3 font-mono text-xs">{u.username}</td>
+                <td dir="ltr" className="px-4 py-3 text-start font-mono text-xs rtl:text-end">
+                  {u.username}
+                </td>
                 <td className="px-4 py-3">
                   {u.roleIds.map(roleName).join(', ')}
-                  {u.allBranches ? ' · all branches' : ''}
+                  {u.allBranches ? ` · ${t('users.allBranchesSuffix')}` : ''}
                 </td>
                 <td className="px-4 py-3">
                   <Badge tone={u.status === 'active' ? 'success' : 'danger'}>
-                    {u.status === 'active' ? 'Active' : 'Disabled'}
+                    {u.status === 'active' ? t('common.active') : t('users.disabled')}
                   </Badge>{' '}
-                  {u.hasPin ? <Badge>PIN</Badge> : null}
+                  {u.hasPin ? <Badge>{t('users.pin')}</Badge> : null}
                 </td>
                 <td className="px-4 py-3 text-muted">
-                  {u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleString() : 'Never'}
+                  {u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleString() : t('users.never')}
                 </td>
                 <td className="px-4 py-3 text-end">
                   {canEdit ? (
                     <span className="inline-flex flex-wrap justify-end gap-1">
                       <Button variant="ghost" className="h-8 px-2" onClick={() => setEditing(u)}>
-                        Edit
+                        {t('common.edit')}
                       </Button>
                       <Button variant="ghost" className="h-8 px-2" onClick={() => setPinFor(u)}>
-                        PIN
+                        {t('users.pin')}
                       </Button>
                       <Button
                         variant="ghost"
                         className="h-8 px-2"
                         onClick={() => {
-                          if (
-                            !window.confirm(
-                              `Reset the password for ${u.fullName}? They will be signed out.`,
-                            )
-                          )
+                          if (!window.confirm(t('users.resetConfirm', { name: u.fullName })))
                             return;
-                          void act('Password reset', async () => {
+                          void act(t('users.passwordReset'), async () => {
                             const r = await api<{ temporaryPassword: string }>(
                               `/api/users/${u.id}/reset-password`,
                               { method: 'POST', body: {} },
                             );
                             setSecret({
-                              title: `Temporary password for ${u.username}`,
+                              title: t('users.tempPasswordFor', { username: u.username }),
                               value: r.temporaryPassword,
-                              note: 'Shown once. They must choose a new password at first sign-in.',
+                              note: t('users.shownOnce'),
                             });
                           });
                         }}
                       >
-                        Reset password
+                        {t('users.resetPassword')}
                       </Button>
                       <Button
                         variant="ghost"
                         className="h-8 px-2"
                         onClick={() =>
-                          void act('Signed out everywhere', () =>
+                          void act(t('users.signedOutEverywhere'), () =>
                             api(`/api/users/${u.id}/logout`, { method: 'POST', body: {} }),
                           )
                         }
                       >
-                        Sign out
+                        {t('users.signOut')}
                       </Button>
                       {u.id !== me ? (
                         <Button
                           variant="ghost"
                           className="h-8 px-2 text-danger"
                           onClick={() =>
-                            void act(u.status === 'active' ? 'User disabled' : 'User enabled', () =>
-                              api(`/api/users/${u.id}/status`, {
-                                body: { active: u.status !== 'active' },
-                              }),
+                            void act(
+                              u.status === 'active'
+                                ? t('users.userDisabled')
+                                : t('users.userEnabled'),
+                              () =>
+                                api(`/api/users/${u.id}/status`, {
+                                  body: { active: u.status !== 'active' },
+                                }),
                             )
                           }
                         >
-                          {u.status === 'active' ? 'Disable' : 'Enable'}
+                          {u.status === 'active' ? t('users.disable') : t('users.enable')}
                         </Button>
                       ) : null}
                     </span>
@@ -207,14 +213,14 @@ export function UsersClient({
             {users.data && users.data.users.length === 0 ? (
               <tr>
                 <td colSpan={6} className="px-4 py-10 text-center text-muted">
-                  No users match. Try clearing the search.
+                  {t('users.empty')}
                 </td>
               </tr>
             ) : null}
             {!users.data && !users.error ? (
               <tr>
                 <td colSpan={6} className="px-4 py-10 text-center text-muted">
-                  Loading…
+                  {t('common.loading')}
                 </td>
               </tr>
             ) : null}
@@ -233,9 +239,9 @@ export function UsersClient({
             users.reload();
             if (temp)
               setSecret({
-                title: `Temporary password for ${username}`,
+                title: t('users.tempPasswordFor', { username }),
                 value: temp,
-                note: 'Shown once. They must choose a new password at first sign-in.',
+                note: t('users.shownOnce'),
               });
           }}
         />
@@ -252,13 +258,9 @@ export function UsersClient({
       ) : null}
       {secret ? (
         <Modal title={secret.title} onClose={() => setSecret(null)}>
-          <SecretBox
-            label="Write it down or send it privately"
-            value={secret.value}
-            note={secret.note}
-          />
+          <SecretBox label={t('users.writeItDown')} value={secret.value} note={secret.note} />
           <Button className="mt-4 w-full" onClick={() => setSecret(null)}>
-            Done
+            {t('common.done')}
           </Button>
         </Modal>
       ) : null}
@@ -279,6 +281,8 @@ function UserForm({
   onClose: () => void;
   onSaved: (temporaryPassword: string | null, username: string) => void;
 }) {
+  const t = useT();
+  const errorText = useErrorText();
   const [roleIds, setRoleIds] = useState<string[]>(user?.roleIds ?? []);
   const [branchIds, setBranchIds] = useState<string[]>(user?.branchIds ?? []);
   const [allBranches, setAllBranches] = useState(user?.allBranches ?? false);
@@ -322,33 +326,37 @@ function UserForm({
         onSaved(null, user.username);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not save');
+      setError(errorText(err, 'common.couldNotSave'));
       setBusy(false);
     }
   }
 
   return (
-    <Modal title={user ? `Edit ${user.username}` : 'Add user'} onClose={onClose} wide>
+    <Modal
+      title={user ? t('users.editTitle', { username: user.username }) : t('users.add')}
+      onClose={onClose}
+      wide
+    >
       <form onSubmit={onSubmit} className="space-y-4">
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="text-sm">
-            Full name
+            {t('users.fullName')}
             <input name="fullName" required defaultValue={user?.fullName} className={inputClass} />
           </label>
           {!user ? (
             <label className="text-sm">
-              Username
+              {t('users.username')}
               <input
                 name="username"
                 required
                 pattern="[a-z0-9._-]{3,40}"
-                title="Lowercase letters, digits, dot, dash, underscore"
+                title={t('users.usernameHint')}
                 className={inputClass}
               />
             </label>
           ) : null}
           <label className="text-sm">
-            Email
+            {t('users.email')}
             <input
               name="email"
               type="email"
@@ -357,12 +365,12 @@ function UserForm({
             />
           </label>
           <label className="text-sm">
-            Phone
+            {t('users.phone')}
             <input name="phone" defaultValue={user?.phone ?? ''} className={inputClass} />
           </label>
         </div>
         <fieldset>
-          <legend className="mb-1 text-sm font-medium">Roles</legend>
+          <legend className="mb-1 text-sm font-medium">{t('users.roles')}</legend>
           <div className="grid gap-1 sm:grid-cols-2">
             {roles.map((r) => (
               <label key={r.id} className="flex items-center gap-2 text-sm">
@@ -377,14 +385,14 @@ function UserForm({
           </div>
         </fieldset>
         <fieldset>
-          <legend className="mb-1 text-sm font-medium">Branch access</legend>
+          <legend className="mb-1 text-sm font-medium">{t('users.branchAccess')}</legend>
           <label className="mb-1 flex items-center gap-2 text-sm">
             <input
               type="checkbox"
               checked={allBranches}
               onChange={(e) => setAllBranches(e.target.checked)}
             />{' '}
-            All branches
+            {t('users.allBranches')}
           </label>
           {!allBranches ? (
             <div className="grid gap-1 sm:grid-cols-2">
@@ -395,25 +403,20 @@ function UserForm({
                     checked={branchIds.includes(b.id)}
                     onChange={() => setBranchIds(toggle(branchIds, b.id))}
                   />{' '}
-                  {b.name} ({b.code})
+                  {b.name} (<bdi>{b.code}</bdi>)
                 </label>
               ))}
             </div>
           ) : null}
         </fieldset>
-        {!user ? (
-          <p className="text-xs text-muted">
-            A temporary password is generated and shown once. The user must change it at first
-            sign-in.
-          </p>
-        ) : null}
+        {!user ? <p className="text-xs text-muted">{t('users.tempPasswordNote')}</p> : null}
         <ErrorText message={error} />
         <div className="flex justify-end gap-2">
           <Button type="button" variant="outline" onClick={onClose}>
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button type="submit" disabled={busy || roleIds.length === 0}>
-            {busy ? 'Saving…' : 'Save'}
+            {busy ? t('common.saving') : t('common.save')}
           </Button>
         </div>
       </form>
@@ -430,10 +433,12 @@ function PinDialog({
   onClose: () => void;
   onDone: () => void;
 }) {
+  const t = useT();
+  const errorText = useErrorText();
   const [pin, setPin] = useState('');
   const [error, setError] = useState<string | null>(null);
   return (
-    <Modal title={`Quick PIN for ${user.username}`} onClose={onClose}>
+    <Modal title={t('users.pinTitle', { username: user.username })} onClose={onClose}>
       <form
         className="space-y-3"
         onSubmit={async (e) => {
@@ -442,16 +447,13 @@ function PinDialog({
             await api(`/api/users/${user.id}/pin`, { body: { pin } });
             onDone();
           } catch (err) {
-            setError(err instanceof Error ? err.message : 'Could not set PIN');
+            setError(errorText(err, 'users.pinFailed'));
           }
         }}
       >
-        <p className="text-sm text-muted">
-          4 to 6 digits, used for fast counter sign-in and manager approvals. It cannot open
-          administration screens.
-        </p>
+        <p className="text-sm text-muted">{t('users.pinHelp')}</p>
         <input
-          aria-label="New PIN"
+          aria-label={t('users.newPin')}
           inputMode="numeric"
           autoComplete="off"
           type="password"
@@ -471,17 +473,17 @@ function PinDialog({
                 onDone();
               }}
             >
-              Remove PIN
+              {t('users.removePin')}
             </Button>
           ) : (
             <span />
           )}
           <span className="flex gap-2">
             <Button type="button" variant="outline" onClick={onClose}>
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button type="submit" disabled={pin.length < 4}>
-              Save PIN
+              {t('users.savePin')}
             </Button>
           </span>
         </div>

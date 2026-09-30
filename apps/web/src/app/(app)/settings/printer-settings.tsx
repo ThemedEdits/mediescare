@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Button, ErrorText, inputClass } from '@/components/ui';
+import { useT } from '@/i18n/client';
 import { kickDrawer, printTestPage } from '@/lib/receipt';
 
 type Values = Record<string, string | number | boolean>;
@@ -17,6 +18,7 @@ export function PrinterSettings({
   values: Values;
   onChange: (patch: Values) => void;
 }) {
+  const t = useT();
   const [printers, setPrinters] = useState<{ name: string; isDefault: boolean }[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -46,7 +48,7 @@ export function PrinterSettings({
     const result = await job();
     setBusy(false);
     if (result.ok) setDone(label);
-    else setError(result.error ?? 'Failed');
+    else setError(result.error ?? t('settings.printer.failed'));
   };
 
   const known = printers?.some((p) => p.name === printerName) ?? false;
@@ -54,21 +56,22 @@ export function PrinterSettings({
   return (
     <div className="space-y-4" data-testid="printer-settings">
       <label className="block text-sm">
-        <span className="font-medium">Receipt printer</span>
+        <span className="font-medium">{t('settings.receiptPrinter')}</span>
         {printers && printers.length > 0 ? (
           <select
             className={`${inputClass} mt-1`}
             value={printerName}
             onChange={(e) => onChange({ 'print.printer_name': e.target.value })}
           >
-            <option value="">System default printer</option>
+            <option value="">{t('settings.printer.systemDefault')}</option>
             {printerName && !known ? (
-              <option value={printerName}>{printerName} (not found)</option>
+              <option value={printerName}>
+                {t('settings.printer.notFound', { name: printerName })}
+              </option>
             ) : null}
             {printers.map((p) => (
               <option key={p.name} value={p.name}>
-                {p.name}
-                {p.isDefault ? ' (default)' : ''}
+                {p.isDefault ? t('settings.printer.isDefault', { name: p.name }) : p.name}
               </option>
             ))}
           </select>
@@ -77,7 +80,7 @@ export function PrinterSettings({
             className={`${inputClass} mt-1`}
             value={printerName}
             maxLength={200}
-            placeholder="Empty means the system default printer"
+            placeholder={t('settings.printer.placeholder')}
             onChange={(e) => onChange({ 'print.printer_name': e.target.value })}
           />
         )}
@@ -85,7 +88,7 @@ export function PrinterSettings({
 
       <div className="grid gap-4 sm:grid-cols-3">
         <label className="block text-sm">
-          <span className="font-medium">Paper width</span>
+          <span className="font-medium">{t('settings.printer.paperWidth')}</span>
           <select
             className={`${inputClass} mt-1`}
             value={paper}
@@ -96,7 +99,7 @@ export function PrinterSettings({
           </select>
         </label>
         <label className="block text-sm">
-          <span className="font-medium">Copies</span>
+          <span className="font-medium">{t('settings.printer.copies')}</span>
           <select
             className={`${inputClass} mt-1`}
             value={Number(values['print.copies']) || 1}
@@ -110,14 +113,14 @@ export function PrinterSettings({
           </select>
         </label>
         <label className="block text-sm">
-          <span className="font-medium">Drawer connector</span>
+          <span className="font-medium">{t('settings.printer.drawerConnector')}</span>
           <select
             className={`${inputClass} mt-1`}
             value={pin}
             onChange={(e) => onChange({ 'print.drawer_pin': e.target.value })}
           >
-            <option value="pin2">Pin 2 (most drawers)</option>
-            <option value="pin5">Pin 5</option>
+            <option value="pin2">{t('settings.printer.pin2')}</option>
+            <option value="pin5">{t('settings.printer.pin5')}</option>
           </select>
         </label>
       </div>
@@ -129,7 +132,7 @@ export function PrinterSettings({
             checked={values['print.auto_print'] === true}
             onChange={(e) => onChange({ 'print.auto_print': e.target.checked })}
           />
-          Print the receipt automatically after each sale
+          {t('settings.printer.autoPrint')}
         </label>
         <label className="flex items-center gap-2 text-sm">
           <input
@@ -137,27 +140,27 @@ export function PrinterSettings({
             checked={values['print.open_drawer_on_cash'] !== false}
             onChange={(e) => onChange({ 'print.open_drawer_on_cash': e.target.checked })}
           />
-          Open the cash drawer when a sale has a cash payment
+          {t('settings.printer.openDrawer')}
         </label>
       </div>
 
       <label className="block text-sm">
-        <span className="font-medium">Receipt header</span>
+        <span className="font-medium">{t('settings.printer.header')}</span>
         <textarea
           className={`${inputClass} mt-1 h-20 py-2`}
           value={str('print.receipt_header')}
           maxLength={300}
-          placeholder="Shown above the branch name, one line per row"
+          placeholder={t('settings.printer.headerPlaceholder')}
           onChange={(e) => onChange({ 'print.receipt_header': e.target.value })}
         />
       </label>
       <label className="block text-sm">
-        <span className="font-medium">Receipt footer</span>
+        <span className="font-medium">{t('settings.printer.footer')}</span>
         <textarea
           className={`${inputClass} mt-1 h-20 py-2`}
           value={str('print.receipt_footer')}
           maxLength={300}
-          placeholder="Shown at the bottom (empty prints Thank you)"
+          placeholder={t('settings.printer.footerPlaceholder')}
           onChange={(e) => onChange({ 'print.receipt_footer': e.target.value })}
         />
       </label>
@@ -166,23 +169,23 @@ export function PrinterSettings({
         <Button
           variant="outline"
           disabled={busy || !native}
-          onClick={() => void run('Test receipt sent', () => printTestPage(printerName, paper))}
+          onClick={() =>
+            void run(t('settings.printer.testSent'), () => printTestPage(printerName, paper))
+          }
         >
-          Print test receipt
+          {t('settings.printer.printTest')}
         </Button>
         <Button
           variant="outline"
           disabled={busy || !native}
-          onClick={() => void run('Drawer signal sent', () => kickDrawer(printerName, pin))}
+          onClick={() =>
+            void run(t('settings.printer.drawerSent'), () => kickDrawer(printerName, pin))
+          }
         >
-          Open cash drawer
+          {t('settings.printer.openCashDrawer')}
         </Button>
       </div>
-      {!native ? (
-        <p className="text-xs text-muted">
-          Test buttons and the printer list work in the Mediescare desktop app only.
-        </p>
-      ) : null}
+      {!native ? <p className="text-xs text-muted">{t('settings.printer.desktopOnly')}</p> : null}
       {done ? (
         <p role="status" className="text-sm text-success">
           {done}

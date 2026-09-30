@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { api, Button, ErrorText, inputClass, Modal } from '@/components/ui';
+import { api, Button, ErrorText, inputClass, Modal, useErrorText } from '@/components/ui';
+import { useT } from '@/i18n/client';
 import { qty, type TransferDetail } from './types';
 
 /**
@@ -18,6 +19,8 @@ export function ReceiveDialog({
   onClose: () => void;
   onReceived: (message: string) => void;
 }) {
+  const t = useT();
+  const errorText = useErrorText();
   const [received, setReceived] = useState<Record<string, string>>({});
   const [damaged, setDamaged] = useState<Record<string, string>>({});
   const [note, setNote] = useState('');
@@ -55,48 +58,59 @@ export function ReceiveDialog({
         },
       );
       onReceived(
-        `Transfer ${transfer.docNo} received: ${r.receivedQty} added to stock` +
-          (r.damagedQty + r.shortQty > 0
-            ? `, ${r.damagedQty} damaged and ${r.shortQty} short recorded as a loss`
-            : ''),
+        r.damagedQty + r.shortQty > 0
+          ? t('transfers.receiveDialog.doneToastLoss', {
+              docNo: transfer.docNo,
+              received: r.receivedQty,
+              damaged: r.damagedQty,
+              short: r.shortQty,
+            })
+          : t('transfers.receiveDialog.doneToast', {
+              docNo: transfer.docNo,
+              received: r.receivedQty,
+            }),
       );
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not receive the transfer');
+      setError(errorText(e, 'transfers.receiveDialog.failed'));
       setBusy(false);
     }
   }
 
   return (
-    <Modal title={`Receive ${transfer.docNo}`} onClose={onClose} wide>
+    <Modal
+      title={t('transfers.receiveDialog.title', { docNo: transfer.docNo })}
+      onClose={onClose}
+      wide
+    >
       <div className="space-y-3">
         <p className="text-sm text-muted">
-          From {transfer.fromBranchName}. Count what is in front of you. Good units go into your
-          stock with the same batch and expiry. Damaged and short units are written off and never
-          enter your stock.
+          {t('transfers.receiveDialog.intro', { from: transfer.fromBranchName })}
         </p>
         <div className="overflow-x-auto rounded-[10px] border border-border">
           <table className="w-full text-sm">
-            <thead className="bg-surface-2 text-left text-xs uppercase text-muted">
+            <thead className="bg-surface-2 text-start text-xs uppercase text-muted">
               <tr>
-                <th className="px-3 py-2">Item</th>
-                <th>Batch</th>
-                <th>Expiry</th>
-                <th className="text-end">Sent</th>
-                <th className="text-end">Received</th>
-                <th className="text-end">Damaged</th>
-                <th className="px-3 text-end">Short</th>
+                <th className="px-3 py-2">{t('common.item')}</th>
+                <th>{t('transfers.batch')}</th>
+                <th>{t('transfers.expiry')}</th>
+                <th className="text-end">{t('transfers.sent')}</th>
+                <th className="text-end">{t('transfers.received')}</th>
+                <th className="text-end">{t('transfers.damaged')}</th>
+                <th className="px-3 text-end">{t('transfers.short')}</th>
               </tr>
             </thead>
             <tbody>
               {counts.map(({ line: l, short, valid }) => (
                 <tr key={l.id} className="border-t border-border">
                   <td className="px-3 py-2 font-medium">{l.item.name}</td>
-                  <td className="font-mono text-xs">{l.batchNo}</td>
-                  <td>{l.expiryDate}</td>
+                  <td className="font-mono text-xs" dir="ltr">
+                    {l.batchNo}
+                  </td>
+                  <td dir="ltr">{l.expiryDate}</td>
                   <td className="text-end tabular-nums">{qty(l.qtyDispatched, l.item.units)}</td>
                   <td className="text-end">
                     <input
-                      aria-label={`Received ${l.item.name}`}
+                      aria-label={t('transfers.receiveDialog.receivedAria', { name: l.item.name })}
                       inputMode="numeric"
                       className={`${inputClass} w-24 text-end tabular-nums ${valid ? '' : 'border-danger'}`}
                       value={received[l.id] ?? String(l.qtyDispatched)}
@@ -107,7 +121,7 @@ export function ReceiveDialog({
                   </td>
                   <td className="text-end">
                     <input
-                      aria-label={`Damaged ${l.item.name}`}
+                      aria-label={t('transfers.receiveDialog.damagedAria', { name: l.item.name })}
                       inputMode="numeric"
                       className={`${inputClass} w-24 text-end tabular-nums ${valid ? '' : 'border-danger'}`}
                       value={damaged[l.id] ?? '0'}
@@ -126,25 +140,23 @@ export function ReceiveDialog({
             </tbody>
           </table>
         </div>
-        <p className="text-xs text-muted">
-          Quantities are in the smallest unit (for example tablets).
-        </p>
+        <p className="text-xs text-muted">{t('transfers.receiveDialog.smallestUnit')}</p>
         <label className="block text-sm">
-          Note (for example what happened to damaged goods)
+          {t('transfers.receiveDialog.noteLabel')}
           <input className={inputClass} value={note} onChange={(e) => setNote(e.target.value)} />
         </label>
         {totalDamaged + totalShort > 0 ? (
           <p role="status" className="rounded-[6px] bg-[#FEF3C7] px-3 py-2 text-sm text-warning">
-            {totalDamaged} damaged and {totalShort} short will be recorded as a loss at cost.
+            {t('transfers.receiveDialog.lossNotice', { damaged: totalDamaged, short: totalShort })}
           </p>
         ) : null}
         <ErrorText message={error} />
         <div className="flex justify-end gap-2">
           <Button variant="outline" onClick={onClose}>
-            Close
+            {t('common.close')}
           </Button>
           <Button onClick={() => void submit()} disabled={busy || !allValid}>
-            {busy ? 'Receiving…' : 'Receive into stock'}
+            {busy ? t('transfers.receiveDialog.receiving') : t('transfers.receiveDialog.submit')}
           </Button>
         </div>
       </div>

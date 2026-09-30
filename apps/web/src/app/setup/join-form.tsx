@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from 'react';
 import { Field, PrimaryButton } from '@/components/field';
+import { useT } from '@/i18n/client';
 
 interface Progress {
   stage: 'enrolling' | 'preparing' | 'syncing' | 'checking' | 'saving' | 'done';
@@ -10,15 +11,6 @@ interface Progress {
   byType: Record<string, number>;
 }
 
-const STAGE_TEXT: Record<Progress['stage'], string> = {
-  enrolling: 'Contacting the cloud…',
-  preparing: 'Preparing this PC…',
-  syncing: 'Receiving items and other data from Head Office…',
-  checking: 'Checking the data…',
-  saving: 'Saving…',
-  done: 'Done',
-};
-
 /**
  * "Join an existing organisation": this PC becomes a branch. It needs internet once, for the
  * enrollment code and the first copy of Head Office's catalogue (this can take a few minutes for
@@ -26,6 +18,7 @@ const STAGE_TEXT: Record<Progress['stage'], string> = {
  * can simply be repeated.
  */
 export function JoinForm({ onDone }: { onDone: (recoveryKey: string, summary: string) => void }) {
+  const t = useT();
   const [errors, setErrors] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState<Progress | null>(null);
@@ -49,7 +42,7 @@ export function JoinForm({ onDone }: { onDone: (recoveryKey: string, summary: st
     event.preventDefault();
     const f = new FormData(event.currentTarget);
     if (f.get('password') !== f.get('confirm')) {
-      setErrors(['Passwords do not match']);
+      setErrors([t('setupForm.mismatch')]);
       return;
     }
     setBusy(true);
@@ -85,7 +78,11 @@ export function JoinForm({ onDone }: { onDone: (recoveryKey: string, summary: st
       if (res.ok && body.recoveryKey) {
         onDone(
           body.recoveryKey,
-          `This PC is now branch ${body.branchCode ?? ''}. It received ${body.items ?? 0} items from Head Office in ${body.seconds ?? 0} s.`,
+          t('setupForm.joined', {
+            code: body.branchCode ?? '',
+            items: body.items ?? 0,
+            seconds: body.seconds ?? 0,
+          }),
         );
         return;
       }
@@ -93,43 +90,53 @@ export function JoinForm({ onDone }: { onDone: (recoveryKey: string, summary: st
         body.error?.message
           ? [body.error.message]
           : (body.error?.problems ??
-              body.error?.issues?.map((i) => i.message) ?? [body.error?.code ?? 'Could not join']),
+              body.error?.issues?.map((i) => i.message) ?? [
+                body.error?.code ?? t('setupForm.joinFailed'),
+              ]),
       );
     } catch {
-      setErrors([
-        'The connection was lost. Nothing was changed on this PC: check the internet and try again',
-      ]);
+      setErrors([t('setupForm.connectionLost')]);
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <form onSubmit={onSubmit} className="space-y-4" aria-label="Join an existing organisation">
-      <p className="text-sm text-muted">
-        Ask Head Office for an enrollment code (Head Office menu: Branches). You need the internet
-        for this step only.
-      </p>
+    <form onSubmit={onSubmit} className="space-y-4" aria-label={t('setupForm.tabJoin')}>
+      <p className="text-sm text-muted">{t('setupForm.joinHelp')}</p>
       <Field
-        label="Cloud address"
+        label={t('setupForm.cloudAddress')}
         name="cloudUrl"
+        dir="ltr"
         placeholder="https://mediescare.example.com"
         inputMode="url"
         required
       />
-      <Field label="Enrollment code" name="code" autoComplete="off" required />
-      <hr className="border-border" />
-      <Field label="Your full name" name="fullName" required />
-      <Field label="Username" name="username" autoComplete="username" required />
       <Field
-        label="Password (10+ characters)"
+        label={t('setupForm.enrollmentCode')}
+        name="code"
+        autoComplete="off"
+        dir="ltr"
+        required
+      />
+      <hr className="border-border" />
+      <Field label={t('setupForm.fullName')} name="fullName" required />
+      <Field
+        label={t('setupForm.username')}
+        name="username"
+        autoComplete="username"
+        dir="ltr"
+        required
+      />
+      <Field
+        label={t('setupForm.password')}
         name="password"
         type="password"
         autoComplete="new-password"
         required
       />
       <Field
-        label="Confirm password"
+        label={t('setupForm.confirm')}
         name="confirm"
         type="password"
         autoComplete="new-password"
@@ -140,14 +147,16 @@ export function JoinForm({ onDone }: { onDone: (recoveryKey: string, summary: st
           role="status"
           className="space-y-1 rounded-[6px] bg-primary-50 px-4 py-3 text-sm text-primary-900"
         >
-          <p className="font-medium">{STAGE_TEXT[progress?.stage ?? 'enrolling']}</p>
+          <p className="font-medium">{t(`setupForm.stage.${progress?.stage ?? 'enrolling'}`)}</p>
           {progress && progress.stage === 'syncing' ? (
             <p>
-              {(progress.byType.items ?? 0).toLocaleString()} items,{' '}
-              {progress.applied.toLocaleString()} records received
+              {t('setupForm.received', {
+                items: (progress.byType.items ?? 0).toLocaleString(),
+                records: progress.applied.toLocaleString(),
+              })}
             </p>
           ) : null}
-          <p className="text-muted">Keep this window open. This can take a few minutes.</p>
+          <p className="text-muted">{t('setupForm.keepOpen')}</p>
         </div>
       ) : null}
       {errors.length > 0 ? (
@@ -158,7 +167,7 @@ export function JoinForm({ onDone }: { onDone: (recoveryKey: string, summary: st
         </ul>
       ) : null}
       <PrimaryButton type="submit" disabled={busy}>
-        {busy ? 'Joining…' : 'Join and continue'}
+        {busy ? t('setupForm.joining') : t('setupForm.join')}
       </PrimaryButton>
     </form>
   );

@@ -10,7 +10,9 @@ import {
   Modal,
   SecretBox,
   useAsync,
+  useErrorText,
 } from '@/components/ui';
+import { useT } from '@/i18n/client';
 
 interface BranchRow {
   id: string;
@@ -35,6 +37,7 @@ export function BranchesClient({
   headOffice: boolean;
   canCreate: boolean;
 }) {
+  const t = useT();
   const list = useAsync(() => api<{ branches: BranchRow[] }>('/api/branches'));
   const [adding, setAdding] = useState(false);
   const [issued, setIssued] = useState<Issued | null>(null);
@@ -43,47 +46,51 @@ export function BranchesClient({
     <>
       <div className="flex flex-wrap items-end gap-3">
         <div>
-          <h1 className="text-2xl font-semibold">Branches</h1>
+          <h1 className="text-2xl font-semibold">{t('branches.title')}</h1>
           <p className="text-sm text-muted">
-            {headOffice
-              ? 'Every branch of the organisation. Head Office sets item prices and tax rates for all of them.'
-              : 'The branches of this organisation. They are managed by Head Office.'}
+            {headOffice ? t('branches.subtitleHeadOffice') : t('branches.subtitleBranch')}
           </p>
         </div>
         {canCreate ? (
           <Button className="ms-auto" onClick={() => setAdding(true)}>
-            Add a branch
+            {t('branches.add')}
           </Button>
         ) : null}
       </div>
       <ErrorText message={list.error} />
       <div className="overflow-x-auto rounded-[10px] border border-border">
         <table className="w-full text-sm">
-          <thead className="bg-surface-2 text-left text-xs uppercase text-muted">
+          <thead className="bg-surface-2 text-start text-xs uppercase text-muted">
             <tr>
-              <th className="px-4 py-3">Code</th>
-              <th className="px-4 py-3">Name</th>
-              <th className="px-4 py-3">Type</th>
-              <th className="px-4 py-3">Status</th>
+              <th className="px-4 py-3">{t('branches.code')}</th>
+              <th className="px-4 py-3">{t('common.name')}</th>
+              <th className="px-4 py-3">{t('branches.type')}</th>
+              <th className="px-4 py-3">{t('common.status')}</th>
             </tr>
           </thead>
           <tbody>
             {list.data?.branches.map((b) => (
               <tr key={b.id} className="border-t border-border">
-                <td className="px-4 py-3 font-mono">{b.code}</td>
+                <td className="px-4 py-3 font-mono" dir="ltr">
+                  {b.code}
+                </td>
                 <td className="px-4 py-3">{b.name}</td>
                 <td className="px-4 py-3">
                   <Badge tone={b.isHeadOffice ? 'warning' : 'neutral'}>
-                    {b.isHeadOffice ? 'Head Office' : 'Branch'}
+                    {b.isHeadOffice ? t('branches.headOffice') : t('common.branch')}
                   </Badge>
                 </td>
-                <td className="px-4 py-3">{b.status}</td>
+                <td className="px-4 py-3">
+                  {t.has(`branches.status.${b.status}`)
+                    ? t(`branches.status.${b.status}`)
+                    : b.status}
+                </td>
               </tr>
             ))}
             {!list.data && !list.error ? (
               <tr>
                 <td colSpan={4} className="px-4 py-10 text-center text-muted">
-                  Loading…
+                  {t('common.loading')}
                 </td>
               </tr>
             ) : null}
@@ -112,6 +119,8 @@ function AddBranchDialog({
   onClose: () => void;
   onIssued: (r: Issued) => void;
 }) {
+  const t = useT();
+  const errorText = useErrorText();
   const [code, setCode] = useState('');
   const [name, setName] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -128,21 +137,17 @@ function AddBranchDialog({
         }),
       );
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not create the code');
+      setError(errorText(err, 'branches.createFailed'));
       setBusy(false);
     }
   }
 
   return (
-    <Modal title="Add a branch" onClose={onClose}>
+    <Modal title={t('branches.add')} onClose={onClose}>
       <form className="space-y-3" onSubmit={submit}>
-        <p className="text-sm text-muted">
-          This adds the branch to the organisation and creates a one-time code for the branch PC. It
-          needs the internet. If the branch already exists here and has not joined yet, this creates
-          a new code for it.
-        </p>
+        <p className="text-sm text-muted">{t('branches.dialogIntro')}</p>
         <label className="block text-sm">
-          Branch code
+          {t('branches.branchCode')}
           <input
             autoFocus
             className={`${inputClass} mt-1 uppercase`}
@@ -154,7 +159,7 @@ function AddBranchDialog({
           />
         </label>
         <label className="block text-sm">
-          Branch name
+          {t('branches.branchName')}
           <input
             className={`${inputClass} mt-1`}
             value={name}
@@ -165,10 +170,10 @@ function AddBranchDialog({
         <ErrorText message={error} />
         <div className="flex justify-end gap-2">
           <Button type="button" variant="outline" onClick={onClose}>
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button type="submit" disabled={busy || code.trim().length < 2 || name.trim().length < 2}>
-            {busy ? 'Creating…' : 'Create code'}
+            {busy ? t('branches.creating') : t('branches.createCode')}
           </Button>
         </div>
       </form>
@@ -177,27 +182,33 @@ function AddBranchDialog({
 }
 
 function CodeDialog({ issued, onClose }: { issued: Issued; onClose: () => void }) {
+  const t = useT();
   return (
-    <Modal title={`Enrollment code for ${issued.branch.code}`} onClose={onClose}>
+    <Modal title={t('branches.enrollmentTitle', { code: issued.branch.code })} onClose={onClose}>
       <div className="space-y-3">
         <SecretBox
-          label="Enrollment code"
+          label={t('branches.enrollmentCode')}
           value={issued.code}
-          note={`Valid until ${new Date(issued.expiresAt).toLocaleString()} and works once. It is not shown again.`}
+          note={t('branches.validUntil', { date: new Date(issued.expiresAt).toLocaleString() })}
         />
         <ol className="list-decimal space-y-1 ps-5 text-sm">
-          <li>Install Mediescare on the branch PC and open it.</li>
+          <li>{t('branches.step1')}</li>
           <li>
-            On the first screen choose <strong>Join an existing organisation</strong>.
+            {t('branches.step2Before')}
+            <strong>{t('branches.step2Choice')}</strong>
+            {t('branches.step2After')}
           </li>
           <li>
-            Cloud address: <span className="break-all font-mono">{issued.cloudUrl}</span>
+            {t('branches.step3')}{' '}
+            <span className="break-all font-mono" dir="ltr">
+              {issued.cloudUrl}
+            </span>
           </li>
-          <li>Enter the code above, then your name, a username and a password.</li>
-          <li>Keep the PC online until the first copy of items and suppliers is finished.</li>
+          <li>{t('branches.step4')}</li>
+          <li>{t('branches.step5')}</li>
         </ol>
         <div className="flex justify-end">
-          <Button onClick={onClose}>Done</Button>
+          <Button onClick={onClose}>{t('common.done')}</Button>
         </div>
       </div>
     </Modal>

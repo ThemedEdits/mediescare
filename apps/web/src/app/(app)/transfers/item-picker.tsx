@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { api, inputClass } from '@/components/ui';
+import { api, inputClass, useErrorText } from '@/components/ui';
+import { useT } from '@/i18n/client';
 import type { ItemRef } from './types';
 
 interface Found {
@@ -18,17 +19,19 @@ export function ItemPicker({
   onPick: (item: ItemRef) => void;
   onError: (message: string) => void;
 }) {
+  const t = useT();
+  const errorText = useErrorText();
   const [q, setQ] = useState('');
   const [found, setFound] = useState<Found[]>([]);
 
   useEffect(() => {
     if (!q.trim()) return setFound([]);
-    const t = setTimeout(() => {
+    const timer = setTimeout(() => {
       api<{ rows: Found[] }>(`/api/items?q=${encodeURIComponent(q)}&pageSize=8`)
         .then((r) => setFound(r.rows))
         .catch(() => setFound([]));
     }, 150);
-    return () => clearTimeout(t);
+    return () => clearTimeout(timer);
   }, [q]);
 
   async function pick(f: Found) {
@@ -46,16 +49,16 @@ export function ItemPicker({
       setQ('');
       setFound([]);
     } catch (e) {
-      onError(e instanceof Error ? e.message : 'Could not add the item');
+      onError(errorText(e, 'transfers.itemPicker.addFailed'));
     }
   }
 
   return (
     <div className="relative">
       <input
-        aria-label="Search item"
+        aria-label={t('transfers.itemPicker.aria')}
         className={inputClass}
-        placeholder="Search an item by name or code…"
+        placeholder={t('transfers.itemPicker.placeholder')}
         value={q}
         onChange={(e) => setQ(e.target.value)}
       />

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useT } from '@/i18n/client';
 import { RequisitionsTab } from './requisitions-tab';
 import { InTransitTab, TransfersTab } from './transfers-tab';
 import { ReconciliationTab } from './reconciliation-tab';
@@ -14,6 +15,7 @@ type Tab = 'requisitions' | 'transfers' | 'transit' | 'reconciliation';
  * receipt are in transit: on the document, in nobody's stock.
  */
 export function TransfersClient({ abilities }: { abilities: TransferAbilities }) {
+  const t = useT();
   const [tab, setTab] = useState<Tab>('requisitions');
   const [version, setVersion] = useState(0);
   const [toast, setToast] = useState<string | null>(null);
@@ -22,20 +24,25 @@ export function TransfersClient({ abilities }: { abilities: TransferAbilities })
     if (message) setToast(message);
   };
   const tabs: [Tab, string][] = [
-    ['requisitions', 'Requisitions'],
-    ['transfers', 'Transfers'],
-    ['transit', abilities.isHeadOffice ? 'In transit' : 'In transit / Receive'],
-    ['reconciliation', 'Reconciliation'],
+    ['requisitions', t('transfers.tabs.requisitions')],
+    ['transfers', t('transfers.tabs.transfers')],
+    [
+      'transit',
+      abilities.isHeadOffice
+        ? t('transfers.tabs.transitHeadOffice')
+        : t('transfers.tabs.transitBranch'),
+    ],
+    ['reconciliation', t('transfers.tabs.reconciliation')],
   ];
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-2xl font-semibold">Stock transfers</h1>
+        <h1 className="text-2xl font-semibold">{t('transfers.title')}</h1>
         <p className="text-sm text-muted">
           {abilities.branchName} ·{' '}
           {abilities.isHeadOffice
-            ? 'Head Office: approve requisitions, write transfer notes and dispatch.'
-            : 'Ask Head Office for stock and count what arrives.'}
+            ? t('transfers.subtitleHeadOffice')
+            : t('transfers.subtitleBranch')}
         </p>
       </div>
       {toast ? (

@@ -3,7 +3,8 @@
 import { useState, type ReactNode } from 'react';
 import { api, Badge, Button, ErrorText, inputClass, useAsync } from '@/components/ui';
 import { pkr } from '@/lib/format';
-import type { TransferAbilities } from './types';
+import { useT } from '@/i18n/client';
+import { statusLabel, type TransferAbilities } from './types';
 
 interface PositionCost {
   dispatchedMinor: number;
@@ -98,6 +99,7 @@ function PositionCards({
   report: PositionReport;
   isHeadOffice: boolean;
 }) {
+  const t = useT();
   const role = isHeadOffice ? 'shipper' : 'receiver';
   const total = report.totals[role];
   const c = total.cost;
@@ -106,41 +108,45 @@ function PositionCards({
     <div className="space-y-3">
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <Card
-          title={isHeadOffice ? 'Dispatched to branches' : 'Dispatched to us'}
+          title={
+            isHeadOffice
+              ? t('transfers.rec.dispatchedToBranches')
+              : t('transfers.rec.dispatchedToUs')
+          }
           value={money(c?.dispatchedMinor)}
-          note={`${total.transfers} transfers`}
+          note={t('transfers.rec.transfersCount', { count: total.transfers })}
         />
-        <Card title="Received" value={money(c?.receivedMinor)} />
-        <Card title="In transit" value={money(c?.inTransitMinor)} />
+        <Card title={t('transfers.received')} value={money(c?.receivedMinor)} />
+        <Card title={t('transfers.inTransit')} value={money(c?.inTransitMinor)} />
         <Card
-          title="Damage and shortage loss"
+          title={t('transfers.rec.lossTitle')}
           value={money(loss)}
           tone={loss ? 'danger' : undefined}
         />
         <Card
-          title="Difference"
+          title={t('transfers.difference')}
           value={money(c?.differenceMinor)}
-          note="Dispatched minus everything accounted for"
+          note={t('transfers.rec.differenceNote')}
           tone={c ? (c.differenceMinor === 0 ? 'success' : 'danger') : undefined}
         />
       </div>
-      {!c ? (
-        <p className="text-xs text-muted">Values at cost are shown to users with the cost right.</p>
-      ) : null}
+      {!c ? <p className="text-xs text-muted">{t('transfers.rec.costRightNote')}</p> : null}
       <div className="overflow-x-auto rounded-[10px] border border-border">
         <table className="w-full text-sm">
-          <thead className="bg-surface-2 text-left text-xs uppercase text-muted">
+          <thead className="bg-surface-2 text-start text-xs uppercase text-muted">
             <tr>
-              <th className="px-3 py-2">Branch</th>
-              <th>{isHeadOffice ? 'We ship to it' : 'It ships to us'}</th>
-              <th className="text-end">Transfers</th>
-              <th className="text-end">In transit</th>
-              <th className="text-end">Dispatched</th>
-              <th className="text-end">Received</th>
-              <th className="text-end">In transit value</th>
-              <th className="text-end">Damaged</th>
-              <th className="text-end">Short</th>
-              <th className="px-3 text-end">Difference</th>
+              <th className="px-3 py-2">{t('common.branch')}</th>
+              <th>
+                {isHeadOffice ? t('transfers.rec.weShipToIt') : t('transfers.rec.itShipsToUs')}
+              </th>
+              <th className="text-end">{t('transfers.rec.transfers')}</th>
+              <th className="text-end">{t('transfers.inTransit')}</th>
+              <th className="text-end">{t('transfers.dispatched')}</th>
+              <th className="text-end">{t('transfers.received')}</th>
+              <th className="text-end">{t('transfers.rec.inTransitValue')}</th>
+              <th className="text-end">{t('transfers.damaged')}</th>
+              <th className="text-end">{t('transfers.short')}</th>
+              <th className="px-3 text-end">{t('transfers.difference')}</th>
             </tr>
           </thead>
           <tbody>
@@ -151,7 +157,11 @@ function PositionCards({
                   <td className="px-3 py-2 font-medium">
                     {p.branchCode} · {p.branchName}
                   </td>
-                  <td>{p.role === 'shipper' ? 'Sent' : 'Received'}</td>
+                  <td>
+                    {p.role === 'shipper'
+                      ? t('transfers.rec.roleSent')
+                      : t('transfers.rec.roleReceived')}
+                  </td>
                   <td className="text-end tabular-nums">{p.transfers}</td>
                   <td className="text-end tabular-nums">{p.inTransitTransfers}</td>
                   <td className="text-end tabular-nums">{money(p.cost?.dispatchedMinor)}</td>
@@ -165,7 +175,7 @@ function PositionCards({
             {report.positions.filter((p) => p.role === role).length === 0 ? (
               <tr>
                 <td colSpan={10} className="px-3 py-8 text-center text-muted">
-                  No transfers yet.
+                  {t('transfers.rec.noTransfersYet')}
                 </td>
               </tr>
             ) : null}
@@ -177,6 +187,7 @@ function PositionCards({
 }
 
 function LedgerBox() {
+  const t = useT();
   const [version, setVersion] = useState(0);
   const { data, error } = useAsync(() => api<LedgerCheck>('/api/stock/ledger-check'), [version]);
   const problems = data
@@ -188,9 +199,9 @@ function LedgerBox() {
   return (
     <section className="space-y-2 rounded-[10px] border border-border p-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Stock ledger check</h2>
+        <h2 className="text-lg font-semibold">{t('transfers.rec.ledgerTitle')}</h2>
         <Button variant="outline" onClick={() => setVersion((v) => v + 1)}>
-          Check again
+          {t('transfers.rec.checkAgain')}
         </Button>
       </div>
       <ErrorText message={error} />
@@ -198,21 +209,38 @@ function LedgerBox() {
         <>
           <p className="text-sm">
             <Badge tone={data.ok ? 'success' : 'danger'}>
-              {data.ok ? 'Ledger is consistent' : `${problems} problems`}
+              {data.ok
+                ? t('transfers.rec.ledgerOk')
+                : t('transfers.rec.problems', { count: problems })}
             </Badge>{' '}
             <span className="text-muted">
-              {data.batchesChecked} batches and {data.movementsChecked} movements recomputed
-              {data.cost ? ` · stock value at cost ${pkr(data.cost.stockValueMinor)}` : ''}
+              {t('transfers.rec.recomputed', {
+                batches: data.batchesChecked,
+                movements: data.movementsChecked,
+              })}
+              {data.cost
+                ? ` · ${t('transfers.rec.stockValueAtCost', { value: pkr(data.cost.stockValueMinor) })}`
+                : ''}
             </span>
           </p>
-          <ProblemList title="Batches below zero" show={data.negativeBatches.length > 0}>
+          <ProblemList
+            title={t('transfers.rec.batchesBelowZero')}
+            show={data.negativeBatches.length > 0}
+          >
             {data.negativeBatches.map((b) => (
               <li key={b.batchId}>
-                {b.itemName}, batch {b.batchNo}: {b.balanceBase}
+                {t('transfers.rec.negativeBatch', {
+                  item: b.itemName,
+                  batchNo: b.batchNo,
+                  balance: b.balanceBase,
+                })}
               </li>
             ))}
           </ProblemList>
-          <ProblemList title="Movements with no batch" show={data.orphanMovements.length > 0}>
+          <ProblemList
+            title={t('transfers.rec.movementsNoBatch')}
+            show={data.orphanMovements.length > 0}
+          >
             {data.orphanMovements.map((m) => (
               <li key={m.movementId} className="font-mono text-xs">
                 {m.movementId}
@@ -220,7 +248,7 @@ function LedgerBox() {
             ))}
           </ProblemList>
           <ProblemList
-            title="Movements on another branch's or item's batch"
+            title={t('transfers.rec.movementsMismatch')}
             show={data.mismatchedMovements.length > 0}
           >
             {data.mismatchedMovements.map((m) => (
@@ -229,19 +257,17 @@ function LedgerBox() {
               </li>
             ))}
           </ProblemList>
-          <ProblemList title="Movements with the wrong sign" show={data.signErrors.length > 0}>
+          <ProblemList
+            title={t('transfers.rec.movementsWrongSign')}
+            show={data.signErrors.length > 0}
+          >
             {data.signErrors.map((m) => (
               <li key={m.movementId}>
                 {m.kind} {m.qtyBase} <span className="font-mono text-xs">{m.movementId}</span>
               </li>
             ))}
           </ProblemList>
-          {!data.ok ? (
-            <p className="text-xs text-muted">
-              History is never edited. A problem is corrected with a stock adjustment, a return or a
-              recount.
-            </p>
-          ) : null}
+          {!data.ok ? <p className="text-xs text-muted">{t('transfers.rec.historyNote')}</p> : null}
         </>
       ) : null}
     </section>
@@ -273,6 +299,7 @@ export function ReconciliationTab({
   abilities: TransferAbilities;
   version: number;
 }) {
+  const tr = useT();
   const [status, setStatus] = useState('');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
@@ -299,11 +326,11 @@ export function ReconciliationTab({
   );
   const head = (
     <>
-      <th className="text-end">Dispatched</th>
-      <th className="text-end">Received</th>
-      <th className="text-end">In transit</th>
-      <th className="text-end">Damaged</th>
-      <th className="text-end">Short</th>
+      <th className="text-end">{tr('transfers.dispatched')}</th>
+      <th className="text-end">{tr('transfers.received')}</th>
+      <th className="text-end">{tr('transfers.inTransit')}</th>
+      <th className="text-end">{tr('transfers.damaged')}</th>
+      <th className="text-end">{tr('transfers.short')}</th>
     </>
   );
 
@@ -311,40 +338,41 @@ export function ReconciliationTab({
     <div className="space-y-6">
       <section className="space-y-2">
         <h2 className="text-lg font-semibold">
-          Position with {abilities.isHeadOffice ? 'branches' : 'Head Office'}
+          {abilities.isHeadOffice
+            ? tr('transfers.rec.positionWithBranches')
+            : tr('transfers.rec.positionWithHeadOffice')}
         </h2>
         <ErrorText message={position.error} />
         {position.data ? (
           <PositionCards report={position.data} isHeadOffice={abilities.isHeadOffice} />
         ) : null}
-        <p className="text-xs text-muted">
-          Figures come from the documents on this computer. A receipt reaches Head Office after the
-          branch syncs, so Head Office can show goods as in transit until then.
-        </p>
+        <p className="text-xs text-muted">{tr('transfers.rec.syncNote')}</p>
       </section>
 
       <section className="space-y-3">
         <div className="flex flex-wrap items-center gap-2">
-          <h2 className="me-auto text-lg font-semibold">Transfer reconciliation</h2>
+          <h2 className="me-auto text-lg font-semibold">
+            {tr('transfers.rec.reconciliationTitle')}
+          </h2>
           <select
-            aria-label="Status"
+            aria-label={tr('common.status')}
             className={`${inputClass} w-40`}
             value={status}
             onChange={(e) => setStatus(e.target.value)}
           >
-            <option value="">All</option>
-            <option value="dispatched">In transit</option>
-            <option value="received">Received</option>
+            <option value="">{tr('common.all')}</option>
+            <option value="dispatched">{tr('transfers.filter.inTransit')}</option>
+            <option value="received">{tr('transfers.filter.received')}</option>
           </select>
           <input
-            aria-label="From date"
+            aria-label={tr('transfers.rec.fromDateAria')}
             type="date"
             className={`${inputClass} w-40`}
             value={from}
             onChange={(e) => setFrom(e.target.value)}
           />
           <input
-            aria-label="To date"
+            aria-label={tr('transfers.rec.toDateAria')}
             type="date"
             className={`${inputClass} w-40`}
             value={to}
@@ -356,44 +384,55 @@ export function ReconciliationTab({
           <>
             <p className="text-sm">
               {rec.data.totals.unbalanced === 0 ? (
-                <Badge tone="success">Every transfer balances</Badge>
+                <Badge tone="success">{tr('transfers.rec.allBalance')}</Badge>
               ) : (
-                <Badge tone="danger">{rec.data.totals.unbalanced} transfers do not balance</Badge>
+                <Badge tone="danger">
+                  {tr('transfers.rec.unbalanced', { count: rec.data.totals.unbalanced })}
+                </Badge>
               )}{' '}
               <span className="text-muted">
-                dispatched {rec.data.totals.qtyDispatched} · received {rec.data.totals.qtyReceived}{' '}
-                · in transit {rec.data.totals.qtyInTransit} · damaged {rec.data.totals.qtyDamaged} ·
-                short {rec.data.totals.qtyShort}
+                {tr('transfers.rec.totalsLine', {
+                  dispatched: rec.data.totals.qtyDispatched,
+                  received: rec.data.totals.qtyReceived,
+                  inTransit: rec.data.totals.qtyInTransit,
+                  damaged: rec.data.totals.qtyDamaged,
+                  short: rec.data.totals.qtyShort,
+                })}
                 {rec.data.totals.cost
-                  ? ` · value ${pkr(rec.data.totals.cost.dispatchedMinor)}, loss ${pkr(rec.data.totals.cost.damagedMinor + rec.data.totals.cost.shortMinor)}`
+                  ? ` · ${tr('transfers.rec.totalsCost', {
+                      value: pkr(rec.data.totals.cost.dispatchedMinor),
+                      loss: pkr(
+                        rec.data.totals.cost.damagedMinor + rec.data.totals.cost.shortMinor,
+                      ),
+                    })}`
                   : ''}
               </span>
             </p>
             {rec.data.truncated ? (
-              <p className="text-xs text-warning">
-                Only the newest 2000 transfers are shown. Narrow the dates.
-              </p>
+              <p className="text-xs text-warning">{tr('transfers.rec.truncated')}</p>
             ) : null}
             <div className="overflow-x-auto rounded-[10px] border border-border">
               <table className="w-full text-sm">
-                <thead className="bg-surface-2 text-left text-xs uppercase text-muted">
+                <thead className="bg-surface-2 text-start text-xs uppercase text-muted">
                   <tr>
-                    <th className="px-3 py-2">Transfer</th>
-                    <th>Branch</th>
-                    <th>Status</th>
+                    <th className="px-3 py-2">{tr('transfers.list.transfer')}</th>
+                    <th>{tr('common.branch')}</th>
+                    <th>{tr('common.status')}</th>
                     {head}
-                    <th className="text-end">Value</th>
-                    <th className="px-3 text-end">Loss</th>
+                    <th className="text-end">{tr('transfers.value')}</th>
+                    <th className="px-3 text-end">{tr('transfers.loss')}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {rec.data.transfers.map((t) => (
                     <tr key={t.id} className="border-t border-border">
-                      <td className="px-3 py-2 font-mono text-xs">{t.docNo}</td>
+                      <td className="px-3 py-2 font-mono text-xs" dir="ltr">
+                        {t.docNo}
+                      </td>
                       <td>{t.branchName}</td>
                       <td>
                         <Badge tone={t.status === 'received' ? 'success' : 'warning'}>
-                          {t.status}
+                          {statusLabel(tr, 'trfStatus', t.status)}
                         </Badge>
                       </td>
                       {cell(t)}
@@ -406,22 +445,22 @@ export function ReconciliationTab({
                   {rec.data.transfers.length === 0 ? (
                     <tr>
                       <td colSpan={10} className="px-3 py-8 text-center text-muted">
-                        No dispatched transfers in this range.
+                        {tr('transfers.rec.noneInRange')}
                       </td>
                     </tr>
                   ) : null}
                 </tbody>
               </table>
             </div>
-            <h3 className="pt-2 font-semibold">By item</h3>
+            <h3 className="pt-2 font-semibold">{tr('transfers.rec.byItem')}</h3>
             <div className="overflow-x-auto rounded-[10px] border border-border">
               <table className="w-full text-sm">
-                <thead className="bg-surface-2 text-left text-xs uppercase text-muted">
+                <thead className="bg-surface-2 text-start text-xs uppercase text-muted">
                   <tr>
-                    <th className="px-3 py-2">Item</th>
+                    <th className="px-3 py-2">{tr('common.item')}</th>
                     {head}
-                    <th className="text-end">Value</th>
-                    <th className="px-3 text-end">Loss</th>
+                    <th className="text-end">{tr('transfers.value')}</th>
+                    <th className="px-3 text-end">{tr('transfers.loss')}</th>
                   </tr>
                 </thead>
                 <tbody>

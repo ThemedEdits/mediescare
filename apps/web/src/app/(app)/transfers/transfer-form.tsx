@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { api, Button, ErrorText, inputClass, Modal, useAsync } from '@/components/ui';
+import { api, Button, ErrorText, inputClass, Modal, useAsync, useErrorText } from '@/components/ui';
+import { useT } from '@/i18n/client';
 import { ItemPicker } from './item-picker';
 import { QtyInput } from './qty-input';
 import { qty, type ItemRef, type RequisitionDetail, type RequisitionRow } from './types';
@@ -27,7 +28,6 @@ interface FormLine {
 }
 
 const key = () => Math.random().toString(36).slice(2, 9);
-const REASON = { expired: 'expired', blocked: 'blocked', empty: 'empty' } as const;
 
 async function batchesOf(itemId: string): Promise<BatchChoice[]> {
   return (await api<{ batches: BatchChoice[] }>(`/api/transfers/batches?itemId=${itemId}`)).batches;
@@ -45,6 +45,8 @@ export function TransferForm({
   onClose: () => void;
   onSaved: (docNo: string) => void;
 }) {
+  const t = useT();
+  const errorText = useErrorText();
   const requisitions = useAsync(() =>
     api<{ rows: RequisitionRow[] }>('/api/requisitions?status=approved&pageSize=100'),
   );
@@ -84,12 +86,17 @@ export function TransferForm({
         for (const p of sug.picks)
           next.push({ key: key(), item: l.item, batches, batchId: p.batchId, qtyBase: p.qtyBase });
         if (sug.shortfallBase > 0)
-          notes.push(`${l.item.name}: ${qty(sug.shortfallBase, l.item.units)} is not in stock`);
+          notes.push(
+            t('transfers.form.notInStock', {
+              item: l.item.name,
+              qty: qty(sug.shortfallBase, l.item.units),
+            }),
+          );
       }
       setLines(next);
       setShort(notes);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not load the requisition');
+      setError(errorText(e, 'transfers.form.loadRequisitionFailed'));
     }
   }
 
@@ -102,7 +109,7 @@ export function TransferForm({
         { key: key(), item, batches, batchId: first?.batchId ?? '', qtyBase: 0 },
       ]);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not load the batches');
+      setError(errorText(e, 'transfers.form.loadBatchesFailed'));
     }
   }
 
@@ -120,7 +127,7 @@ export function TransferForm({
       });
       onSaved(r.docNo);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not save the transfer note');
+      setError(errorText(e, 'transfers.form.saveFailed'));
       setBusy(false);
     }
   }
@@ -129,18 +136,18 @@ export function TransferForm({
     setLines((prev) => prev.map((l, j) => (j === i ? { ...l, ...patch } : l)));
 
   return (
-    <Modal title="New transfer note" onClose={onClose} wide>
+    <Modal title={t('transfers.form.title')} onClose={onClose} wide>
       <div className="space-y-3">
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="block text-sm">
-            From an approved requisition
+            {t('transfers.form.fromRequisition')}
             <select
-              aria-label="Requisition"
+              aria-label={t('transfers.requisition')}
               className={inputClass}
               value={requisitionId}
               onChange={(e) => void chooseRequisition(e.target.value)}
             >
-              <option value="">None (direct transfer)</option>
+              <option value="">{t('transfers.form.directTransfer')}</option>
               {requisitions.data?.rows
                 .filter((r) => r.incoming && !r.transferId)
                 .map((r) => (
@@ -152,14 +159,14 @@ export function TransferForm({
           </label>
           {!requisitionId ? (
             <label className="block text-sm">
-              Send to
+              {t('transfers.form.sendTo')}
               <select
-                aria-label="Receiving branch"
+                aria-label={t('transfers.form.receivingBranchAria')}
                 className={inputClass}
                 value={toBranchId}
                 onChange={(e) => setToBranchId(e.target.value)}
               >
-                <option value="">Choose a branch…</option>
+                <option value="">{t('transfers.form.chooseBranch')}</option>
                 {branches.data?.branches.map((b) => (
                   <option key={b.id} value={b.id}>
                     {b.code} · {b.name}
@@ -172,16 +179,16 @@ export function TransferForm({
         {!requisitionId ? <ItemPicker onError={setError} onPick={(i) => void addItem(i)} /> : null}
         {short.length > 0 ? (
           <p role="status" className="rounded-[6px] bg-[#FEF3C7] px-3 py-2 text-sm text-warning">
-            Not fully covered by stock: {short.join('; ')}.
+            {t('transfers.form.notFullyCovered', { list: short.join('; ') })}
           </p>
         ) : null}
         <div className="overflow-x-auto rounded-[10px] border border-border">
           <table className="w-full text-sm">
-            <thead className="bg-surface-2 text-left text-xs uppercase text-muted">
+            <thead className="bg-surface-2 text-start text-xs uppercase text-muted">
               <tr>
-                <th className="px-3 py-2">Item</th>
-                <th>Batch (first expiry first)</th>
-                <th>Quantity</th>
+                <th className="px-3 py-2">{t('common.item')}</th>
+                <th>{t('transfers.form.batchHeader')}</th>
+                <th>{t('common.quantity')}</th>
                 <th />
               </tr>
             </thead>
@@ -191,23 +198,27 @@ export function TransferForm({
                   <td className="px-3 py-2 font-medium">{l.item.name}</td>
                   <td>
                     <select
-                      aria-label={`Batch of ${l.item.name}`}
+                      aria-label={t('transfers.form.batchOfAria', { name: l.item.name })}
                       className={`${inputClass} w-72`}
                       value={l.batchId}
                       onChange={(e) => update(i, { batchId: e.target.value })}
                     >
-                      <option value="">Choose a batch…</option>
+                      <option value="">{t('transfers.form.chooseBatch')}</option>
                       {l.batches.map((b) => (
                         <option key={b.batchId} value={b.batchId} disabled={!b.eligible}>
-                          {b.batchNo} · exp {b.expiryDate} · {qty(b.availableBase, l.item.units)}
-                          {b.reason ? ` (${REASON[b.reason]})` : ''}
+                          {t('transfers.form.batchOption', {
+                            batchNo: b.batchNo,
+                            expiry: b.expiryDate,
+                            qty: qty(b.availableBase, l.item.units),
+                          })}
+                          {b.reason ? ` (${t(`transfers.form.reason.${b.reason}`)})` : ''}
                         </option>
                       ))}
                     </select>
                   </td>
                   <td>
                     <QtyInput
-                      label={`Quantity of ${l.item.name}`}
+                      label={t('transfers.requisitions.quantityOf', { name: l.item.name })}
                       units={l.item.units}
                       valueBase={l.qtyBase}
                       onChange={(b) => update(i, { qtyBase: b })}
@@ -219,7 +230,7 @@ export function TransferForm({
                       className="text-sm text-danger"
                       onClick={() => setLines((prev) => prev.filter((_, j) => j !== i))}
                     >
-                      Remove
+                      {t('common.remove')}
                     </button>
                   </td>
                 </tr>
@@ -228,8 +239,8 @@ export function TransferForm({
                 <tr>
                   <td colSpan={4} className="px-3 py-6 text-center text-muted">
                     {requisitionId
-                      ? 'Loading the approved items…'
-                      : 'Search an item above to add it.'}
+                      ? t('transfers.form.loadingApproved')
+                      : t('transfers.requisitions.searchToAdd')}
                   </td>
                 </tr>
               ) : null}
@@ -237,19 +248,17 @@ export function TransferForm({
           </table>
         </div>
         <label className="block text-sm">
-          Note
+          {t('transfers.note')}
           <input className={inputClass} value={note} onChange={(e) => setNote(e.target.value)} />
         </label>
-        <p className="text-xs text-muted">
-          Goods are sent at batch cost. Nothing leaves your stock until you dispatch the note.
-        </p>
+        <p className="text-xs text-muted">{t('transfers.form.costHint')}</p>
         <ErrorText message={error} />
         <div className="flex justify-end gap-2">
           <Button variant="outline" onClick={onClose}>
-            Close
+            {t('common.close')}
           </Button>
           <Button onClick={() => void save()} disabled={busy || !ready}>
-            {busy ? 'Saving…' : 'Save transfer note'}
+            {busy ? t('common.saving') : t('transfers.form.save')}
           </Button>
         </div>
       </div>

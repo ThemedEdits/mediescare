@@ -1,7 +1,9 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { api, Button, ErrorText, inputClass } from '@/components/ui';
+import { api, Button, ErrorText, inputClass, useErrorText } from '@/components/ui';
+import { useT } from '@/i18n/client';
+import { BUCKET_KEYS, reportHeading, reportNote, reportTitle } from './report-i18n';
 import {
   PRESETS,
   localDate,
@@ -20,22 +22,9 @@ interface ReportInfo {
   canExport: boolean;
 }
 
-const GROUPS: [string, string][] = [
-  ['sales', 'Sales'],
-  ['stock', 'Stock'],
-  ['expiry', 'Expiry'],
-  ['profit', 'Profitability'],
-  ['compliance', 'Compliance'],
-];
+const GROUPS = ['sales', 'stock', 'expiry', 'profit', 'compliance'];
 
-const BUCKETS: [string, string][] = [
-  ['', 'All up to 180 days'],
-  ['expired', 'Expired'],
-  ['0-30', '0-30 days'],
-  ['31-60', '31-60 days'],
-  ['61-90', '61-90 days'],
-  ['91-180', '91-180 days'],
-];
+const BUCKETS = ['', 'expired', '0-30', '31-60', '61-90', '91-180'];
 
 /** Save the open report as PDF through the desktop app, or the browser print dialog elsewhere. */
 async function printReport(fileName: string): Promise<string | null> {
@@ -58,6 +47,9 @@ async function printReport(fileName: string): Promise<string | null> {
 }
 
 export function ReportsClient({ branchName }: { branchName: string }) {
+  const t = useT();
+  const errorText = useErrorText();
+  const bucketLabel = (v: string) => t(`reports.bucket.${BUCKET_KEYS[v] ?? 'all'}`);
   const [reports, setReports] = useState<ReportInfo[]>([]);
   const [listError, setListError] = useState<string | null>(null);
   const [selected, setSelected] = useState('sales-daily');
@@ -83,14 +75,12 @@ export function ReportsClient({ branchName }: { branchName: string }) {
           r.reports.some((x) => x.id === cur) ? cur : (r.reports[0]?.id ?? cur),
         );
       })
-      .catch((e: unknown) =>
-        setListError(e instanceof Error ? e.message : 'Could not load reports'),
-      );
+      .catch((e: unknown) => setListError(errorText(e, 'reports.loadListFailed')));
   }, []);
 
   useEffect(() => {
-    const t = setTimeout(() => setAppliedQ(filters.q), 300);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setAppliedQ(filters.q), 300);
+    return () => clearTimeout(timer);
   }, [filters.q]);
 
   const info = reports.find((r) => r.id === selected);
@@ -114,7 +104,7 @@ export function ReportsClient({ branchName }: { branchName: string }) {
       .catch((e: unknown) => {
         if (!alive) return;
         setData(null);
-        setError(e instanceof Error ? e.message : 'Could not run the report');
+        setError(errorText(e, 'reports.runFailed'));
       })
       .finally(() => alive && setLoading(false));
     return () => {
@@ -132,10 +122,12 @@ export function ReportsClient({ branchName }: { branchName: string }) {
     ? `mediescare-${info.id}-${filters.from}-${filters.to}`
     : 'mediescare-report';
   const filterText = [
-    uses.includes('range') ? `${filters.from} to ${filters.to}` : null,
-    uses.includes('q') && appliedQ.trim() ? `Search: ${appliedQ.trim()}` : null,
+    uses.includes('range') ? t('reports.dateRange', { from: filters.from, to: filters.to }) : null,
+    uses.includes('q') && appliedQ.trim()
+      ? t('reports.filterSearch', { text: appliedQ.trim() })
+      : null,
     uses.includes('bucket') && filters.bucket
-      ? `Bucket: ${BUCKETS.find(([v]) => v === filters.bucket)?.[1] ?? filters.bucket}`
+      ? t('reports.filterBucket', { bucket: bucketLabel(filters.bucket) })
       : null,
   ]
     .filter(Boolean)
@@ -143,14 +135,16 @@ export function ReportsClient({ branchName }: { branchName: string }) {
 
   return (
     <div className="grid gap-6 md:grid-cols-[14rem_1fr]">
-      <aside aria-label="Reports" className="no-print space-y-4">
-        <h1 className="text-2xl font-semibold">Reports</h1>
+      <aside aria-label={t('reports.heading')} className="no-print space-y-4">
+        <h1 className="text-2xl font-semibold">{t('reports.heading')}</h1>
         <ErrorText message={listError} />
-        {GROUPS.map(([group, label]) => {
+        {GROUPS.map((group) => {
           const inGroup = reports.filter((r) => r.group === group);
           return inGroup.length === 0 ? null : (
             <div key={group}>
-              <p className="mb-1 text-xs font-semibold uppercase text-muted">{label}</p>
+              <p className="mb-1 text-xs font-semibold uppercase text-muted">
+                {t(`reports.groups.${group}`)}
+              </p>
               <ul className="space-y-0.5">
                 {inGroup.map((r) => (
                   <li key={r.id}>
@@ -167,7 +161,7 @@ export function ReportsClient({ branchName }: { branchName: string }) {
                           : 'text-slate-700 hover:bg-surface-2'
                       }`}
                     >
-                      {r.title}
+                      {reportTitle(t, r.id, r.title)}
                     </button>
                   </li>
                 ))}
@@ -182,7 +176,11 @@ export function ReportsClient({ branchName }: { branchName: string }) {
           <div className="flex flex-wrap items-end gap-3">
             {uses.includes('range') ? (
               <>
-                <div className="flex flex-wrap gap-1" role="group" aria-label="Date range">
+                <div
+                  className="flex flex-wrap gap-1"
+                  role="group"
+                  aria-label={t('reports.dateRangeLabel')}
+                >
                   {PRESETS.map((p) => (
                     <button
                       key={p.id}
@@ -195,14 +193,14 @@ export function ReportsClient({ branchName }: { branchName: string }) {
                           : 'border-border hover:bg-surface-2'
                       }`}
                     >
-                      {p.label}
+                      {t(`reports.preset.${p.id}`)}
                     </button>
                   ))}
                 </div>
                 {preset === 'custom' ? (
                   <>
                     <label className="text-xs text-muted">
-                      From
+                      {t('common.from')}
                       <input
                         type="date"
                         className={`${inputClass} w-40`}
@@ -212,7 +210,7 @@ export function ReportsClient({ branchName }: { branchName: string }) {
                       />
                     </label>
                     <label className="text-xs text-muted">
-                      To
+                      {t('common.to')}
                       <input
                         type="date"
                         className={`${inputClass} w-40`}
@@ -227,36 +225,36 @@ export function ReportsClient({ branchName }: { branchName: string }) {
             ) : null}
             {uses.includes('q') ? (
               <input
-                aria-label="Search"
+                aria-label={t('common.search')}
                 className={`${inputClass} w-56`}
-                placeholder="Search…"
+                placeholder={t('reports.searchPlaceholder')}
                 value={filters.q}
                 onChange={(e) => set({ q: e.target.value })}
               />
             ) : null}
             {uses.includes('bucket') ? (
               <select
-                aria-label="Expiry bucket"
+                aria-label={t('reports.expiryBucket')}
                 className={`${inputClass} w-48`}
                 value={filters.bucket}
                 onChange={(e) => set({ bucket: e.target.value })}
               >
-                {BUCKETS.map(([v, l]) => (
+                {BUCKETS.map((v) => (
                   <option key={v} value={v}>
-                    {l}
+                    {bucketLabel(v)}
                   </option>
                 ))}
               </select>
             ) : null}
             {uses.includes('limit') ? (
               <label className="text-xs text-muted">
-                Show first
+                {t('reports.showFirst')}
                 <input
                   type="number"
                   min={1}
                   max={100000}
                   className={`${inputClass} w-28`}
-                  placeholder="Default"
+                  placeholder={t('reports.defaultPlaceholder')}
                   value={filters.limit}
                   onChange={(e) => set({ limit: e.target.value })}
                 />
@@ -269,7 +267,7 @@ export function ReportsClient({ branchName }: { branchName: string }) {
                   download
                   className="inline-flex h-10 items-center rounded-[6px] border border-primary-600 px-4 text-sm font-semibold text-primary-600 hover:bg-primary-50"
                 >
-                  Export Excel
+                  {t('reports.exportExcel')}
                 </a>
               ) : null}
               <Button
@@ -278,13 +276,11 @@ export function ReportsClient({ branchName }: { branchName: string }) {
                 onClick={() => {
                   setNotice(null);
                   printReport(fileBase)
-                    .then((path) => path && setNotice(`Saved to ${path}`))
-                    .catch((e: unknown) =>
-                      setError(e instanceof Error ? e.message : 'Could not print'),
-                    );
+                    .then((path) => path && setNotice(t('reports.savedTo', { path })))
+                    .catch((e: unknown) => setError(errorText(e, 'reports.printFailed')));
                 }}
               >
-                Print / Save as PDF
+                {t('reports.printPdf')}
               </Button>
             </div>
           </div>
@@ -302,31 +298,41 @@ export function ReportsClient({ branchName }: { branchName: string }) {
 
         <div id="report-print" className="space-y-4">
           <header>
-            <h2 className="text-xl font-semibold">{data?.title ?? info?.title ?? 'Report'}</h2>
+            <h2 className="text-xl font-semibold">
+              {reportHeading(
+                t,
+                data?.id ?? info?.id ?? '',
+                data?.title ?? info?.title ?? t('reports.report'),
+              )}
+            </h2>
             <p className="text-sm text-muted">
-              {[branchName, filterText, generatedAt ? `Generated ${generatedAt}` : '']
+              {[
+                branchName,
+                filterText,
+                generatedAt ? t('reports.generated', { at: generatedAt }) : '',
+              ]
                 .filter(Boolean)
                 .join(' | ')}
             </p>
           </header>
-          {loading && !data ? <p className="text-sm text-muted">Loading…</p> : null}
+          {loading && !data ? <p className="text-sm text-muted">{t('common.loading')}</p> : null}
           {data ? (
             <div className={loading ? 'opacity-60' : undefined} aria-busy={loading}>
               <div className="space-y-4">
                 {data.kpis && data.kpis.length > 0 ? <KpiCards kpis={data.kpis} /> : null}
                 {data.rows.length === 0 ? (
                   <p className="rounded-[10px] border border-dashed border-border px-4 py-10 text-center text-sm text-muted">
-                    Nothing to show for these filters.
+                    {t('reports.empty')}
                   </p>
                 ) : (
                   <ReportTable data={data} />
                 )}
                 {data.truncated ? (
-                  <p className="text-sm text-warning">
-                    Only the first rows are shown. Narrow the dates or search, or raise the limit.
-                  </p>
+                  <p className="text-sm text-warning">{t('reports.truncated')}</p>
                 ) : null}
-                {data.note ? <p className="text-xs text-muted">{data.note}</p> : null}
+                {data.note ? (
+                  <p className="text-xs text-muted">{reportNote(t, data.id, data.note)}</p>
+                ) : null}
               </div>
             </div>
           ) : null}
