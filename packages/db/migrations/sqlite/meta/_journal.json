@@ -57,6 +57,13 @@
       "when": 1790765384695,
       "tag": "0007_purchasing",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1790783592311,
+      "tag": "0008_keen_sentinel",
+      "breakpoints": true
     }
   ]
 }

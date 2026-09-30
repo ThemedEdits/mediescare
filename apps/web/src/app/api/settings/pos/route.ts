@@ -1,24 +1,27 @@
 import { z } from 'zod';
-import { allBranchSettings, setSetting } from '@mediescare/db';
+import { allBranchSettings, setSettings } from '@mediescare/db';
 import { json, withPermission } from '@/server/guard';
 import { getDb, writeContext } from '@/server/runtime';
 
 export const dynamic = 'force-dynamic';
 
+/**
+ * Branch settings (POS, printing, tax defaults). Reading is allowed to anyone who can open the POS
+ * screens through /api/lookups; this route is for the settings screen and needs the admin right.
+ */
 export const GET = withPermission('admin.settings.view', (_request, auth) =>
   json({ settings: allBranchSettings(getDb(), writeContext(auth.userId)) }),
 );
 
 const Body = z.object({
-  rounding: z.enum(['none', 'rupee', 'half_rupee']).optional(),
-  invoiceNote: z.string().trim().max(200).optional(),
+  settings: z.record(z.string(), z.union([z.string().max(600), z.number(), z.boolean()])),
 });
 
+/** Save any subset of settings in one step. Each value is validated by the database layer. */
 export const PUT = withPermission('admin.settings.edit', async (request, auth) => {
-  const body = Body.parse(await request.json());
+  const { settings } = Body.parse(await request.json());
   const db = getDb();
   const ctx = writeContext(auth.userId);
-  if (body.rounding !== undefined) setSetting(db, ctx, 'pos.rounding', body.rounding);
-  if (body.invoiceNote !== undefined) setSetting(db, ctx, 'pos.invoice_note', body.invoiceNote);
+  setSettings(db, ctx, settings);
   return json({ settings: allBranchSettings(db, ctx) });
 });

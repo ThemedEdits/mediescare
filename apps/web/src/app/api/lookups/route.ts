@@ -16,6 +16,7 @@ export const dynamic = 'force-dynamic';
 export const GET = withPermission('pharmacy.item.view', (_request, auth) => {
   const db = getDb();
   const ctx = writeContext(auth.userId);
+  const settings = allBranchSettings(db, ctx);
   return json({
     units: listUnits(db, ctx.tenantId),
     categories: listCategories(db, ctx.tenantId),
@@ -23,7 +24,8 @@ export const GET = withPermission('pharmacy.item.view', (_request, auth) => {
     racks: listRacks(db, ctx.branchId),
     paymentModes: listPaymentModes(db, ctx.tenantId),
     walkinCustomerId: getWalkinCustomerId(db, ctx.tenantId),
-    rounding: allBranchSettings(db, ctx)['pos.rounding'],
-    invoiceNote: allBranchSettings(db, ctx)['pos.invoice_note'],
+    rounding: settings['pos.rounding'],
+    invoiceNote: settings['pos.invoice_note'],
+    settings,
   });
 });

@@ -43,6 +43,13 @@
       "when": 1790765386035,
       "tag": "0005_purchasing",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1790783593679,
+      "tag": "0006_opposite_doorman",
+      "breakpoints": true
     }
   ]
 }

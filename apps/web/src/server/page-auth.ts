@@ -82,10 +82,12 @@ export function navFor(auth: PageAuth): NavItem[] {
     { href: '/sales', label: 'Sales', permission: 'pharmacy.sale.view' },
     { href: '/items', label: 'Items', permission: 'pharmacy.item.view' },
     { href: '/stock', label: 'Stock', permission: 'inventory.stock.view' },
+    { href: '/stock-take', label: 'Stock take', permission: 'inventory.count.view' },
     { href: '/purchasing', label: 'Purchasing', permission: 'purchasing.supplier.view' },
     { href: '/reports', label: 'Reports', permission: 'reports.sales.view' },
     { href: '/users', label: 'Users', permission: 'admin.user.view', adminOnly: true },
     { href: '/roles', label: 'Roles', permission: 'admin.role.view', adminOnly: true },
+    { href: '/settings', label: 'Settings', permission: 'admin.settings.view', adminOnly: true },
     { href: '/backups', label: 'Backups', permission: 'admin.backup.view', adminOnly: true },
   ];
   return items

@@ -764,13 +764,14 @@ try {
     'a cashier cannot read supplier ledgers',
     (await counter.get(`/api/suppliers/${supplier.data.id}/ledger`)).status === 403,
   );
-  const setRounding = await admin.put('/api/settings/pos', { rounding: 'none' });
+  const setRounding = await admin.put('/api/settings/pos', {
+    settings: { 'pos.rounding': 'none' },
+  });
   check(
     'admin can change the rounding setting and back',
     setRounding.status === 200 &&
-      (await admin.put('/api/settings/pos', { rounding: 'rupee' })).data.settings[
-        'pos.rounding'
-      ] === 'rupee',
+      (await admin.put('/api/settings/pos', { settings: { 'pos.rounding': 'rupee' } })).data
+        .settings['pos.rounding'] === 'rupee',
   );
   for (const path of ['/purchasing', '/reports']) {
     const p = await admin.get(path);

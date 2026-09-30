@@ -6,6 +6,7 @@ export const DOC_TYPES = [
   'GRN', // goods receipt
   'PO', // purchase order
   'PRT', // purchase return
+  'STK', // stock take
   'REQ', // requisition
   'TRF', // transfer note
   'ADJ', // stock adjustment
@@ -19,7 +20,8 @@ const BRANCH_CODE = /^[A-Z][A-Z0-9]{1,7}$/;
 
 export function formatDocNo(branchCode: string, type: DocType, seq: number): string {
   if (!BRANCH_CODE.test(branchCode)) throw new Error(`Invalid branch code "${branchCode}"`);
-  if (!Number.isSafeInteger(seq) || seq < 1) throw new RangeError('Sequence must be a positive integer');
+  if (!Number.isSafeInteger(seq) || seq < 1)
+    throw new RangeError('Sequence must be a positive integer');
   return `${branchCode}-${type}-${String(seq).padStart(6, '0')}`;
 }
 
@@ -45,7 +47,10 @@ export const DEFAULT_BLOCK_SIZE = 1000;
 /** Numbers skipped after a failover to avoid reusing numbers issued but not yet replicated. */
 export const FAILOVER_GAP = 500;
 
-export function takeNumber(state: CounterState, blockSize = DEFAULT_BLOCK_SIZE): { seq: number; state: CounterState } {
+export function takeNumber(
+  state: CounterState,
+  blockSize = DEFAULT_BLOCK_SIZE,
+): { seq: number; state: CounterState } {
   const blockEnd = state.next > state.blockEnd ? state.next + blockSize - 1 : state.blockEnd;
   return { seq: state.next, state: { next: state.next + 1, blockEnd } };
 }
