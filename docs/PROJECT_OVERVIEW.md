@@ -69,23 +69,17 @@ Consequences:
 - The local database is the main database. The POS never waits for the internet.
 - Every change (sale, stock receipt, price, setting...) is also written into a **sync queue (outbox)** in the same database transaction, so nothing can be saved without being queued for sync.
 
-### Sync to the cloud when internet returns: the FOUNDATION is built, the CLOUD END is NOT finished
+### Sync to the cloud when internet returns: BUILT, but not yet run on the real Supabase
 
-Built and tested (against an in-memory test cloud):
+Built and tested (on PGlite, a free in-process Postgres, and on an in-memory test cloud):
 
-- Background worker that sends the queue when internet is available, retries with waiting time, never slows the counter.
-- Safe against duplicates, out-of-order delivery, partial failures, clock mistakes.
-- "Sync now" button and status (waiting, last success, errors) in **Settings**.
-- Rules for conflicts (Head Office wins price and tax fields), failover numbering, LAN pairing codes for terminals.
+- Background worker that sends the queue when internet is available, retries, never slows the counter. Duplicates, out-of-order delivery, partial failures and clock mistakes are handled.
+- **Cloud store on Postgres** (cloud-only tables in `packages/db/cloud/001_init.sql`, applied with `pnpm cloud:migrate`), a cloud mode of the Next.js app (for Vercel), short-lived device tokens with rotating refresh tokens, and enrollment codes.
+- **First upload** of everything already saved on a PC (50,000 events in 8 seconds in the test store).
+- **Pulling data down:** items, categories, suppliers, units, payment modes and branches flow from Head Office to branches. Sales and stock go up. Head Office wins prices and tax rates.
+- Settings: connect to cloud, sync status, Sync now. Setup screen: join an existing organisation (a branch PC such as KHI02).
 
-**Not built yet, so be clear about it:**
-
-- The **PostgreSQL / Supabase cloud store does not exist yet** (the cloud endpoint answers "not implemented" on purpose, so it cannot pretend to sync).
-- Data pulled from the cloud is not yet applied to the local database.
-- First-time full upload of an existing branch (initial sync) is not built.
-- Sync is **off by default**. It only starts when `MEDIESCARE_CLOUD_URL` and a device token are configured.
-
-So today: **your data is safe on the PC and queued; it does not reach a cloud database yet.** The next step for real cloud sync is the Postgres cloud store, device token issue and refresh, and applying pulled changes.
+**Still to do for real cloud sync:** the Supabase Session pooler connection string (the direct host in `.env` is IPv6-only and this PC cannot reach it), `pnpm cloud:migrate`, deploying the cloud app (Vercel or another free Node host), and a trial on two real PCs. Sync stays off until a PC is connected.
 
 ---
 
@@ -127,15 +121,17 @@ So today: **your data is safe on the PC and queued; it does not reach a cloud da
 
 **Settings**: rounding, invoice note, tax defaults, receipt printer, sync status, terminal pairing code.
 
-**Languages**: English and Urdu foundation with right-to-left layout and offline Urdu font. Only the menu, top bar, login and dashboard are translated so far.
+**Languages**: English and Urdu on every screen, right-to-left, with an offline Urdu font. Receipts and printed documents stay English.
+
+**Multi-branch**: Head Office HO01 and branch KHI02, requisition then transfer note then dispatch then receive (damaged and short handling, at cost), inter-branch position, reconciliation report and stock ledger check.
 
 ---
 
 ## 6. Not built yet
 
-- Real cloud database sync end to end (see section 4)
-- Multiple branches working together, Head Office to branch transfers, LAN terminals wizard
-- Urdu on most screens and on printed receipts
+- Real cloud trial on Supabase and Vercel (see section 4)
+- LAN terminals wizard, standby server copy, users and roles sync between branches
+- Urdu on printed receipts (receipts stay English)
 - Accounts (double entry), HR, payroll, expenses
 - Hospital modules (patients, doctors, lab...)
 - Purchase-tax treatment beyond what is built (owner confirmed the current formula)
