@@ -40,3 +40,5 @@ playwright-report/
 .claude/
 apps/web/AGENTS.md
 apps/web/CLAUDE.md
+*.mcbak.json
+backups/
