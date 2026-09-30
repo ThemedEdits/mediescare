@@ -44,3 +44,52 @@ export const PairBodySchema = z.object({
 
 /** Largest push or pull body accepted, in characters. Bigger batches are refused before parsing. */
 export const MAX_SYNC_BODY_CHARS = 5_000_000;
+
+/** Ids a database that already exists asks the cloud to adopt (UUIDs or similar, no punctuation). */
+const adoptId = z.string().regex(/^[A-Za-z0-9_-]{8,64}$/);
+const branchCode = z
+  .string()
+  .trim()
+  .min(1)
+  .max(20)
+  .regex(/^[A-Za-z0-9_-]+$/);
+const displayName = z.string().trim().min(2).max(100);
+
+export const BootstrapBodySchema = z.object({
+  bootstrapCode: z.string().trim().min(1).max(200),
+  organisationName: displayName,
+  branchCode,
+  branchName: displayName,
+  deviceName: z.string().trim().min(2).max(60),
+  identity: z
+    .object({
+      tenantId: adoptId.optional(),
+      branchId: adoptId.optional(),
+      deviceId: adoptId.optional(),
+    })
+    .optional(),
+});
+
+export const EnrollBodySchema = z.object({
+  code: z.string().trim().min(8).max(40),
+  deviceName: z.string().trim().min(2).max(60),
+  identity: z.object({ branchId: adoptId.optional(), deviceId: adoptId.optional() }).optional(),
+});
+
+export const TokenBodySchema = z.object({ refreshToken: z.string().min(20).max(300) });
+
+export const EnrollmentCodeBodySchema = z.object({
+  branchCode,
+  branchName: displayName,
+  branchId: adoptId.optional(),
+});
+
+/** Bodies of the device endpoints are small; anything bigger is refused before parsing. */
+export const MAX_DEVICE_BODY_CHARS = 10_000;
+
+/** Body of POST /api/sync/connect (Head Office PC, admin screen). */
+export const ConnectBodySchema = z.object({
+  cloudUrl: z.string().trim().min(8).max(300),
+  bootstrapCode: z.string().trim().min(1).max(200),
+  organisationName: displayName,
+});

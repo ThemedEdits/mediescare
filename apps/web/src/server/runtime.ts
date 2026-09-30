@@ -55,7 +55,11 @@ export function getRuntime(): Runtime {
   const mode = parseRuntimeMode(process.env.MEDIESCARE_MODE);
   if (mode === 'terminal')
     throw new Error('Terminals hold no data. They connect to the branch server.');
-  if (mode === 'cloud') throw new Error('Cloud mode is not implemented yet (Phase 3).');
+  // Cloud mode never opens SQLite. It serves only /api/health and /api/sync/* through modules that do not
+  // import this file (sync-http.ts, sync-cloud-context.ts); every other route is rewritten to 404 in
+  // next.config.ts. Reaching this line in cloud mode is a routing bug, so fail closed.
+  if (mode === 'cloud')
+    throw new Error('Cloud mode has no local database: this route is not served in cloud mode.');
 
   // Dynamic runtime paths: tell the bundler not to trace the whole project for them.
   const dataDir = resolve(/*turbopackIgnore: true*/ process.env.MEDIESCARE_DATA_DIR ?? './data');

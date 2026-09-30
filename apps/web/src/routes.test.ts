@@ -26,6 +26,16 @@ const OPEN_ROUTES = new Set([
   'sync/pull',
   'sync/pair',
   'sync/announce',
+  // Cloud-mode device endpoints: authenticated by bootstrap code, enrollment code, refresh token or
+  // Head Office access token, each checked inside the handler (sync-cloud-auth.ts).
+  'sync/bootstrap',
+  'sync/enrollment-codes',
+  'sync/enroll',
+  'sync/token',
+  // Cloud-mode health, landing page and the 404 target; they show no data.
+  'sync/health',
+  'sync/landing',
+  'sync/not-found',
 ]);
 
 describe('API routes are guarded (CLAUDE.md §4.2: authorize every action)', () => {

@@ -10,6 +10,7 @@ import {
   verifySessionToken,
   type AuthMethod,
 } from '@mediescare/db';
+import { serverIsHeadOffice } from './branch-join';
 import { getDb, getRuntime, getSessionSecret, initialized } from './runtime';
 
 export interface PageAuth {
@@ -83,12 +84,16 @@ export function navFor(auth: PageAuth): NavItem[] {
     { href: '/items', label: 'Items', permission: 'pharmacy.item.view' },
     { href: '/stock', label: 'Stock', permission: 'inventory.stock.view' },
     { href: '/stock-take', label: 'Stock take', permission: 'inventory.count.view' },
+    { href: '/transfers', label: 'Transfers', permission: 'inventory.transfer.view' },
     { href: '/purchasing', label: 'Purchasing', permission: 'purchasing.supplier.view' },
     { href: '/reports', label: 'Reports', permission: 'reports.sales.view' },
     { href: '/users', label: 'Users', permission: 'admin.user.view', adminOnly: true },
     { href: '/roles', label: 'Roles', permission: 'admin.role.view', adminOnly: true },
     { href: '/settings', label: 'Settings', permission: 'admin.settings.view', adminOnly: true },
     { href: '/backups', label: 'Backups', permission: 'admin.backup.view', adminOnly: true },
+    ...(serverIsHeadOffice()
+      ? [{ href: '/branches', label: 'Branches', permission: 'admin.branch.view', adminOnly: true }]
+      : []),
   ];
   return items
     .filter(

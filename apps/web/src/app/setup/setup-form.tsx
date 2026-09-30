@@ -2,9 +2,14 @@
 
 import { useState, type FormEvent } from 'react';
 import { Field, PrimaryButton } from '@/components/field';
+import { JoinForm } from './join-form';
+
+type Mode = 'create' | 'join';
 
 export function SetupForm() {
+  const [mode, setMode] = useState<Mode>('create');
   const [recoveryKey, setRecoveryKey] = useState<string | null>(null);
+  const [note, setNote] = useState<string | null>(null);
   const [errors, setErrors] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
 
@@ -25,7 +30,7 @@ export function SetupForm() {
         tenantName: f.get('tenantName'),
         branchCode: String(f.get('branchCode') ?? '').toUpperCase(),
         branchName: f.get('branchName'),
-        isHeadOffice: f.get('isHeadOffice') === 'on',
+        isHeadOffice: true,
         admin: {
           username: f.get('username'),
           fullName: f.get('fullName'),
@@ -49,10 +54,46 @@ export function SetupForm() {
     setBusy(false);
   }
 
-  if (recoveryKey) return <RecoveryKeyScreen recoveryKey={recoveryKey} />;
+  if (recoveryKey) return <RecoveryKeyScreen recoveryKey={recoveryKey} note={note} />;
+
+  const tabs = (
+    <div role="tablist" className="grid grid-cols-2 gap-2">
+      {(
+        [
+          ['create', 'Create a new organisation'],
+          ['join', 'Join an existing organisation'],
+        ] as const
+      ).map(([key, label]) => (
+        <button
+          key={key}
+          type="button"
+          role="tab"
+          aria-selected={mode === key}
+          onClick={() => setMode(key)}
+          className={`h-11 rounded-[6px] border px-2 text-sm font-medium ${mode === key ? 'border-primary-600 bg-primary-50 text-primary-900' : 'border-slate-300 text-slate-700 hover:bg-slate-50'}`}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+
+  if (mode === 'join')
+    return (
+      <div className="space-y-4">
+        {tabs}
+        <JoinForm
+          onDone={(key, summary) => {
+            setNote(summary);
+            setRecoveryKey(key);
+          }}
+        />
+      </div>
+    );
 
   return (
     <form onSubmit={onSubmit} className="space-y-4" aria-label="First-run setup">
+      {tabs}
       <Field label="Organisation name" name="tenantName" required />
       <div className="grid grid-cols-3 gap-3">
         <Field label="Branch code" name="branchCode" placeholder="KHI01" required maxLength={8} />
@@ -60,10 +101,10 @@ export function SetupForm() {
           <Field label="Branch name" name="branchName" required />
         </div>
       </div>
-      <label className="flex items-center gap-2 text-sm">
-        <input type="checkbox" name="isHeadOffice" defaultChecked className="h-4 w-4" />
-        This is the Head Office (main store)
-      </label>
+      <p className="text-sm text-muted">
+        The first branch of a new organisation is Head Office (the main store). Other branches join
+        it later.
+      </p>
       <hr className="border-border" />
       <Field label="Your full name" name="fullName" required />
       <Field label="Username" name="username" autoComplete="username" required />
@@ -95,12 +136,17 @@ export function SetupForm() {
   );
 }
 
-function RecoveryKeyScreen({ recoveryKey }: { recoveryKey: string }) {
+function RecoveryKeyScreen({ recoveryKey, note }: { recoveryKey: string; note: string | null }) {
   const [saved, setSaved] = useState(false);
   const [copied, setCopied] = useState(false);
   return (
     <section className="space-y-4" aria-label="Recovery key">
       <h2 className="text-xl font-semibold">Save your recovery key</h2>
+      {note ? (
+        <p role="status" className="rounded-[6px] bg-primary-50 px-4 py-2 text-sm text-primary-900">
+          {note}
+        </p>
+      ) : null}
       <p className="text-sm text-muted">
         This key is the only way to open your backups on a new computer, or after this computer's
         Windows profile is lost. It is shown <strong>once</strong> and is not stored anywhere. Print

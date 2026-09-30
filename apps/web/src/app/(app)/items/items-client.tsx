@@ -73,11 +73,14 @@ export function ItemsClient({
   canImport,
   canEdit,
   canSeeCost,
+  pricesSetByHeadOffice = false,
 }: {
   canCreate: boolean;
   canImport: boolean;
   canEdit: boolean;
   canSeeCost: boolean;
+  /** True on a branch: Head Office creates items and sets prices and tax rates, they are read-only here. */
+  pricesSetByHeadOffice?: boolean;
 }) {
   const [q, setQ] = useState('');
   const [page, setPage] = useState(1);
@@ -124,7 +127,7 @@ export function ItemsClient({
             <option value="in">In stock</option>
             <option value="low">Low stock</option>
           </select>
-          {canImport ? (
+          {canImport && !pricesSetByHeadOffice ? (
             <Link
               href="/items/import"
               className="inline-flex h-10 items-center rounded-[6px] border border-primary-600 px-4 text-sm font-semibold text-primary-600 hover:bg-primary-50"
@@ -132,7 +135,9 @@ export function ItemsClient({
               Import from Excel
             </Link>
           ) : null}
-          {canCreate ? <Button onClick={() => setEditing('new')}>Add item</Button> : null}
+          {canCreate && !pricesSetByHeadOffice ? (
+            <Button onClick={() => setEditing('new')}>Add item</Button>
+          ) : null}
         </div>
       </div>
       <ErrorText message={list.error} />
@@ -216,7 +221,8 @@ export function ItemsClient({
         <ItemForm
           id={editing === 'new' ? null : editing}
           lookups={lookups.data}
-          readOnly={!(editing === 'new' ? canCreate : canEdit)}
+          readOnly={!(editing === 'new' ? canCreate && !pricesSetByHeadOffice : canEdit)}
+          priceLocked={pricesSetByHeadOffice}
           onReloadLookups={lookups.reload}
           onClose={() => setEditing(null)}
           onSaved={() => {
@@ -233,6 +239,7 @@ function ItemForm({
   id,
   lookups,
   readOnly,
+  priceLocked,
   onReloadLookups,
   onClose,
   onSaved,
@@ -240,6 +247,7 @@ function ItemForm({
   id: string | null;
   lookups: Lookups;
   readOnly: boolean;
+  priceLocked: boolean;
   onReloadLookups: () => void;
   onClose: () => void;
   onSaved: () => void;
@@ -260,6 +268,7 @@ function ItemForm({
       item={detail.data?.item ?? null}
       lookups={lookups}
       readOnly={readOnly}
+      priceLocked={priceLocked}
       onReloadLookups={onReloadLookups}
       onClose={onClose}
       onSaved={onSaved}
@@ -278,6 +287,7 @@ function ItemFormBody({
   item,
   lookups,
   readOnly,
+  priceLocked,
   onReloadLookups,
   onClose,
   onSaved,
@@ -285,6 +295,7 @@ function ItemFormBody({
   item: ItemDetail | null;
   lookups: Lookups;
   readOnly: boolean;
+  priceLocked: boolean;
   onReloadLookups: () => void;
   onClose: () => void;
   onSaved: () => void;
@@ -378,9 +389,11 @@ function ItemFormBody({
         .split(/[,\s]+/)
         .map((b) => b.trim())
         .filter(Boolean),
-      retailRateUnitMicro: unitRateFromPack(packMicro, saleFactor),
-      taxBp: percentToBp(f.taxPct) ?? 0,
-      taxInclusive: f.taxInclusive,
+      // On a branch the stored values go back unchanged (what is shown may be rounded for display).
+      retailRateUnitMicro:
+        priceLocked && item ? item.retailRateUnitMicro : unitRateFromPack(packMicro, saleFactor),
+      taxBp: priceLocked && item ? item.taxBp : (percentToBp(f.taxPct) ?? 0),
+      taxInclusive: priceLocked && item ? item.taxInclusive : f.taxInclusive,
       reorderLevelBase: Math.max(0, Math.floor(Number(f.reorder) || 0)),
       isPrescription: f.isPrescription,
       isNarcotic: f.isNarcotic,
@@ -613,6 +626,11 @@ function ItemFormBody({
             )}
           </div>
 
+          {priceLocked ? (
+            <p className="rounded-[6px] bg-primary-50 px-3 py-2 text-sm text-primary-900">
+              Prices and tax rates are set by Head Office and cannot be changed on this branch.
+            </p>
+          ) : null}
           <div className="grid gap-3 sm:grid-cols-4">
             <label className="text-sm">
               Selling price per {unitName(saleRow?.unitId ?? '')} (PKR)
@@ -622,6 +640,7 @@ function ItemFormBody({
                 inputMode="decimal"
                 value={price}
                 onChange={(e) => setPrice(e.target.value)}
+                readOnly={priceLocked}
                 required
               />
             </label>
@@ -632,6 +651,7 @@ function ItemFormBody({
                 inputMode="decimal"
                 value={f.taxPct}
                 onChange={(e) => set('taxPct', e.target.value)}
+                readOnly={priceLocked}
               />
             </label>
             <label className="flex items-end gap-2 pb-2 text-sm">
@@ -639,6 +659,7 @@ function ItemFormBody({
                 type="checkbox"
                 checked={f.taxInclusive}
                 onChange={(e) => set('taxInclusive', e.target.checked)}
+                disabled={priceLocked}
               />{' '}
               Price includes tax
             </label>

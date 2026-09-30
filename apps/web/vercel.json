@@ -1,0 +1,11 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "nextjs",
+  "installCommand": "cd ../.. && pnpm install --frozen-lockfile --ignore-scripts",
+  "buildCommand": "next build",
+  "functions": {
+    "src/app/api/sync/**/route.ts": {
+      "maxDuration": 10
+    }
+  }
+}

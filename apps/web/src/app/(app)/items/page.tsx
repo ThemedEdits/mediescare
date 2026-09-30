@@ -1,4 +1,5 @@
 import { can } from '@mediescare/core/permissions';
+import { pricesSetByHeadOffice } from '@/server/branch-join';
 import { requirePage } from '@/server/page-auth';
 import { ItemsClient } from './items-client';
 
@@ -13,6 +14,7 @@ export default async function ItemsPage() {
         canImport={can(auth.access, 'pharmacy.item.import')}
         canEdit={can(auth.access, 'pharmacy.item.edit')}
         canSeeCost={can(auth.access, 'pharmacy.item.view_cost')}
+        pricesSetByHeadOffice={pricesSetByHeadOffice()}
       />
     </main>
   );

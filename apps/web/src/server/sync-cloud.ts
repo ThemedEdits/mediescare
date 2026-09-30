@@ -1,5 +1,4 @@
 import {
-  InMemoryCloudStore,
   StaleEpochError,
   type CloudStore,
   type DeviceAuth,
@@ -18,7 +17,7 @@ export interface CloudHttpResult {
   body: unknown;
 }
 
-const fail = (
+export const fail = (
   status: number,
   code: string,
   extra: Record<string, unknown> = {},
@@ -50,14 +49,14 @@ export class RequestLimiter {
   }
 }
 
-const limiter = new RequestLimiter(240, 60_000);
+const limiter = new RequestLimiter(600, 60_000);
 
-async function authorise(
-  store: CloudStore,
+export async function authorise(
+  store: Pick<CloudStore, 'authenticate'>,
   authorization: string | null | undefined,
   rateLimiter: RequestLimiter,
 ): Promise<DeviceAuth | CloudHttpResult> {
-  const match = /^Bearer (\S{10,300})$/.exec(authorization ?? '');
+  const match = /^Bearer (\S{10,1500})$/.exec(authorization ?? '');
   if (!match) return fail(401, 'UNAUTHENTICATED');
   const token = match[1] as string;
   const auth = await store.authenticate(token);
@@ -66,8 +65,8 @@ async function authorise(
   return auth;
 }
 
-function parseBody(raw: string): unknown | CloudHttpResult {
-  if (raw.length > MAX_SYNC_BODY_CHARS) return fail(413, 'PAYLOAD_TOO_LARGE');
+export function parseBody(raw: string, maxChars = MAX_SYNC_BODY_CHARS): unknown | CloudHttpResult {
+  if (raw.length > maxChars) return fail(413, 'PAYLOAD_TOO_LARGE');
   try {
     return JSON.parse(raw) as unknown;
   } catch {
@@ -75,7 +74,7 @@ function parseBody(raw: string): unknown | CloudHttpResult {
   }
 }
 
-const isResult = (v: unknown): v is CloudHttpResult =>
+export const isResult = (v: unknown): v is CloudHttpResult =>
   typeof v === 'object' && v !== null && 'status' in v && 'body' in v;
 
 export async function handleCloudPush(
@@ -114,71 +113,4 @@ export async function handleCloudPull(
   if (isResult(json)) return json;
   const request: PullRequest = PullBodySchema.parse(json);
   return { status: 200, body: await store.pull(auth, request) };
-}
-
-/**
- * PostgreSQL store: NOT IMPLEMENTED. Every method throws so that a cloud deployment without a real
- * store fails loudly (HTTP 501) instead of pretending to sync. The intended implementation:
- * one transaction per batch, `SELECT ... FOR UPDATE` on the branch epoch row (sync_epochs), an
- * `event_id` unique ledger for idempotency, the merge from `mergeMasterEvent`, and a bigserial
- * `change_seq` per tenant for pull cursors (docs/sync.md, "What remains").
- */
-export class NotImplementedCloudStore implements CloudStore {
-  authenticate(): Promise<DeviceAuth | null> {
-    return Promise.reject(new CloudStoreNotImplementedError());
-  }
-  applyBatch(): Promise<never> {
-    return Promise.reject(new CloudStoreNotImplementedError());
-  }
-  pull(): Promise<never> {
-    return Promise.reject(new CloudStoreNotImplementedError());
-  }
-}
-
-export class CloudStoreNotImplementedError extends Error {
-  constructor() {
-    super('The PostgreSQL cloud store is not implemented yet');
-    this.name = 'CloudStoreNotImplementedError';
-  }
-}
-
-interface DevDevice {
-  token: string;
-  tenantId: string;
-  branchId: string;
-  deviceId: string;
-  headOffice?: boolean;
-}
-
-const holder = globalThis as unknown as { __mediescareCloudStore?: CloudStore };
-
-/**
- * The store behind the cloud routes, or null when this process is not in cloud mode.
- * MEDIESCARE_CLOUD_STORE=memory selects the non-durable in-memory store for local development
- * (devices from MEDIESCARE_CLOUD_DEV_DEVICES, a JSON array). Anything else is the unimplemented
- * PostgreSQL store.
- */
-export function getCloudStore(
-  env: Record<string, string | undefined> = process.env,
-): CloudStore | null {
-  if ((env.MEDIESCARE_MODE ?? '').trim() !== 'cloud') return null;
-  if (holder.__mediescareCloudStore) return holder.__mediescareCloudStore;
-  let store: CloudStore;
-  if (env.MEDIESCARE_CLOUD_STORE === 'memory') {
-    const mem = new InMemoryCloudStore();
-    const devices = JSON.parse(env.MEDIESCARE_CLOUD_DEV_DEVICES ?? '[]') as DevDevice[];
-    for (const d of devices) {
-      mem.registerDevice(d.token, {
-        tenantId: d.tenantId,
-        branchId: d.branchId,
-        deviceId: d.deviceId,
-        headOffice: d.headOffice === true,
-      });
-    }
-    store = mem;
-  } else {
-    store = new NotImplementedCloudStore();
-  }
-  holder.__mediescareCloudStore = store;
-  return store;
 }

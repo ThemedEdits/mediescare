@@ -10,13 +10,9 @@ import {
   newId,
   type SyncEvent,
 } from '@mediescare/sync';
-import {
-  getCloudStore,
-  handleCloudPull,
-  handleCloudPush,
-  NotImplementedCloudStore,
-  RequestLimiter,
-} from './sync-cloud';
+import { handleCloudPull, handleCloudPush, RequestLimiter } from './sync-cloud';
+import { getCloudContext, resetCloudContext } from './sync-cloud-context';
+import { CloudConfigError } from './sync-http';
 
 const TENANT = '11111111-1111-7111-8111-111111111111';
 const BRANCH = '33333333-3333-7333-8333-333333333333';
@@ -140,15 +136,41 @@ describe('cloud pull endpoint logic', () => {
   });
 });
 
-describe('cloud store selection', () => {
-  it('is off outside cloud mode', () => {
-    expect(getCloudStore({ MEDIESCARE_MODE: 'branch-server' })).toBeNull();
-    expect(getCloudStore({})).toBeNull();
+describe('cloud context selection', () => {
+  it('is off outside cloud mode', async () => {
+    expect(await getCloudContext({ MEDIESCARE_MODE: 'branch-server' })).toBeNull();
+    expect(await getCloudContext({})).toBeNull();
   });
 
-  it('cloud mode without a real store fails loudly instead of pretending to sync', async () => {
-    const s = new NotImplementedCloudStore();
-    await expect(handleCloudPush(s, BEARER, '{}')).rejects.toThrow(/not implemented/);
+  it('cloud mode without configuration fails loudly (naming variables only) instead of pretending to sync', async () => {
+    resetCloudContext();
+    const noSecret = getCloudContext({
+      MEDIESCARE_MODE: 'cloud',
+      MEDIESCARE_CLOUD_STORE: 'pglite',
+    });
+    await expect(noSecret).rejects.toBeInstanceOf(CloudConfigError);
+    resetCloudContext();
+    await expect(
+      getCloudContext({
+        MEDIESCARE_MODE: 'cloud',
+        MEDIESCARE_CLOUD_JWT_SECRET: 'x'.repeat(40),
+      }),
+    ).rejects.toThrow(/MEDIESCARE_CLOUD_DATABASE_URL is not set/);
+    resetCloudContext();
+  });
+
+  it('the memory store keeps the old static development devices', async () => {
+    resetCloudContext();
+    const ctx = await getCloudContext({
+      MEDIESCARE_MODE: 'cloud',
+      MEDIESCARE_CLOUD_STORE: 'memory',
+      MEDIESCARE_CLOUD_DEV_DEVICES: JSON.stringify([
+        { token: TOKEN, tenantId: TENANT, branchId: BRANCH, deviceId: DEVICE },
+      ]),
+    });
+    expect(ctx?.auth).toBeNull();
+    expect(await ctx?.store.authenticate(TOKEN)).toMatchObject({ deviceId: DEVICE });
+    resetCloudContext();
   });
 });
 
