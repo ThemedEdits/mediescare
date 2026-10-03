@@ -19,7 +19,8 @@
     "test": "node ../../scripts/electron-node.mjs ../../node_modules/vitest/vitest.mjs run",
     "typecheck": "tsc --noEmit",
     "bench": "node ../../scripts/electron-node.mjs --import tsx src/cli/bench.ts",
-    "cloud:migrate": "node ../../scripts/electron-node.mjs --import tsx src/cli/cloud-migrate.ts"
+    "cloud:migrate": "node ../../scripts/electron-node.mjs --import tsx src/cli/cloud-migrate.ts",
+    "cloud:check": "node ../../scripts/electron-node.mjs --import tsx src/cli/cloud-live-check.ts"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.5.8",

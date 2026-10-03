@@ -24,7 +24,8 @@
     "prepare": "husky",
     "bench": "pnpm --filter @mediescare/db bench",
     "cloud:migrate": "pnpm --filter @mediescare/db cloud:migrate",
-    "cloud:dev": "node scripts/cloud-dev.mjs"
+    "cloud:dev": "node scripts/cloud-dev.mjs",
+    "cloud:check": "pnpm --filter @mediescare/db cloud:check"
   },
   "lint-staged": {
     "*.{ts,tsx,js,mjs,json,md,css}": "prettier --write"

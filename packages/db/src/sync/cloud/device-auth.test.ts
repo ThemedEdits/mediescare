@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { SignJWT } from 'jose';
-import { CloudAuthService, DeviceAuthError } from './device-auth';
+import { CloudAuthService, DeviceAuthError, REFRESH_GRACE_MS } from './device-auth';
 import { migratedClient, resetCloudTables, TEST_JWT_SECRET } from './cloud-test-support';
 import { createPgliteClient, type SqlClient } from './sql-client';
 
@@ -120,6 +120,7 @@ describe('refresh token rotation', () => {
   it('presenting an already used refresh token revokes the device, and the newest token dies with it', async () => {
     const r = await auth.bootstrap(HO);
     const p1 = await auth.refresh(r.refreshToken);
+    clock += REFRESH_GRACE_MS + 1; // outside the grace window
     const reuse = await auth.refresh(r.refreshToken).then(
       () => null,
       (e: unknown) => e,
@@ -134,7 +135,70 @@ describe('refresh token rotation', () => {
     const r = await auth.bootstrap(HO);
     let latest = r.refreshToken;
     for (let i = 0; i < 5; i++) latest = (await auth.refresh(latest)).refreshToken;
+    expect(latest).toBeTruthy();
     await expect(auth.refresh(r.refreshToken)).rejects.toSatisfy(is('DEVICE_REVOKED'));
+  });
+
+  describe('refresh grace window (15 seconds)', () => {
+    it('accepts the just-replaced token once more when the response was lost, and rotates again', async () => {
+      const r = await auth.bootstrap(HO);
+      const p1 = await auth.refresh(r.refreshToken); // the response with p1 never reached the device
+      clock += 5_000;
+      const p2 = await auth.refresh(r.refreshToken); // the device retries with what it still has
+      expect(p2.refreshToken).not.toBe(p1.refreshToken);
+      expect(await auth.verifyAccessToken(p2.accessToken)).not.toBeNull();
+      // The device continues with the newest token.
+      await expect(auth.refresh(p2.refreshToken)).resolves.toBeTruthy();
+    });
+
+    it('also tolerates the other order: a late duplicate of the previous request', async () => {
+      const r = await auth.bootstrap(HO);
+      const p1 = await auth.refresh(r.refreshToken);
+      clock += 2_000;
+      const p2 = await auth.refresh(p1.refreshToken);
+      clock += 2_000;
+      await expect(auth.refresh(p1.refreshToken)).resolves.toBeTruthy(); // duplicate of the second request
+      expect(p2.refreshToken).toBeTruthy();
+    });
+
+    it('still revokes when the old token comes back after the window', async () => {
+      const r = await auth.bootstrap(HO);
+      await auth.refresh(r.refreshToken);
+      clock += REFRESH_GRACE_MS + 1;
+      await expect(auth.refresh(r.refreshToken)).rejects.toSatisfy(is('DEVICE_REVOKED'));
+    });
+
+    it('window edge: exactly 15 seconds is accepted, 15.001 is not', async () => {
+      const r = await auth.bootstrap(HO);
+      await auth.refresh(r.refreshToken);
+      clock += REFRESH_GRACE_MS;
+      await expect(auth.refresh(r.refreshToken)).resolves.toBeTruthy();
+      const r2 = await auth.bootstrap({ ...HO, organisationName: 'Other Group' });
+      await auth.refresh(r2.refreshToken);
+      clock += REFRESH_GRACE_MS + 1;
+      await expect(auth.refresh(r2.refreshToken)).rejects.toSatisfy(is('DEVICE_REVOKED'));
+    });
+
+    it('a token retired long ago never qualifies, even inside the window of a newer rotation', async () => {
+      const r = await auth.bootstrap(HO);
+      let latest = r.refreshToken;
+      for (let i = 0; i < 5; i++) latest = (await auth.refresh(latest)).refreshToken;
+      expect(latest).toBeTruthy();
+      await expect(auth.refresh(r.refreshToken)).rejects.toSatisfy(is('DEVICE_REVOKED'));
+    });
+
+    it('the window is configurable', async () => {
+      const short = new CloudAuthService({
+        sql,
+        jwtSecret: TEST_JWT_SECRET,
+        now: () => clock,
+        refreshGraceMs: 1_000,
+      });
+      const r = await short.bootstrap({ ...HO, organisationName: 'Short Window Group' });
+      await short.refresh(r.refreshToken);
+      clock += 1_500;
+      await expect(short.refresh(r.refreshToken)).rejects.toSatisfy(is('DEVICE_REVOKED'));
+    });
   });
 
   it('rejects garbage and unknown tokens without revoking anything', async () => {

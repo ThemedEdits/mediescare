@@ -36,6 +36,8 @@ export class DeviceAuthError extends Error {
 
 export interface CloudAuthOptions {
   sql: SqlClient;
+  /** Override the refresh grace window in milliseconds (tests). Default 15 seconds. */
+  refreshGraceMs?: number;
   /** HS256 signing secret, at least 32 characters. */
   jwtSecret: string;
   now?: () => number;
@@ -48,6 +50,14 @@ const AUDIENCE = 'mediescare-sync';
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no 0/O/1/I
 const MAX_OPEN_CODES = 20;
 const USED_HASHES_KEPT = 20;
+/**
+ * Grace window for a refresh response lost on the network: a token that was replaced a moment ago is
+ * accepted once more (and rotated again) instead of revoking an honest device. Only the newest few
+ * retired tokens qualify, and only within this many milliseconds of the last rotation. Anything older,
+ * or any other retired token, still revokes the device.
+ */
+export const REFRESH_GRACE_MS = 15_000;
+const GRACE_RETIRED_TOKENS = 3;
 const ID_PATTERN = /^[A-Za-z0-9_-]{8,64}$/;
 
 const sha256 = (text: string) => createHash('sha256').update(text).digest('hex');
@@ -388,31 +398,43 @@ export class CloudAuthService {
           revoked_at: string | null;
           is_current: boolean;
           was_used: boolean;
+          used_pos: number;
+          refreshed_at: string;
         }>(
           `SELECT id, tenant_id, branch_id, revoked_at,
-                  (refresh_hash = $2) AS is_current, ($2 = ANY (refresh_used)) AS was_used
+                  (refresh_hash = $2) AS is_current, ($2 = ANY (refresh_used)) AS was_used,
+                  COALESCE(array_position(refresh_used, $2::text), 0) AS used_pos,
+                  refreshed_at::text AS refreshed_at
              FROM devices WHERE id = $1 FOR UPDATE`,
           [deviceId, hash],
         )
       )[0];
       if (!row) return { kind: 'invalid' as const };
       if (row.revoked_at) return { kind: 'revoked' as const };
-      if (row.was_used) {
+      const graceMs = this.o.refreshGraceMs ?? REFRESH_GRACE_MS;
+      const rotatedAgo = this.now() - new Date(row.refreshed_at).getTime();
+      const inGrace =
+        row.was_used &&
+        Number(row.used_pos) >= 1 &&
+        Number(row.used_pos) <= GRACE_RETIRED_TOKENS &&
+        rotatedAgo >= 0 &&
+        rotatedAgo <= graceMs;
+      if (row.was_used && !inGrace) {
         await tx.query('UPDATE devices SET revoked_at = $2::timestamptz WHERE id = $1', [
           deviceId,
           nowIso,
         ]);
         return { kind: 'reused' as const };
       }
-      if (!row.is_current) return { kind: 'invalid' as const };
+      if (!row.is_current && !inGrace) return { kind: 'invalid' as const };
       const next = this.newRefresh(deviceId);
       await tx.query(
         `UPDATE devices
             SET refresh_hash = $2,
-                refresh_used = (ARRAY[$3::text] || refresh_used)[1:${USED_HASHES_KEPT}],
-                refreshed_at = $4::timestamptz, last_seen_at = $4::timestamptz
+                refresh_used = (ARRAY[refresh_hash::text] || refresh_used)[1:${USED_HASHES_KEPT}],
+                refreshed_at = $3::timestamptz, last_seen_at = $3::timestamptz
           WHERE id = $1`,
-        [deviceId, next.hash, hash, nowIso],
+        [deviceId, next.hash, nowIso],
       );
       return { kind: 'ok' as const, row, token: next.token };
     });
