@@ -1,8 +1,8 @@
 import { join } from 'node:path';
-import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron';
-import { APP_ID, APP_NAME, DEFAULT_PORT, type RuntimeMode } from '@mediescare/config';
-import { loadConfig, normaliseServerUrl, saveConfig, type DesktopConfig } from './config';
-import { migrationsDir, resourcePath, serverJs } from './paths';
+import { app, BrowserWindow, dialog, shell } from 'electron';
+import { APP_ID, APP_NAME } from '@mediescare/config';
+import { loadConfig, type DesktopConfig } from './config';
+import { migrationsDir, serverJs } from './paths';
 import { loadOrCreateSecrets } from './secrets';
 import { pickPort, ServerProcess, waitForHealth } from './server';
 import { registerPrintHandlers } from './print';
@@ -10,13 +10,10 @@ import { startLanAnnouncing } from './discovery-service';
 import { DeviceTokenStore } from './pairing';
 import { electronSealer, registerPairingHandlers } from './pairing-ipc';
 import { openRestoreWindow } from './restore';
-import {
-  buildAppMenu,
-  createMainWindow,
-  createWizardWindow,
-  removeAppMenu,
-  showFatal,
-} from './window';
+import { offerFirewall, showServerAddress } from './server-dialogs';
+import { showTerminalOffline } from './terminal-offline';
+import { runWizard } from './wizard-ipc';
+import { buildAppMenu, createMainWindow, removeAppMenu, showFatal } from './window';
 
 app.setName(APP_NAME);
 if (process.platform === 'win32') app.setAppUserModelId(APP_ID);
@@ -28,36 +25,16 @@ let mainWindow: BrowserWindow | null = null;
 let stopAnnouncing: (() => void) | null = null;
 // The wizard window closing must not quit the app before the main window exists.
 let running = false;
+let repairing = false;
+/** A terminal waits this long for its server before showing the offline page. */
+const TERMINAL_WAIT_MS = 5_000;
 
-function runWizard(userData: string): Promise<DesktopConfig> {
-  return new Promise((resolve) => {
-    const wizard = createWizardWindow(resourcePath('wizard.html'));
-    let done = false;
-    ipcMain.handle(
-      'wizard:complete',
-      (event, choice: { mode: RuntimeMode; serverUrl?: string }) => {
-        if (event.sender !== wizard.webContents) return { ok: false, error: 'Unexpected sender' };
-        try {
-          if (!['single', 'branch-server', 'terminal'].includes(choice.mode))
-            throw new Error('Choose how this PC is used');
-          const config: DesktopConfig = { mode: choice.mode, port: DEFAULT_PORT };
-          if (choice.mode === 'terminal')
-            config.serverUrl = normaliseServerUrl(choice.serverUrl ?? '');
-          saveConfig(userData, config);
-          done = true;
-          wizard.close();
-          resolve(config);
-          return { ok: true };
-        } catch (error) {
-          return { ok: false, error: error instanceof Error ? error.message : 'Invalid choice' };
-        }
-      },
-    );
-    wizard.on('closed', () => {
-      if (!done) app.quit();
-    });
-  });
-}
+const messageBox = (
+  options: Electron.MessageBoxOptions,
+): Promise<Electron.MessageBoxReturnValue> =>
+  mainWindow && !mainWindow.isDestroyed()
+    ? dialog.showMessageBox(mainWindow, options)
+    : dialog.showMessageBox(options);
 
 /** Opt-in cloud sync: both the address and a device token must be present, otherwise sync stays off. */
 function cloudSettings(userData: string): { url: string; token: string } | undefined {
@@ -70,16 +47,23 @@ function cloudSettings(userData: string): { url: string; token: string } | undef
 
 async function start(): Promise<void> {
   const userData = app.getPath('userData');
+  // First run: the wizard. Closing it quits the app, so it always returns a config here.
   const config = loadConfig(userData) ?? (await runWizard(userData));
-  removeAppMenu();
+  if (config) await boot(userData, config);
+}
 
+async function boot(userData: string, config: DesktopConfig): Promise<void> {
+  removeAppMenu();
+  if (config.mode === 'terminal') await bootTerminal(userData, config);
+  else await bootLocal(userData, config);
+}
+
+/** Single PC and Branch Server: start the local server and open it. */
+async function bootLocal(userData: string, config: DesktopConfig): Promise<void> {
   const devUrl = process.env.MEDIESCARE_DEV_URL;
-  let origin: string;
   try {
-    if (config.mode === 'terminal') {
-      if (!config.serverUrl) throw new Error('No server address is saved for this terminal.');
-      origin = config.serverUrl;
-    } else if (devUrl) {
+    let origin: string;
+    if (devUrl) {
       origin = devUrl;
     } else {
       const port = await pickPort(config.port);
@@ -96,33 +80,112 @@ async function start(): Promise<void> {
       server.start();
       origin = server.url;
     }
-    await waitForHealth(origin, config.mode === 'terminal' ? 8_000 : 45_000);
+    await waitForHealth(origin, 45_000);
     mainWindow = createMainWindow(origin);
     registerPrintHandlers(origin);
-    if (config.mode === 'terminal') registerPairingHandlers(userData, origin);
+    const port = Number(new URL(origin).port);
     if (config.mode === 'branch-server') {
-      stopAnnouncing = startLanAnnouncing({ origin, port: Number(new URL(origin).port) });
+      stopAnnouncing = startLanAnnouncing({ origin, port });
     }
     running = true;
-    if (config.mode !== 'terminal') {
-      // Terminals hold no data, so only servers get the restore and backup-folder menu.
-      buildAppMenu({
-        restore: () => openRestoreWindow(userData, server, mainWindow),
-        openBackups: () => void shell.openPath(join(userData, 'backups')),
-      });
-    }
+    // Terminals hold no data, so only servers get the restore and backup-folder menu.
+    buildAppMenu({
+      restore: () => openRestoreWindow(userData, server, mainWindow),
+      openBackups: () => void shell.openPath(join(userData, 'backups')),
+      ...(config.mode === 'branch-server'
+        ? {
+            serverAddress: () => void showServerAddress(mainWindow, port),
+            allowFirewall: () => void offerFirewall(mainWindow, port),
+          }
+        : {}),
+    });
   } catch (error) {
     const detail = error instanceof Error ? error.message : 'Unknown error';
     const win = new BrowserWindow({ width: 640, height: 420, title: APP_NAME });
     showFatal(
       win,
-      config.mode === 'terminal' ? 'Branch server not reachable' : 'Mediescare could not start',
-      config.mode === 'terminal'
-        ? `Could not reach ${config.serverUrl ?? 'the server'}. Check that the Branch Server PC is on and connected to the same network. (${detail})`
-        : `${detail} Logs are in ${join(userData, 'logs')}.`,
+      'Mediescare could not start',
+      `${detail} Logs are in ${join(userData, 'logs')}.`,
     );
     mainWindow = win;
     running = true;
+  }
+}
+
+const reachable = (origin: string, ms: number): Promise<boolean> =>
+  waitForHealth(origin, ms).then(
+    () => true,
+    () => false,
+  );
+
+/**
+ * Terminal: holds no data and only shows the branch server. If the server does not answer, show the
+ * offline page (Retry, Re-pair, Change server) instead of an empty window.
+ */
+async function bootTerminal(userData: string, config: DesktopConfig): Promise<void> {
+  const origin = config.serverUrl;
+  if (!origin || !(await reachable(origin, TERMINAL_WAIT_MS))) {
+    const choice = await showTerminalOffline({
+      serverUrl: origin ?? '',
+      detail: origin
+        ? 'No answer from the server.'
+        : 'No server address is saved for this terminal.',
+      check: () => (origin ? reachable(origin, 4_000) : Promise.resolve(false)),
+    });
+    if (choice === 'retry') return bootTerminal(userData, config);
+    const next = await runWizard(userData, {
+      terminalOnly: true,
+      serverUrl: choice === 'repair' ? origin : undefined,
+    });
+    // Cancelled: the saved setup stays as it was and the offline page comes back.
+    return boot(userData, next ?? loadConfig(userData) ?? config);
+  }
+  mainWindow = createMainWindow(origin);
+  registerPrintHandlers(origin);
+  registerPairingHandlers(userData, origin);
+  running = true;
+  buildAppMenu({
+    showServer: () =>
+      void messageBox({
+        type: 'info',
+        title: 'Connected server',
+        message: 'This terminal shows the Branch Server',
+        detail: `${origin}\n\nThis counter keeps no data of its own.`,
+        buttons: ['Close'],
+      }),
+    repair: () => void repairFromMenu(userData, origin),
+  });
+}
+
+/**
+ * Re-pair or change server while the terminal is open. A new server needs new handlers bound to its
+ * address, so after a successful pairing the app restarts into the new setup. Cancel changes nothing.
+ */
+async function repairFromMenu(userData: string, origin: string): Promise<void> {
+  if (repairing) return;
+  repairing = true;
+  try {
+    const choice = await messageBox({
+      type: 'question',
+      title: 'Re-pair or change server',
+      message: 'Pair this counter with a server again?',
+      detail: `Current server: ${origin}\nYou need a new pairing code from the Branch Server.`,
+      buttons: ['Re-pair with this server', 'Change server', 'Cancel'],
+      defaultId: 2,
+      cancelId: 2,
+      noLink: true,
+    });
+    if (choice.response === 2) return;
+    const next = await runWizard(userData, {
+      terminalOnly: true,
+      serverUrl: choice.response === 0 ? origin : undefined,
+    });
+    if (next) {
+      app.relaunch();
+      app.exit(0);
+    }
+  } finally {
+    repairing = false;
   }
 }
 

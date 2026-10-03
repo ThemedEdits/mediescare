@@ -33,7 +33,9 @@ export function saveConfig(userData: string, config: DesktopConfig): void {
 /** Validate a terminal's server address: http(s) URL, no path, no credentials. */
 export function normaliseServerUrl(input: string): string {
   const url = new URL(/^https?:\/\//i.test(input.trim()) ? input.trim() : `http://${input.trim()}`);
-  if (url.username || url.password) throw new Error('The server address must not contain credentials');
-  if (url.pathname !== '/' || url.search || url.hash) throw new Error('Enter only the server address, for example 192.168.1.10:3210');
+  if (url.username || url.password)
+    throw new Error('The server address must not contain credentials');
+  if (url.pathname !== '/' || url.search || url.hash)
+    throw new Error('Enter only the server address, for example 192.168.1.10:3210');
   return url.origin;
 }

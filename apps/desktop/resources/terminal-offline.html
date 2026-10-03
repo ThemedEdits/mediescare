@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src 'self' data:"
+    />
+    <title>Mediescare: branch server not reachable</title>
+    <style>
+      :root {
+        --primary: #1b709c;
+        --primary-dark: #18638b;
+        --border: #94a3b8;
+        --text: #0f172a;
+        --muted: #475569;
+        --danger: #b91c1c;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: 'Segoe UI', system-ui, sans-serif;
+        color: var(--text);
+        background: #fff;
+      }
+      main {
+        max-width: 600px;
+        margin: 0 auto;
+        padding: 32px 24px;
+      }
+      h1 {
+        font-size: 22px;
+        margin: 0 0 8px;
+        color: var(--danger);
+      }
+      .ur {
+        display: block;
+        direction: rtl;
+        text-align: right;
+        font-family: 'Noto Nastaliq Urdu', 'Urdu Typesetting', 'Segoe UI', Tahoma, sans-serif;
+        line-height: 1.9;
+        color: var(--muted);
+        font-size: 0.95em;
+      }
+      button .ur {
+        color: inherit;
+      }
+      .server {
+        direction: ltr;
+        font-family: Consolas, monospace;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        padding: 6px 10px;
+        display: inline-block;
+        margin: 4px 0 12px;
+      }
+      ul {
+        padding-left: 20px;
+        color: var(--muted);
+      }
+      ul li .ur {
+        margin-bottom: 4px;
+      }
+      .detail {
+        font-size: 12px;
+        color: #64748b;
+        direction: ltr;
+        margin: 8px 0 16px;
+        word-break: break-word;
+      }
+      button {
+        min-height: 44px;
+        border: 0;
+        border-radius: 6px;
+        background: var(--primary);
+        color: #fff;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+        padding: 4px 16px;
+        width: 100%;
+        margin-top: 10px;
+      }
+      button:hover {
+        background: var(--primary-dark);
+      }
+      button:disabled {
+        background: #cbd5e1;
+        color: #64748b;
+        cursor: not-allowed;
+      }
+      button.secondary {
+        background: #fff;
+        color: var(--primary);
+        border: 1px solid var(--primary);
+      }
+      button.secondary:hover {
+        background: #ecf6fc;
+      }
+      #status {
+        min-height: 22px;
+        margin-top: 8px;
+        color: var(--danger);
+        font-size: 14px;
+      }
+      .note {
+        font-size: 13px;
+        color: var(--muted);
+        margin-top: 16px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>
+        Cannot reach the Branch Server <span class="ur">برانچ سرور تک رسائی نہیں ہو رہی</span>
+      </h1>
+      <p>
+        This counter keeps no data of its own, so it needs the Branch Server to work. Nothing was
+        lost.
+        <span class="ur"
+          >یہ کاؤنٹر اپنا کوئی ڈیٹا نہیں رکھتا، اس لیے اسے چلنے کے لیے برانچ سرور چاہیے۔ کچھ بھی
+          ضائع نہیں ہوا۔</span
+        >
+      </p>
+      <div>Server: <span class="server" id="server"></span></div>
+      <ul>
+        <li>
+          Is the Branch Server PC switched on and Mediescare open on it?
+          <span class="ur">کیا برانچ سرور والا کمپیوٹر چالو ہے اور اس پر Mediescare کھلا ہے؟</span>
+        </li>
+        <li>
+          Is this PC on the same network (same router or Wi-Fi)?
+          <span class="ur">کیا یہ کمپیوٹر اسی نیٹ ورک (وہی راؤٹر یا وائی فائی) پر ہے؟</span>
+        </li>
+        <li>
+          Windows Firewall on the server: on that PC use the Network menu, Allow through Windows
+          Firewall.
+          <span class="ur"
+            >سرور پر ونڈوز فائر وال: اس کمپیوٹر میں Network مینو سے Allow through Windows Firewall
+            دبائیں۔</span
+          >
+        </li>
+        <li>
+          Did the server's address change? Use Change server and pick it again.
+          <span class="ur"
+            >کیا سرور کا ایڈریس بدل گیا ہے؟ Change server دبا کر دوبارہ منتخب کریں۔</span
+          >
+        </li>
+      </ul>
+      <div class="detail" id="detail"></div>
+      <button type="button" id="retry">Retry <span class="ur">دوبارہ کوشش کریں</span></button>
+      <button type="button" class="secondary" id="repair">
+        Re-pair with this server <span class="ur">اسی سرور کے ساتھ دوبارہ جوڑیں</span>
+      </button>
+      <button type="button" class="secondary" id="change">
+        Change server <span class="ur">سرور تبدیل کریں</span>
+      </button>
+      <div id="status" role="alert"></div>
+      <p class="note">
+        Re-pair when the server was reinstalled or this counter was removed from it. You need a new
+        pairing code from the server.
+        <span class="ur"
+          >جب سرور دوبارہ انسٹال ہوا ہو یا اس کاؤنٹر کو سرور سے ہٹا دیا گیا ہو تو دوبارہ جوڑیں۔ اس
+          کے لیے سرور سے نیا پیئرنگ کوڈ چاہیے۔</span
+        >
+      </p>
+    </main>
+    <script>
+      const params = new URLSearchParams(location.search);
+      document.getElementById('server').textContent = params.get('server') || '';
+      document.getElementById('detail').textContent = params.get('detail') || '';
+      const status = document.getElementById('status');
+      const retry = document.getElementById('retry');
+      retry.addEventListener('click', async () => {
+        retry.disabled = true;
+        status.textContent = 'Trying again…';
+        const r = await window.mediescare.terminalRetry();
+        if (!r.ok) {
+          status.textContent = 'Still not reachable. اب بھی رسائی نہیں ہو رہی۔';
+          retry.disabled = false;
+        }
+      });
+      document
+        .getElementById('repair')
+        .addEventListener('click', () => window.mediescare.terminalLeave('repair'));
+      document
+        .getElementById('change')
+        .addEventListener('click', () => window.mediescare.terminalLeave('change'));
+    </script>
+  </body>
+</html>

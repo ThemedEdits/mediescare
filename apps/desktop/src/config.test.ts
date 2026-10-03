@@ -30,7 +30,11 @@ describe('config file', () => {
     dir = mkdtempSync(join(tmpdir(), 'mediescare-cfg-'));
     expect(loadConfig(dir)).toBeNull();
     saveConfig(dir, { mode: 'terminal', serverUrl: 'http://10.0.0.2:3210', port: 3210 });
-    expect(loadConfig(dir)).toEqual({ mode: 'terminal', serverUrl: 'http://10.0.0.2:3210', port: 3210 });
+    expect(loadConfig(dir)).toEqual({
+      mode: 'terminal',
+      serverUrl: 'http://10.0.0.2:3210',
+      port: 3210,
+    });
   });
 
   it('ignores a config with an unknown mode instead of crashing', () => {

@@ -2,10 +2,22 @@ import { contextBridge, ipcRenderer } from 'electron';
 
 /** The only bridge from the app pages, wizard and restore pages to the main process. */
 contextBridge.exposeInMainWorld('mediescare', {
-  completeSetup: (choice: {
-    mode: 'single' | 'branch-server' | 'terminal';
-    serverUrl?: string;
-  }): Promise<{ ok: boolean; error?: string }> => ipcRenderer.invoke('wizard:complete', choice),
+  /** Setup wizard (only the wizard window is answered). */
+  wizardInit: (): Promise<unknown> => ipcRenderer.invoke('wizard:init'),
+  wizardDiscover: (): Promise<unknown> => ipcRenderer.invoke('wizard:discover'),
+  wizardCheck: (address: string): Promise<unknown> => ipcRenderer.invoke('wizard:check', address),
+  wizardChooseLocal: (mode: 'single' | 'branch-server'): Promise<unknown> =>
+    ipcRenderer.invoke('wizard:choose-local', mode),
+  wizardPair: (request: {
+    serverUrl: string;
+    code: string;
+    deviceName: string;
+  }): Promise<unknown> => ipcRenderer.invoke('wizard:pair', request),
+  wizardFirewall: (): Promise<unknown> => ipcRenderer.invoke('wizard:firewall'),
+  /** Terminal offline page. */
+  terminalRetry: (): Promise<{ ok: boolean }> => ipcRenderer.invoke('terminal:retry'),
+  terminalLeave: (choice: 'repair' | 'change'): Promise<void> =>
+    ipcRenderer.invoke('terminal:leave', choice),
   pickBackup: (): Promise<string | null> => ipcRenderer.invoke('restore:pick'),
   restoreBackup: (request: {
     backupPath: string;

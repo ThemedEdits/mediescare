@@ -2,77 +2,618 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src 'self' data:" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src 'self' data:"
+    />
     <title>Mediescare setup</title>
     <style>
-      :root { --primary: #1b709c; --primary-dark: #18638b; --border: #94a3b8; --text: #0f172a; --muted: #475569; }
-      * { box-sizing: border-box; }
-      body { margin: 0; font-family: 'Segoe UI', system-ui, sans-serif; color: var(--text); background: #fff; }
-      main { max-width: 520px; margin: 0 auto; padding: 32px 24px; }
-      h1 { font-size: 24px; margin: 0 0 4px; }
-      p.lead { color: var(--muted); margin: 0 0 24px; }
-      label.option { display: block; border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; margin-bottom: 12px; cursor: pointer; }
-      label.option:has(input:checked) { border-color: var(--primary); background: #ecf6fc; }
-      label.option strong { display: block; }
-      label.option span { color: var(--muted); font-size: 14px; }
-      input[type='text'] { width: 100%; height: 44px; border: 1px solid var(--border); border-radius: 6px; padding: 0 12px; font-size: 16px; }
-      #server-row { display: none; margin: 4px 0 16px; }
-      button { height: 44px; width: 100%; border: 0; border-radius: 6px; background: var(--primary); color: #fff; font-size: 16px; font-weight: 600; cursor: pointer; }
-      button:hover { background: var(--primary-dark); }
-      button:disabled { background: #cbd5e1; color: #64748b; cursor: not-allowed; }
-      #error { color: #b91c1c; min-height: 22px; margin: 8px 0; font-size: 14px; }
-      .note { font-size: 13px; color: var(--muted); margin-top: 16px; }
+      :root {
+        --primary: #1b709c;
+        --primary-dark: #18638b;
+        --border: #94a3b8;
+        --text: #0f172a;
+        --muted: #475569;
+        --danger: #b91c1c;
+        --ok: #15803d;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: 'Segoe UI', system-ui, sans-serif;
+        color: var(--text);
+        background: #fff;
+      }
+      main {
+        max-width: 540px;
+        margin: 0 auto;
+        padding: 24px;
+      }
+      h1 {
+        font-size: 22px;
+        margin: 0 0 2px;
+      }
+      p.lead {
+        color: var(--muted);
+        margin: 0 0 16px;
+      }
+      /* Every text exists in English and Urdu. Urdu lines are right to left and use a taller line. */
+      .ur {
+        display: block;
+        direction: rtl;
+        text-align: right;
+        font-family: 'Noto Nastaliq Urdu', 'Urdu Typesetting', 'Segoe UI', Tahoma, sans-serif;
+        line-height: 1.9;
+        color: var(--muted);
+        font-size: 0.95em;
+      }
+      strong .ur,
+      button .ur {
+        color: inherit;
+      }
+      section[hidden] {
+        display: none;
+      }
+      label.option {
+        display: block;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 12px 16px;
+        margin-bottom: 10px;
+        cursor: pointer;
+      }
+      label.option:has(input:checked) {
+        border-color: var(--primary);
+        background: #ecf6fc;
+      }
+      label.option > span {
+        display: block;
+        color: var(--muted);
+        font-size: 14px;
+      }
+      label.option > strong {
+        display: block;
+      }
+      label.field {
+        display: block;
+        font-weight: 600;
+        margin: 12px 0 4px;
+      }
+      input[type='text'] {
+        width: 100%;
+        height: 44px;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 0 12px;
+        font-size: 16px;
+        direction: ltr;
+      }
+      input.code {
+        font-size: 24px;
+        letter-spacing: 4px;
+        text-align: center;
+        font-variant-numeric: tabular-nums;
+      }
+      button {
+        min-height: 44px;
+        width: 100%;
+        border: 0;
+        border-radius: 6px;
+        background: var(--primary);
+        color: #fff;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+        padding: 4px 12px;
+      }
+      button:hover {
+        background: var(--primary-dark);
+      }
+      button:disabled {
+        background: #cbd5e1;
+        color: #64748b;
+        cursor: not-allowed;
+      }
+      button.secondary {
+        background: #fff;
+        color: var(--primary);
+        border: 1px solid var(--primary);
+      }
+      button.secondary:hover {
+        background: #ecf6fc;
+      }
+      .row {
+        display: flex;
+        gap: 10px;
+        margin-top: 12px;
+      }
+      .row > * {
+        flex: 1;
+      }
+      .server {
+        display: block;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 10px 14px;
+        margin-bottom: 8px;
+        cursor: pointer;
+      }
+      .server:has(input:checked) {
+        border-color: var(--primary);
+        background: #ecf6fc;
+      }
+      .server small {
+        display: block;
+        color: var(--muted);
+        direction: ltr;
+        text-align: left;
+      }
+      .error {
+        color: var(--danger);
+        margin: 8px 0;
+        font-size: 14px;
+      }
+      .error .ur {
+        color: var(--danger);
+      }
+      .good {
+        color: var(--ok);
+      }
+      .good .ur {
+        color: var(--ok);
+      }
+      .note {
+        font-size: 13px;
+        color: var(--muted);
+        margin-top: 14px;
+      }
+      .box {
+        border: 1px solid #e2e8f0;
+        background: #f8fafc;
+        border-radius: 8px;
+        padding: 10px 12px;
+        margin: 10px 0;
+        font-size: 14px;
+      }
+      code {
+        display: block;
+        direction: ltr;
+        text-align: left;
+        font-family: Consolas, monospace;
+        font-size: 12px;
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 4px;
+        padding: 6px 8px;
+        margin-top: 6px;
+        word-break: break-all;
+        user-select: all;
+      }
+      .spin {
+        color: var(--muted);
+      }
     </style>
   </head>
   <body>
     <main>
-      <h1>Welcome to Mediescare</h1>
-      <p class="lead">How will this computer be used?</p>
-      <form id="form">
+      <h1>Welcome to Mediescare <span class="ur">Mediescare میں خوش آمدید</span></h1>
+
+      <!-- Step 1: how is this PC used -->
+      <section id="step-mode">
+        <p class="lead">
+          How will this computer be used?
+          <span class="ur">یہ کمپیوٹر کس طرح استعمال ہوگا؟</span>
+        </p>
         <label class="option">
           <input type="radio" name="mode" value="single" checked />
-          <strong>Single PC</strong>
-          <span>One computer runs everything. Best for a small branch.</span>
+          <strong>Single PC <span class="ur">سنگل پی سی</span></strong>
+          <span
+            >One computer runs everything. Best for a small branch.
+            <span class="ur"
+              >ایک ہی کمپیوٹر پر سب کچھ چلتا ہے۔ چھوٹی برانچ کے لیے بہترین۔</span
+            ></span
+          >
         </label>
         <label class="option">
           <input type="radio" name="mode" value="branch-server" />
-          <strong>Branch Server</strong>
-          <span>This computer stores the branch data. Other counters connect to it over the shop network.</span>
+          <strong>Branch Server <span class="ur">برانچ سرور</span></strong>
+          <span
+            >This computer stores the branch data. Other counters connect to it over the shop
+            network.
+            <span class="ur"
+              >اس کمپیوٹر میں برانچ کا ڈیٹا محفوظ ہوتا ہے۔ دوسرے کاؤنٹر دکان کے نیٹ ورک کے ذریعے اس
+              سے جڑتے ہیں۔</span
+            ></span
+          >
         </label>
         <label class="option">
           <input type="radio" name="mode" value="terminal" />
-          <strong>Branch Terminal</strong>
-          <span>An extra counter that connects to the Branch Server.</span>
+          <strong>Branch Terminal <span class="ur">برانچ ٹرمینل</span></strong>
+          <span
+            >An extra counter that connects to the Branch Server. It keeps no data of its own.
+            <span class="ur"
+              >اضافی کاؤنٹر جو برانچ سرور سے جڑتا ہے۔ اس میں اپنا کوئی ڈیٹا نہیں رہتا۔</span
+            ></span
+          >
         </label>
-        <div id="server-row">
-          <input type="text" id="server" placeholder="Server address, for example 192.168.1.10:3210" />
+
+        <div id="server-box" class="box" hidden>
+          <strong
+            >Let other counters connect <span class="ur">دوسرے کاؤنٹرز کو جڑنے دیں</span></strong
+          >
+          <div>
+            Terminals need TCP port <span id="port-tcp">3210</span> and UDP port 3211 open on this
+            PC. This button opens them for the local network only. Windows will ask for
+            administrator permission. Nothing changes unless you click it.
+            <span class="ur"
+              >ٹرمینلز کے لیے اس کمپیوٹر پر TCP پورٹ 3210 اور UDP پورٹ 3211 کھلے ہونے چاہییں۔ یہ بٹن
+              انہیں صرف مقامی نیٹ ورک کے لیے کھولتا ہے۔ ونڈوز ایڈمنسٹریٹر کی اجازت مانگے گا۔ آپ کے
+              کلک کیے بغیر کچھ نہیں بدلتا۔</span
+            >
+          </div>
+          <button type="button" class="secondary" id="fw-btn" style="margin-top: 8px">
+            Allow through Windows Firewall <span class="ur">ونڈوز فائر وال میں اجازت دیں</span>
+          </button>
+          <div id="fw-result" class="note"></div>
+          <div class="note">
+            Or run these as administrator in Command Prompt:
+            <span class="ur">یا کمانڈ پرامپٹ میں ایڈمنسٹریٹر کے طور پر یہ چلائیں:</span>
+          </div>
+          <div id="fw-commands"></div>
         </div>
-        <div id="error" role="alert"></div>
-        <button type="submit" id="go">Continue</button>
-      </form>
-      <p class="note">You can change this later from the Mediescare settings. Nothing needs the internet to work.</p>
+
+        <div id="mode-error" class="error" role="alert"></div>
+        <div id="mode-hint"></div>
+        <button type="button" id="mode-go">Continue <span class="ur">آگے بڑھیں</span></button>
+        <p class="note">
+          You can change this later from the Mediescare settings. Nothing needs the internet to
+          work.
+          <span class="ur"
+            >آپ اسے بعد میں تبدیل کر سکتے ہیں۔ کسی چیز کو انٹرنیٹ کی ضرورت نہیں۔</span
+          >
+        </p>
+      </section>
+
+      <!-- Step 2: find the branch server -->
+      <section id="step-find" hidden>
+        <p class="lead">
+          Connect to the Branch Server
+          <span class="ur">برانچ سرور سے جڑیں</span>
+        </p>
+        <div id="found-status" class="spin"></div>
+        <div id="found-list"></div>
+        <div class="row">
+          <button type="button" class="secondary" id="search-again">
+            Search again <span class="ur">دوبارہ تلاش کریں</span>
+          </button>
+        </div>
+        <label class="field" for="address"
+          >Server address <span class="ur">سرور کا ایڈریس</span></label
+        >
+        <input
+          type="text"
+          id="address"
+          placeholder="192.168.1.10:3210"
+          autocomplete="off"
+          spellcheck="false"
+        />
+        <div class="row">
+          <button type="button" class="secondary" id="use-address">
+            Use this address <span class="ur">یہ ایڈریس استعمال کریں</span>
+          </button>
+        </div>
+        <div id="find-error" class="error" role="alert"></div>
+        <div id="find-hint"></div>
+        <div class="row" id="find-nav">
+          <button type="button" class="secondary" id="find-back">
+            Back <span class="ur">پیچھے</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- Step 3: pairing code -->
+      <section id="step-code" hidden>
+        <p class="lead">
+          Pair with <strong id="chosen" style="direction: ltr; unicode-bidi: isolate"></strong>
+          <span class="ur">اس سرور کے ساتھ جوڑیں</span>
+        </p>
+        <label class="field" for="code">Pairing code <span class="ur">پیئرنگ کوڈ</span></label>
+        <input
+          type="text"
+          id="code"
+          class="code"
+          placeholder="0000-0000"
+          maxlength="9"
+          inputmode="numeric"
+          autocomplete="off"
+        />
+        <p class="note">
+          On the Branch Server open Settings, Cloud sync and terminals, then New terminal pairing
+          code. The code works once and for 10 minutes.
+          <span class="ur"
+            >برانچ سرور پر Settings، Cloud sync and terminals میں جا کر New terminal pairing code
+            دبائیں۔ کوڈ صرف ایک بار اور 10 منٹ تک چلتا ہے۔</span
+          >
+        </p>
+        <label class="field" for="device-name"
+          >Name of this counter <span class="ur">اس کاؤنٹر کا نام</span></label
+        >
+        <input type="text" id="device-name" maxlength="60" autocomplete="off" />
+        <div id="code-error" class="error" role="alert"></div>
+        <div id="code-hint"></div>
+        <div class="row">
+          <button type="button" class="secondary" id="code-back">
+            Back <span class="ur">پیچھے</span>
+          </button>
+          <button type="button" id="pair-go">Pair <span class="ur">جوڑیں</span></button>
+        </div>
+      </section>
+
+      <!-- Done -->
+      <section id="step-done" hidden>
+        <p class="lead good" id="done-text"></p>
+      </section>
     </main>
     <script>
-      const form = document.getElementById('form');
-      const row = document.getElementById('server-row');
-      const err = document.getElementById('error');
-      const go = document.getElementById('go');
-      form.addEventListener('change', () => {
-        row.style.display = form.mode.value === 'terminal' ? 'block' : 'none';
-      });
-      form.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        err.textContent = '';
-        go.disabled = true;
-        const result = await window.mediescare.completeSetup({
-          mode: form.mode.value,
-          serverUrl: document.getElementById('server').value,
-        });
-        if (!result.ok) {
-          err.textContent = result.error || 'Could not save the setup';
-          go.disabled = false;
+      const api = window.mediescare;
+      const $ = (id) => document.getElementById(id);
+      const show = (id) => {
+        for (const s of document.querySelectorAll('section')) s.hidden = s.id !== id;
+      };
+      let init = {
+        terminalOnly: false,
+        serverUrl: '',
+        deviceName: 'Counter',
+        firewallCommands: [],
+        windows: true,
+      };
+      let chosen = '';
+
+      /** Build "English <span class=ur>Urdu</span>" without ever treating network text as HTML. */
+      function bilingual(el, en, ur) {
+        el.textContent = '';
+        el.append(document.createTextNode(en));
+        if (ur) {
+          const u = document.createElement('span');
+          u.className = 'ur';
+          u.textContent = ur;
+          el.append(u);
+        }
+      }
+
+      const ERRORS = {
+        'bad-address': [
+          'Enter the address like 192.168.1.10:3210',
+          'ایڈریس اس طرح لکھیں: 192.168.1.10:3210',
+        ],
+        'bad-code': [
+          'The pairing code is wrong or has expired. Create a new code on the Branch Server and try again.',
+          'کوڈ غلط ہے یا اس کی مدت ختم ہو چکی ہے۔ سرور پر نیا کوڈ بنائیں اور دوبارہ کوشش کریں۔',
+        ],
+        unreachable: [
+          'Cannot reach the Branch Server. Check that its PC is on and on the same network as this one.',
+          'برانچ سرور تک رسائی نہیں ہو سکی۔ دیکھیں کہ سرور والا کمپیوٹر چالو ہے اور اسی نیٹ ورک پر ہے۔',
+        ],
+        'not-branch-server': [
+          'That PC is not running Mediescare as a Branch Server.',
+          'اس کمپیوٹر پر Mediescare برانچ سرور کے طور پر نہیں چل رہا۔',
+        ],
+        'rate-limited': [
+          'Too many attempts. Wait a minute and try again.',
+          'بہت زیادہ کوششیں ہو گئیں۔ ایک منٹ رک کر دوبارہ کوشش کریں۔',
+        ],
+        other: ['Something went wrong. Try again.', 'کچھ غلط ہو گیا۔ دوبارہ کوشش کریں۔'],
+      };
+      const FIREWALL_HINT = [
+        'If the server is on and still not reachable, Windows Firewall on the server PC may be blocking it. On the Branch Server PC, open Mediescare, Network menu, Allow through Windows Firewall, or run these commands as administrator:',
+        'اگر سرور چالو ہے مگر پھر بھی نہیں ملتا تو سرور والے کمپیوٹر کی ونڈوز فائر وال رکاوٹ ہو سکتی ہے۔ سرور پر Mediescare میں Network مینو سے Allow through Windows Firewall دبائیں، یا ایڈمنسٹریٹر کے طور پر یہ کمانڈز چلائیں:',
+      ];
+
+      function showError(errId, hintId, kind, message) {
+        const [en, ur] = ERRORS[kind] || ERRORS.other;
+        const el = $(errId);
+        bilingual(el, en, ur);
+        // The server's own detail is plain text and helps support; it is never shown as markup.
+        if (message && message !== en) {
+          const d = document.createElement('div');
+          d.style.cssText = 'direction:ltr;font-size:12px;color:#64748b';
+          d.textContent = message;
+          el.append(d);
+        }
+        const hint = $(hintId);
+        hint.textContent = '';
+        if (kind === 'unreachable') {
+          const box = document.createElement('div');
+          box.className = 'box';
+          const p = document.createElement('div');
+          bilingual(p, FIREWALL_HINT[0], FIREWALL_HINT[1]);
+          box.append(p);
+          for (const c of init.firewallCommands) {
+            const code = document.createElement('code');
+            code.textContent = c;
+            box.append(code);
+          }
+          hint.append(box);
+        }
+      }
+
+      function renderFirewallCommands() {
+        const holder = $('fw-commands');
+        holder.textContent = '';
+        for (const c of init.firewallCommands) {
+          const code = document.createElement('code');
+          code.textContent = c;
+          holder.append(code);
+        }
+      }
+
+      // ---- step 1 ----
+      document.querySelectorAll('input[name=mode]').forEach((r) =>
+        r.addEventListener('change', () => {
+          const mode = document.querySelector('input[name=mode]:checked').value;
+          $('server-box').hidden = !(mode === 'branch-server' && init.windows);
+        }),
+      );
+      $('fw-btn').addEventListener('click', async () => {
+        $('fw-btn').disabled = true;
+        bilingual(
+          $('fw-result'),
+          'Waiting for the Windows administrator prompt…',
+          'ونڈوز کی ایڈمنسٹریٹر اجازت کا انتظار ہے…',
+        );
+        const r = await api.wizardFirewall();
+        $('fw-btn').disabled = false;
+        if (r.ok) {
+          bilingual(
+            $('fw-result'),
+            'Done. Terminals can now reach this PC.',
+            'ہو گیا۔ اب ٹرمینلز اس کمپیوٹر تک پہنچ سکتے ہیں۔',
+          );
+          $('fw-result').className = 'note good';
+        } else {
+          bilingual(
+            $('fw-result'),
+            r.error,
+            'ونڈوز نے تبدیلی کی اجازت نہیں دی۔ نیچے والی کمانڈز ایڈمنسٹریٹر کے طور پر چلائیں۔',
+          );
+          $('fw-result').className = 'note error';
         }
       });
+      $('mode-go').addEventListener('click', async () => {
+        const mode = document.querySelector('input[name=mode]:checked').value;
+        $('mode-error').textContent = '';
+        if (mode === 'terminal') {
+          startFind();
+          return;
+        }
+        $('mode-go').disabled = true;
+        const r = await api.wizardChooseLocal(mode);
+        if (!r.ok) {
+          showError('mode-error', 'mode-hint', r.kind, r.error);
+          $('mode-go').disabled = false;
+        } else {
+          show('step-done');
+          bilingual($('done-text'), 'Starting Mediescare…', 'Mediescare شروع ہو رہا ہے…');
+        }
+      });
+
+      // ---- step 2 ----
+      async function search() {
+        $('found-list').textContent = '';
+        $('search-again').disabled = true;
+        bilingual(
+          $('found-status'),
+          'Searching the network for Branch Servers…',
+          'نیٹ ورک پر برانچ سرور تلاش کیے جا رہے ہیں…',
+        );
+        const servers = await api.wizardDiscover();
+        $('search-again').disabled = false;
+        if (!servers.length) {
+          bilingual(
+            $('found-status'),
+            'No Branch Server found. Type its address below. You can see it on the server in Mediescare, Network menu, Server address and pairing code.',
+            'کوئی برانچ سرور نہیں ملا۔ نیچے اس کا ایڈریس خود لکھیں۔ یہ سرور پر Mediescare کے Network مینو میں Server address and pairing code کے تحت نظر آتا ہے۔',
+          );
+          return;
+        }
+        bilingual($('found-status'), 'Choose your Branch Server:', 'اپنا برانچ سرور منتخب کریں:');
+        for (const s of servers) {
+          const label = document.createElement('label');
+          label.className = 'server';
+          const radio = document.createElement('input');
+          radio.type = 'radio';
+          radio.name = 'server';
+          radio.addEventListener('change', () => chooseServer(s.url));
+          const name = document.createElement('strong');
+          name.textContent = ' ' + s.name + ' (' + s.branchCode + ')';
+          const addr = document.createElement('small');
+          addr.textContent = s.url;
+          label.append(radio, name, addr);
+          $('found-list').append(label);
+        }
+      }
+      function startFind() {
+        $('find-error').textContent = '';
+        $('find-hint').textContent = '';
+        $('find-nav').hidden = init.terminalOnly;
+        show('step-find');
+        void search();
+      }
+      $('search-again').addEventListener('click', () => void search());
+      $('find-back').addEventListener('click', () => show('step-mode'));
+      async function useAddress() {
+        $('find-error').textContent = '';
+        $('find-hint').textContent = '';
+        $('use-address').disabled = true;
+        const r = await api.wizardCheck($('address').value);
+        $('use-address').disabled = false;
+        if (!r.ok) {
+          showError('find-error', 'find-hint', r.kind, r.error);
+          return;
+        }
+        chooseServer(r.url);
+      }
+      $('use-address').addEventListener('click', () => void useAddress());
+      $('address').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') void useAddress();
+      });
+
+      // ---- step 3 ----
+      function chooseServer(url) {
+        chosen = url;
+        $('chosen').textContent = url;
+        $('code-error').textContent = '';
+        $('code-hint').textContent = '';
+        show('step-code');
+        $('code').focus();
+      }
+      $('code-back').addEventListener('click', () => startFind());
+      $('code').addEventListener('input', () => {
+        const d = $('code').value.replace(/\D/g, '').slice(0, 8);
+        $('code').value = d.length > 4 ? d.slice(0, 4) + '-' + d.slice(4) : d;
+      });
+      $('code').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') $('pair-go').click();
+      });
+      $('pair-go').addEventListener('click', async () => {
+        $('code-error').textContent = '';
+        $('code-hint').textContent = '';
+        $('pair-go').disabled = true;
+        const r = await api.wizardPair({
+          serverUrl: chosen,
+          code: $('code').value,
+          deviceName: $('device-name').value,
+        });
+        if (!r.ok) {
+          showError('code-error', 'code-hint', r.kind, r.error);
+          $('pair-go').disabled = false;
+          return;
+        }
+        show('step-done');
+        bilingual(
+          $('done-text'),
+          'Paired with branch ' + r.branchCode + '. Opening Mediescare…',
+          'برانچ ' + r.branchCode + ' کے ساتھ جڑ گیا۔ Mediescare کھل رہا ہے…',
+        );
+      });
+
+      (async () => {
+        init = (await api.wizardInit()) || init;
+        $('device-name').value = init.deviceName;
+        renderFirewallCommands();
+        if (init.terminalOnly) {
+          document.querySelector('input[value=terminal]').checked = true;
+          if (init.serverUrl) {
+            $('address').value = init.serverUrl.replace(/^https?:\/\//, '');
+            chooseServer(init.serverUrl);
+            $('code-back').firstChild.textContent = 'Change server ';
+          } else {
+            startFind();
+          }
+        }
+      })();
     </script>
   </body>
 </html>

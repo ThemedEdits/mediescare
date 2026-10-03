@@ -40,7 +40,10 @@ export function createMainWindow(origin: string): BrowserWindow {
   return win;
 }
 
-export function createWizardWindow(htmlFile: string): BrowserWindow {
+export function createWizardWindow(
+  htmlFile: string,
+  query?: Record<string, string>,
+): BrowserWindow {
   const win = new BrowserWindow({
     width: 620,
     height: 640,
@@ -56,7 +59,7 @@ export function createWizardWindow(htmlFile: string): BrowserWindow {
     },
   });
   win.setMenuBarVisibility(false);
-  void win.loadFile(htmlFile);
+  void win.loadFile(htmlFile, query ? { query } : undefined);
   return win;
 }
 
@@ -82,30 +85,71 @@ export function createRestoreWindow(htmlFile: string, parent: BrowserWindow | nu
   return win;
 }
 
-export function buildAppMenu(items: { restore: () => void; openBackups: () => void }): void {
-  Menu.setApplicationMenu(
-    Menu.buildFromTemplate([
-      {
-        label: 'Data',
-        submenu: [
-          { label: 'Restore from backup…', click: items.restore },
-          { label: 'Open backup folder', click: items.openBackups },
-          { type: 'separator' },
-          { role: 'quit', label: 'Quit' },
-        ],
-      },
-      {
-        label: 'View',
-        submenu: [
-          { role: 'reload' },
-          { role: 'togglefullscreen' },
-          { role: 'resetZoom' },
-          { role: 'zoomIn' },
-          { role: 'zoomOut' },
-        ],
-      },
-    ]),
-  );
+const viewMenu: Electron.MenuItemConstructorOptions = {
+  label: 'View',
+  submenu: [
+    { role: 'reload' },
+    { role: 'togglefullscreen' },
+    { role: 'resetZoom' },
+    { role: 'zoomIn' },
+    { role: 'zoomOut' },
+  ],
+};
+
+export interface MenuActions {
+  /** Servers only (Single PC and Branch Server): restore and backup folder. */
+  restore?: () => void;
+  openBackups?: () => void;
+  /** Branch Server: show the LAN address, create a pairing code, allow the firewall. */
+  serverAddress?: () => void;
+  allowFirewall?: () => void;
+  /** Terminal: show the connected server, or pick another one and pair again. */
+  showServer?: () => void;
+  repair?: () => void;
+}
+
+export function buildAppMenu(items: MenuActions): void {
+  const data: Electron.MenuItemConstructorOptions[] = [];
+  if (items.restore) data.push({ label: 'Restore from backup…', click: items.restore });
+  if (items.openBackups) data.push({ label: 'Open backup folder', click: items.openBackups });
+  if (data.length) data.push({ type: 'separator' });
+  data.push({ role: 'quit', label: 'Quit' });
+  const template: Electron.MenuItemConstructorOptions[] = [{ label: 'Data', submenu: data }];
+
+  const network: Electron.MenuItemConstructorOptions[] = [];
+  if (items.serverAddress)
+    network.push({ label: 'Server address and pairing code…', click: items.serverAddress });
+  if (items.allowFirewall)
+    network.push({ label: 'Allow through Windows Firewall…', click: items.allowFirewall });
+  if (items.showServer) network.push({ label: 'Connected server…', click: items.showServer });
+  if (items.repair) network.push({ label: 'Re-pair or change server…', click: items.repair });
+  if (network.length) template.push({ label: 'Network', submenu: network });
+
+  template.push(viewMenu);
+  Menu.setApplicationMenu(Menu.buildFromTemplate(template));
+}
+
+/** Window for the "cannot reach the branch server" page. It loads only our own file. */
+export function createOfflineWindow(
+  htmlFile: string,
+  query: Record<string, string>,
+): BrowserWindow {
+  const win = new BrowserWindow({
+    width: 720,
+    height: 680,
+    title: `${APP_NAME}: branch server not reachable`,
+    icon: iconPath(),
+    backgroundColor: '#ffffff',
+    webPreferences: {
+      contextIsolation: true,
+      sandbox: true,
+      nodeIntegration: false,
+      preload: preloadPath(),
+    },
+  });
+  win.setMenuBarVisibility(false);
+  void win.loadFile(htmlFile, { query });
+  return win;
 }
 
 export function showFatal(win: BrowserWindow, title: string, detail: string): void {

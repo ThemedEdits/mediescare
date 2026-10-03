@@ -791,6 +791,7 @@ try {
     '/settings',
     '/transfers',
     '/branches',
+    '/accounts',
   ]) {
     const p = await admin.get(path);
     check(`page ${path} renders`, p.status === 200 && p.data.raw.includes('Mediescare'));
@@ -1091,6 +1092,71 @@ try {
       xlsxBytes.subarray(0, 2).toString() === 'PK',
   );
 
+  // --- accounts: expenses, cash flow, net profit ---
+  const cats = await admin.get('/api/expense-categories');
+  check(
+    'expense categories are listed (defaults are seeded)',
+    cats.status === 200 && JSON.stringify(cats.data).length > 20,
+    JSON.stringify(cats.data).slice(0, 120),
+  );
+  const catList = cats.data.categories ?? cats.data.rows ?? cats.data;
+  const firstCat = Array.isArray(catList) ? catList[0] : undefined;
+  const exp = await admin.post('/api/expenses', {
+    categoryId: firstCat?.id,
+    amountMinor: 250_000,
+    modeId: mode('cash'),
+    payee: 'Smoke Landlord',
+    note: 'smoke rent',
+  });
+  check(
+    'admin records a cash expense of 2,500.00',
+    exp.status === 201 && /^SMK01-EXP-\d{6}$/.test(exp.data.docNo ?? ''),
+    JSON.stringify(exp.data).slice(0, 160),
+  );
+  check(
+    'a cashier cannot void an expense',
+    (await counter.post(`/api/expenses/${exp.data.id}/void`, { reason: 'not allowed' })).status ===
+      403,
+  );
+  const expList = await admin.get('/api/expenses');
+  check(
+    'the expense appears in the list',
+    expList.status === 200 && JSON.stringify(expList.data).includes(exp.data.docNo),
+  );
+  const flow = await admin.get('/api/expenses/cash-flow');
+  check(
+    'the cash book responds for admin and is hidden from a cashier',
+    flow.status === 200 && (await counter.get('/api/expenses/cash-flow')).status === 403,
+  );
+  const np = await admin.get('/api/reports/net-profit');
+  check(
+    'the net profit report runs and a cashier is refused',
+    np.status === 200 && (await counter.get('/api/reports/net-profit')).status === 403,
+  );
+  check(
+    'the expenses and cash-flow reports run',
+    (await admin.get('/api/reports/expenses')).status === 200 &&
+      (await admin.get('/api/reports/cash-flow')).status === 200,
+  );
+  const npX = await fetch(`${base()}/api/reports/net-profit/export?format=xlsx`, {
+    headers: { Cookie: admin.cookie() },
+  });
+  check(
+    'net profit exports to a real .xlsx file',
+    npX.status === 200 &&
+      Buffer.from(await npX.arrayBuffer())
+        .subarray(0, 2)
+        .toString() === 'PK',
+  );
+  const voided = await admin.post(`/api/expenses/${exp.data.id}/void`, {
+    reason: 'smoke test void',
+  });
+  check(
+    'the expense can be voided with a reason and stays on record',
+    voided.status === 200 &&
+      JSON.stringify((await admin.get('/api/expenses?status=void')).data).includes(exp.data.docNo),
+  );
+
   // --- Urdu: every screen renders in Urdu, right to left, without errors ---
   check(
     'admin switches the display language to Urdu',
@@ -1107,6 +1173,7 @@ try {
     '/purchasing',
     '/transfers',
     '/branches',
+    '/accounts',
     '/reports',
     '/users',
     '/roles',
