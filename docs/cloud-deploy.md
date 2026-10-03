@@ -101,7 +101,20 @@ Development values: bootstrap code `dev-bootstrap-code` and a fixed development 
 ## 8. Security notes
 
 - Device access tokens live 15 minutes (JWT HS256) and are checked against the `devices` table on every request, so revoking a device (set `devices.revoked_at`) takes effect at once.
-- Refresh tokens are random, stored only as SHA-256 hashes, and rotate on every refresh. Presenting a token that was already used revokes the device: a copied token cannot be used quietly. **Risk to know:** if a refresh response is lost on the way (power cut at exactly that moment), the device holds a dead token and the next refresh looks like a replay; the device is revoked and must be reconnected (Settings shows "Disconnected by cloud"; the local data and queued events are untouched). This is the price of strict replay detection; a grace window could be added if it happens in practice.
+- Refresh tokens are random, stored only as SHA-256 hashes, and rotate on every refresh. Presenting a token that was already used revokes the device: a copied token cannot be used quietly. **Risk to know:** if a refresh response is lost on the way (power cut at exactly that moment), the device holds a dead token and the next refresh looks like a replay; the device is revoked and must be reconnected (Settings shows "Disconnected by cloud"; the local data and queued events are untouched). **Grace window (built, 15 seconds):** a refresh token that was replaced less than 15 seconds ago (only the newest three retired tokens) is accepted once more and rotated again, so a lost response does not revoke an honest device. Replaying an old token after 15 seconds, or any older token, still revokes the device. The trade-off: a thief who copies a token and replays it within 15 seconds of its use is not detected.
 - Enrollment codes: 80 random bits, stored as hashes, 24 h, single use, at most 20 unused codes per organisation.
 - The bootstrap code, enrollment codes and refresh tokens are rate limited, compared in constant time or hashed, and never logged.
 - Revoke a stolen device: `UPDATE devices SET revoked_at = now() WHERE id = '<device id>';` in the Supabase SQL editor.
+
+## 9. Check that the cloud is live (`pnpm cloud:check`)
+
+With `MEDIESCARE_CLOUD_BOOTSTRAP_CODE` (and, to clean up afterwards, `MEDIESCARE_CLOUD_DATABASE_URL`) in the repository `.env`:
+
+```
+pnpm cloud:check http://localhost:3220          # cloud mode on this PC (pnpm cloud:dev with MEDIESCARE_CLOUD_STORE=postgres)
+pnpm cloud:check https://your-app.vercel.app    # the deployed cloud
+```
+
+It creates a throw-away organisation with invented data, links a Head Office and a second branch, uploads sales and items from both, pulls master data back, rotates tokens, checks that each sale is stored exactly once, and then deletes everything it created. It prints PASS or FAIL per step and no secrets. It was run against the real Supabase on 2026-10-04 (all 12 checks passed through the cloud-mode app on this PC; the Vercel deployment has not been done).
+
+The real-database contract suite (26 tests, about 7 minutes because of internet round trips) is opt-in: `MEDIESCARE_RUN_LIVE_DB_TESTS=1` with the pooler URL in `.env`, then run the db tests. It works in a throw-away schema and drops it afterwards.
