@@ -1,6 +1,7 @@
 import type { Db } from '../client';
 import type { WriteContext } from '../context';
 import { DomainError } from '../errors';
+import { cashFlowReport, expensesReport, netProfitReport } from './accounts';
 import { missedSales, narcoticRegister } from './compliance';
 import { profitLoss } from './profit';
 import {
@@ -25,7 +26,7 @@ function def(
   id: string,
   title: string,
   group: ReportGroup,
-  area: 'sales' | 'stock' | 'profit' | 'expiry' | 'narcotic',
+  area: 'sales' | 'stock' | 'profit' | 'expiry' | 'narcotic' | 'financial',
   filters: FilterKey[],
   run: ReportRunner,
 ): ReportDefinition {
@@ -59,6 +60,9 @@ export const REPORTS: readonly ReportDefinition[] = [
   def('low-stock', 'Low stock', 'stock', 'stock', ['range', 'q', 'limit'], lowStock),
   def('expiry', 'Expiry', 'expiry', 'expiry', ['q', 'bucket', 'limit'], expiry),
   def('profit-loss', 'Profit and loss', 'profit', 'profit', ['range'], profitLoss),
+  def('net-profit', 'Net profit', 'profit', 'profit', ['range'], netProfitReport),
+  def('expenses', 'Expenses', 'finance', 'financial', ['range', 'limit'], expensesReport),
+  def('cash-flow', 'Cash flow', 'finance', 'financial', ['range'], cashFlowReport),
   def(
     'narcotic-register',
     'Narcotic register',

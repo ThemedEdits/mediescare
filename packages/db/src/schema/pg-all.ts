@@ -6,3 +6,4 @@ export * from './pg-purchasing';
 export * from './pg-inventory';
 export * from './pg-sync';
 export * from './pg-transfers';
+export * from './pg-accounts';

@@ -108,7 +108,11 @@ export function openShift(
   });
 }
 
-/** Cash the drawer should hold: float + cash taken on posted sales - cash refunded on returns in this shift. */
+/**
+ * Cash the drawer should hold: float + cash taken on posted sales - cash refunded on returns in this shift
+ * - cash expenses paid from this shift's till (posted, not void). Back-office cash (supplier payments, expenses
+ * not taken from the till) never changes it.
+ */
 export function expectedCashMinor(db: DbOrTx, shiftId: string): number {
   const shift = db.select().from(shifts).where(eq(shifts.id, shiftId)).get();
   if (!shift) throw new DomainError('NOT_FOUND', 'Shift not found');
@@ -120,7 +124,16 @@ export function expectedCashMinor(db: DbOrTx, shiftId: string): number {
     SELECT COALESCE(SUM(r.refund_minor), 0) AS v FROM sale_returns r
     JOIN payment_modes m ON m.id = r.refund_mode_id
     WHERE r.shift_id = ${shiftId} AND m.kind = 'cash'`);
-  return shift.floatMinor + Number(cashIn?.v ?? 0) - Number(cashOut?.v ?? 0);
+  const tillExpenses = db.get<{ v: number }>(sql`
+    SELECT COALESCE(SUM(e.amount_minor), 0) AS v FROM expenses e
+    JOIN payment_modes m ON m.id = e.mode_id
+    WHERE e.shift_id = ${shiftId} AND e.status = 'posted' AND m.kind = 'cash'`);
+  return (
+    shift.floatMinor +
+    Number(cashIn?.v ?? 0) -
+    Number(cashOut?.v ?? 0) -
+    Number(tillExpenses?.v ?? 0)
+  );
 }
 
 export interface CloseShiftInput {

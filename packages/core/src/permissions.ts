@@ -62,6 +62,7 @@ export const CATALOGUE = {
     report: ['view', 'print', 'export'],
   },
   finance: {
+    /** delete = void: an expense is never removed, it is voided with a reason. */
     expense: [...CRUD, 'approve', 'export'],
     expense_category: [...CRUD],
     petty_cash: ['view', 'create', 'approve'],
@@ -212,6 +213,8 @@ export const ROLE_DEFAULTS: Readonly<Record<RoleCode, RoleDefinition>> = {
       'reports.*',
       'finance.expense.view',
       'finance.expense.create',
+      'finance.expense.delete', // voids an expense (nothing is ever deleted)
+      'finance.expense.export',
       'purchasing.supplier.view',
       'purchasing.grn.view',
       'purchasing.grn.create',

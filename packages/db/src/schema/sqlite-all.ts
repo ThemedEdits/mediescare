@@ -6,3 +6,4 @@ export * from './sqlite-purchasing';
 export * from './sqlite-inventory';
 export * from './sqlite-sync';
 export * from './sqlite-transfers';
+export * from './sqlite-accounts';

@@ -33,13 +33,15 @@ export interface ReportResult {
   title: string;
   columns: ReportColumn[];
   rows: ReportRow[];
+  /** Optional, same length as rows: a row that needs a cost or profit right is removed for users without it. */
+  rowSensitivity?: (Sensitivity | null)[];
   totals?: Record<string, number | string | null>;
   kpis?: ReportKpi[];
   note?: string;
   truncated?: boolean;
 }
 
-export type ReportGroup = 'sales' | 'stock' | 'expiry' | 'profit' | 'compliance';
+export type ReportGroup = 'sales' | 'stock' | 'expiry' | 'profit' | 'compliance' | 'finance';
 export type FilterKey = 'range' | 'q' | 'bucket' | 'limit';
 
 export interface ReportFilters {
