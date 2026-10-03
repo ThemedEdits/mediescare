@@ -16,6 +16,8 @@ import enUsersRoles from './screens/usersRoles.en.json';
 import urUsersRoles from './screens/usersRoles.ur.json';
 import enSystem from './screens/system.en.json';
 import urSystem from './screens/system.ur.json';
+import enAccounts from './screens/accounts.en.json';
+import urAccounts from './screens/accounts.ur.json';
 import { flatten, type FlatMessages, type Messages } from './core';
 
 /** Every message file of a language; the top-level namespaces of the files must not overlap. */
@@ -29,6 +31,7 @@ export const EN_FILES: Messages[] = [
   enReports,
   enUsersRoles,
   enSystem,
+  enAccounts,
 ] as Messages[];
 
 export const UR_FILES: Messages[] = [
@@ -41,6 +44,7 @@ export const UR_FILES: Messages[] = [
   urReports,
   urUsersRoles,
   urSystem,
+  urAccounts,
 ] as Messages[];
 
 export function flattenAll(files: Messages[]): FlatMessages {

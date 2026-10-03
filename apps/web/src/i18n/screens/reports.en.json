@@ -24,7 +24,8 @@
       "stock": "Stock",
       "expiry": "Expiry",
       "profit": "Profitability",
-      "compliance": "Compliance"
+      "compliance": "Compliance",
+      "finance": "Finance"
     },
     "preset": {
       "today": "Today",
@@ -68,7 +69,10 @@
       "expiry": "Expiry",
       "profit-loss": "Profit and loss",
       "narcotic-register": "Narcotic register",
-      "missed-sales": "Missed sales"
+      "missed-sales": "Missed sales",
+      "net-profit": "Net profit",
+      "expenses": "Expenses",
+      "cash-flow": "Cash flow"
     },
     "headings": {
       "stock-valuation": "Stock valuation by category"
@@ -85,7 +89,10 @@
       "low-stock": "Items at or below their reorder level, and items out of stock that customers asked for. Missed sales are counted from {from} to {to} (last 30 days if no dates are given).",
       "profit-loss": "Gross profit = revenue without tax, minus the batch cost of what was sold. Returns reduce revenue and, for goods put back on the shelf, cost. Expenses are not included.",
       "narcotic-register": "Controlled-drug sales. Entries of voided invoices stay in the register and are marked Void.",
-      "missed-sales": "Items customers asked for that were not available, most asked first. Use it to decide what to order."
+      "missed-sales": "Items customers asked for that were not available, most asked first. Use it to decide what to order.",
+      "net-profit": "Net profit = revenue without tax (after returns) - cost of goods sold - expenses. Buying stock is not an expense: it becomes cost when sold. Salaries appear only when entered as expenses.",
+      "expenses": "Totals count posted expenses only. Void expenses are listed with their reason in the note column and are not added up.",
+      "cash-flow": "Cash only. In = cash taken on posted invoices. Out = cash refunds, cash expenses and cash supplier payments. Shift floats are moves between safe and till, not income. Bank and wallet movements are on the Accounts screen."
     },
     "kpi": {
       "invoices": "Invoices",
@@ -101,7 +108,13 @@
       "expiringIn30Days": "Expiring in 30 days",
       "expiredValueAtCost": "Expired value at cost",
       "grossProfit": "Gross profit",
-      "margin": "Margin"
+      "margin": "Margin",
+      "openingCash": "Opening cash",
+      "cashIn": "Cash in",
+      "cashOut": "Cash out",
+      "closingCash": "Closing cash",
+      "totalExpenses": "Total expenses",
+      "netProfit": "Net profit"
     },
     "col": {
       "date": "Date",
@@ -156,7 +169,14 @@
       "prescriptionRef": "Prescription",
       "soldBy": "Sold by",
       "count": "Times asked",
-      "phones": "Customer phones"
+      "phones": "Customer phones",
+      "line": "Line",
+      "amount": "Amount",
+      "payee": "Payee",
+      "reference": "Reference",
+      "cashIn": "Cash in",
+      "cashOut": "Cash out",
+      "closing": "Closing cash"
     },
     "columns": {
       "sales-daily": {
@@ -175,7 +195,21 @@
       },
       "missed-sales": {
         "qty": "Quantity asked"
+      },
+      "expenses": {
+        "docNo": "Voucher",
+        "mode": "Paid by",
+        "note": "Note"
       }
+    },
+    "line": {
+      "netRevenue": "Net revenue",
+      "costOfGoodsSold": "Cost of goods sold",
+      "grossProfit": "Gross profit",
+      "totalExpenses": "Total expenses",
+      "netProfit": "Net profit",
+      "purchasesOfStockNotAnExpense": "Purchases of stock (not an expense)",
+      "owedToSuppliersToday": "Owed to suppliers today"
     }
   }
 }

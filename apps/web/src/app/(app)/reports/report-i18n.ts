@@ -59,6 +59,8 @@ export function reportCellText(t: Translator, columnKey: string, text: string): 
     return pick(t, ['reports.cell.walkIn'], text);
   } else if (columnKey === 'bucket' && BUCKET_TEXT[text]) {
     return pick(t, [`reports.bucket.${BUCKET_TEXT[text]}`], text);
+  } else if (columnKey === 'line') {
+    return pick(t, [`reports.line.${camel(text)}`], text);
   } else if (columnKey === 'kind') {
     return pick(t, [`reports.kind.${text}`], text);
   }

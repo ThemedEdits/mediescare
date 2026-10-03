@@ -1,0 +1,92 @@
+{
+  "accounts": {
+    "title": "Accounts",
+    "intro": "Expenses, cash book and profit. Buying stock is not an expense: it is recorded in Purchasing and reaches profit when the goods are sold.",
+    "addExpense": "Add expense",
+    "tabs": {
+      "expenses": "Expenses",
+      "categories": "Categories",
+      "cashBook": "Cash book",
+      "profit": "Profit and loss"
+    },
+    "filters": {
+      "category": "Category",
+      "allCategories": "All categories",
+      "paidBy": "Paid by",
+      "allModes": "All payment methods"
+    },
+    "status": {
+      "posted": "Posted",
+      "void": "Void"
+    },
+    "col": {
+      "voucher": "Voucher",
+      "category": "Category",
+      "payee": "Payee",
+      "paidBy": "Paid by",
+      "amount": "Amount"
+    },
+    "fromTillBadge": "from till",
+    "voidAction": "Void",
+    "expensesEmpty": "No expenses for these filters.",
+    "totalPosted": "Total (posted expenses)",
+    "pageOf": "Page {page} of {pages}",
+    "dialog": {
+      "addTitle": "Add expense",
+      "amountInvalid": "Enter an amount above zero, for example 1500 or 1500.50",
+      "category": "Category",
+      "amount": "Amount (PKR)",
+      "paidBy": "Paid by",
+      "date": "Date",
+      "payee": "Paid to",
+      "reference": "Receipt or reference no.",
+      "note": "Note",
+      "fromTill": "Taken from my till",
+      "fromTillHint": "Lowers the cash your open shift should hold. Leave it off for cash paid from the safe or office."
+    },
+    "void": {
+      "title": "Void expense {docNo}",
+      "explain": "The expense stays in the list marked void with your reason. It is no longer counted in totals.",
+      "confirm": "Void expense"
+    },
+    "categories": {
+      "intro": "Categories group expenses in reports. Rename or hide them as you like. A category with past expenses is hidden, never deleted.",
+      "kind": "Kind",
+      "add": "Add category",
+      "rename": "Rename",
+      "deactivate": "Hide",
+      "activate": "Show"
+    },
+    "kinds": {
+      "operating": "Operating",
+      "payroll": "Payroll",
+      "rent": "Rent",
+      "utilities": "Utilities",
+      "other": "Other"
+    },
+    "cashBook": {
+      "title": "Cash book",
+      "cashMovement": "Cash movement",
+      "cashSales": "Cash taken on invoices",
+      "cashRefunds": "Cash refunded on returns",
+      "cashExpenses": "Cash expenses",
+      "cashSupplier": "Cash paid to suppliers",
+      "floatNote": "Shift floats move between the safe and the till. They are not income or expense.",
+      "byCategory": "Expenses by category",
+      "byMode": "By payment method",
+      "sales": "Sales",
+      "refunds": "Refunds",
+      "expenses": "Expenses",
+      "supplier": "Suppliers",
+      "daily": "Day by day (cash)",
+      "in": "In",
+      "out": "Out",
+      "closing": "Closing",
+      "note": "Opening cash is everything taken in cash minus everything paid out in cash before the first day. It starts from zero on the day the system was first used."
+    },
+    "profit": {
+      "title": "Profit and loss",
+      "note": "Net profit = revenue without tax (after returns) - cost of goods sold - expenses. Purchases of stock are not subtracted: they become cost when the goods are sold."
+    }
+  }
+}

@@ -87,6 +87,7 @@ export function navFor(auth: PageAuth): NavItem[] {
     { href: '/transfers', label: 'Transfers', permission: 'inventory.transfer.view' },
     { href: '/purchasing', label: 'Purchasing', permission: 'purchasing.supplier.view' },
     { href: '/reports', label: 'Reports', permission: 'reports.sales.view' },
+    { href: '/accounts', label: 'Accounts', permission: 'finance.expense.view' },
     { href: '/users', label: 'Users', permission: 'admin.user.view', adminOnly: true },
     { href: '/roles', label: 'Roles', permission: 'admin.role.view', adminOnly: true },
     { href: '/settings', label: 'Settings', permission: 'admin.settings.view', adminOnly: true },

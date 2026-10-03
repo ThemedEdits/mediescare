@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { api, Button, ErrorText, inputClass, useErrorText } from '@/components/ui';
 import { useT } from '@/i18n/client';
+import { printReport } from './print-report';
 import { BUCKET_KEYS, reportHeading, reportNote, reportTitle } from './report-i18n';
 import {
   PRESETS,
@@ -22,29 +23,9 @@ interface ReportInfo {
   canExport: boolean;
 }
 
-const GROUPS = ['sales', 'stock', 'expiry', 'profit', 'compliance'];
+const GROUPS = ['sales', 'stock', 'expiry', 'profit', 'finance', 'compliance'];
 
 const BUCKETS = ['', 'expired', '0-30', '31-60', '61-90', '91-180'];
-
-/** Save the open report as PDF through the desktop app, or the browser print dialog elsewhere. */
-async function printReport(fileName: string): Promise<string | null> {
-  const style = document.createElement('style');
-  style.textContent = '@page { size: A4 landscape; margin: 10mm; }';
-  document.head.appendChild(style);
-  try {
-    const save = window.mediescare?.printToPdf;
-    if (!save) {
-      window.print();
-      return null;
-    }
-    const result = await save(fileName);
-    if (!result.ok && result.error !== 'Cancelled')
-      throw new Error(result.error ?? 'Could not save the PDF');
-    return result.ok ? (result.path ?? null) : null;
-  } finally {
-    style.remove();
-  }
-}
 
 export function ReportsClient({ branchName }: { branchName: string }) {
   const t = useT();
