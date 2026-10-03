@@ -9,8 +9,9 @@ import { resolveRange, type ReportRange } from '../reports/util';
  *   refund   money given back on returns (void invoices never counted in the first place)
  *   expense  posted expenses (void ones are left out)
  *   supplier payments made to suppliers
+ *   adj_in / adj_out  cash book entries (opening balance and corrections), positive and negative
  */
-export type MoveSource = 'sale' | 'refund' | 'expense' | 'supplier';
+export type MoveSource = 'sale' | 'refund' | 'expense' | 'supplier' | 'adj_in' | 'adj_out';
 
 interface Move {
   source: MoveSource;
@@ -56,7 +57,13 @@ function moves(db: DbOrTx, ctx: WriteContext, mod: string, b: Bounds): Move[] {
       FROM supplier_payments p
       WHERE p.branch_id = ${ctx.branchId}
         AND p.paid_at >= ${b.fromIso} AND p.paid_at < ${b.toIso}
-      GROUP BY 2, 3`);
+      GROUP BY 2, 3
+    UNION ALL
+    SELECT CASE WHEN a.amount_minor > 0 THEN 'adj_in' ELSE 'adj_out' END, a.entry_date, a.mode_id, SUM(ABS(a.amount_minor))
+      FROM cash_adjustments a
+      WHERE a.branch_id = ${ctx.branchId} AND a.status = 'posted'
+        AND a.entry_date >= ${b.fromDate} AND a.entry_date < ${b.toDateExcl}
+      GROUP BY 1, 2, 3`);
   return rows.map((r) => ({
     source: r.source,
     date: r.d,
@@ -65,7 +72,7 @@ function moves(db: DbOrTx, ctx: WriteContext, mod: string, b: Bounds): Move[] {
   }));
 }
 
-const IN: readonly MoveSource[] = ['sale'];
+const IN: readonly MoveSource[] = ['sale', 'adj_in'];
 
 export interface CashModeRow {
   modeId: string;
@@ -75,7 +82,9 @@ export interface CashModeRow {
   refundsMinor: number;
   expensesMinor: number;
   supplierPaymentsMinor: number;
-  /** salesMinor - refundsMinor - expensesMinor - supplierPaymentsMinor */
+  /** Cash book entries (opening balance, corrections), signed. */
+  adjustmentsMinor: number;
+  /** salesMinor + adjustmentsMinor - refundsMinor - expensesMinor - supplierPaymentsMinor */
   netMinor: number;
 }
 
@@ -93,9 +102,12 @@ export interface CashFlow {
   openingCashMinor: number;
   closingCashMinor: number;
   /** Cash only (payment modes of kind cash). */
-  cashIn: { salesMinor: number; totalMinor: number };
+  /** Sales plus cash book entries that add cash. */
+  cashIn: { salesMinor: number; adjustmentsMinor: number; totalMinor: number };
   cashOut: {
     refundsMinor: number;
+    /** Cash book entries that remove cash. */
+    adjustmentsMinor: number;
     expensesMinor: number;
     supplierPaymentsMinor: number;
     totalMinor: number;
@@ -107,8 +119,8 @@ export interface CashFlow {
 
 /**
  * Cash book and cash flow for a date range.
- *   cash in  = cash taken on posted invoices
- *   cash out = cash refunds + cash expenses + cash supplier payments
+ *   cash in  = cash taken on posted invoices + cash book entries that add cash (opening balance, corrections)
+ *   cash out = cash refunds + cash expenses + cash supplier payments + cash book entries that remove cash
  *   closing  = opening + in - out, opening = (in - out) over everything before the range
  * Shift floats are moved between the safe and the till, so they are neither income nor expense.
  * Bank, wallet and card movements are shown by mode but have no opening or closing figure.
@@ -153,9 +165,10 @@ export function cashFlow(
       refundsMinor: 0,
       expensesMinor: 0,
       supplierPaymentsMinor: 0,
+      adjustmentsMinor: 0,
       netMinor: 0,
     });
-  const cash = { sales: 0, refunds: 0, expenses: 0, supplier: 0 };
+  const cash = { sales: 0, refunds: 0, expenses: 0, supplier: 0, adjIn: 0, adjOut: 0 };
   const perDay = new Map<string, { in: number; out: number }>();
   for (const m of inside) {
     const row = byMode.get(m.modeId);
@@ -163,19 +176,24 @@ export function cashFlow(
     if (m.source === 'sale') row.salesMinor += m.amount;
     else if (m.source === 'refund') row.refundsMinor += m.amount;
     else if (m.source === 'expense') row.expensesMinor += m.amount;
+    else if (m.source === 'adj_in') row.adjustmentsMinor += m.amount;
+    else if (m.source === 'adj_out') row.adjustmentsMinor -= m.amount;
     else row.supplierPaymentsMinor += m.amount;
     row.netMinor += signed(m);
     if (!isCash(m)) continue;
     if (m.source === 'sale') cash.sales += m.amount;
     else if (m.source === 'refund') cash.refunds += m.amount;
     else if (m.source === 'expense') cash.expenses += m.amount;
+    else if (m.source === 'adj_in') cash.adjIn += m.amount;
+    else if (m.source === 'adj_out') cash.adjOut += m.amount;
     else cash.supplier += m.amount;
     const d = perDay.get(m.date) ?? { in: 0, out: 0 };
     if (IN.includes(m.source)) d.in += m.amount;
     else d.out += m.amount;
     perDay.set(m.date, d);
   }
-  const outTotal = cash.refunds + cash.expenses + cash.supplier;
+  const inTotal = cash.sales + cash.adjIn;
+  const outTotal = cash.refunds + cash.expenses + cash.supplier + cash.adjOut;
 
   let running = openingCashMinor;
   const daily: CashDayRow[] = [...perDay.entries()]
@@ -194,10 +212,11 @@ export function cashFlow(
   return {
     range: { from: range.from, to: range.to },
     openingCashMinor,
-    closingCashMinor: openingCashMinor + cash.sales - outTotal,
-    cashIn: { salesMinor: cash.sales, totalMinor: cash.sales },
+    closingCashMinor: openingCashMinor + inTotal - outTotal,
+    cashIn: { salesMinor: cash.sales, adjustmentsMinor: cash.adjIn, totalMinor: inTotal },
     cashOut: {
       refundsMinor: cash.refunds,
+      adjustmentsMinor: cash.adjOut,
       expensesMinor: cash.expenses,
       supplierPaymentsMinor: cash.supplier,
       totalMinor: outTotal,
@@ -208,7 +227,8 @@ export function cashFlow(
         r.salesMinor ||
         r.refundsMinor ||
         r.expensesMinor ||
-        r.supplierPaymentsMinor,
+        r.supplierPaymentsMinor ||
+        r.adjustmentsMinor,
     ),
     expensesByCategory: expensesByCategory(db, ctx, range.from, range.to),
     daily,

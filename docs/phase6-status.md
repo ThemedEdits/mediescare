@@ -28,9 +28,16 @@ Lint and typecheck clean. Tests: core 97, sync 78, db 443 (live-database tests s
 
 ## Open decisions
 
-1. Opening cash starts at zero on the first day (no opening-cash setting yet).
-2. A till expense cannot be voided after its shift closes (a correcting entry is the way).
-3. Existing databases need `finance.expense.delete` granted to Branch Manager on the Roles screen.
-4. Cloud retention (500 MB free): documented, not automatic. Cloud reports or backup only?
-5. Terminals still sign in with user sessions; the device token is not yet used to authenticate terminal requests.
-6. Vercel Hobby is personal and non-commercial; any free Node host that allows commercial use also runs the cloud app.
+(Items about opening cash, closed-shift expenses, the Branch Manager role and cloud retention were decided on 2026-10-04, see below.)
+
+1. Terminals still sign in with user sessions; the device token is not yet used to authenticate terminal requests.
+2. Vercel Hobby is personal and non-commercial; any free Node host that allows commercial use also runs the cloud app.
+
+## Owner decisions (2026-10-04) and what was done
+
+1. **Opening cash:** stays at zero; adjustable through a cash book opening entry. Built (see `accounts.md`).
+2. **Closed-shift till expenses:** a correcting entry is required instead of voiding. Already how it works.
+3. **Branch Manager role:** migration added (`0013` SQLite, `0011` Postgres) granting `finance.expense.delete`, `finance.expense.export` and `finance.ledger.create` on existing databases. Tested, including running it twice.
+4. **Cloud retention:** the cloud keeps backup and the essential branch sync only (master data down, events up). Reports stay local to each branch PC; there are no cloud reports. This matches what is built: the cloud never computes reports.
+
+Checks after this change: lint and typecheck clean; tests core 97, sync 78, db 428 (28 skipped, live-database and scale tests), web 270, desktop 55; `pnpm verify:packaged` 198 smoke checks; `pnpm test:e2e` passes; stock list 180 ms in the bench.

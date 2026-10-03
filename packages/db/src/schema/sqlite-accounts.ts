@@ -68,3 +68,45 @@ export const expenses = sqliteTable(
     index('expenses_shift_idx').on(t.shiftId),
   ],
 );
+
+/**
+ * A signed cash entry in the cash book that is not a sale, refund, expense or supplier payment: the
+ * opening balance on the day cash tracking starts, or a later correction (a count that did not match,
+ * money brought in or taken out by the owner). Positive adds cash, negative removes it. Posted
+ * entries are immutable (triggers); a wrong one is voided with a reason.
+ */
+export const cashAdjustments = sqliteTable(
+  'cash_adjustments',
+  {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id')
+      .notNull()
+      .references(() => tenants.id),
+    branchId: text('branch_id')
+      .notNull()
+      .references(() => branches.id),
+    docNo: text('doc_no').notNull(),
+    /** Branch-local calendar date the entry belongs to, 'YYYY-MM-DD'. */
+    entryDate: text('entry_date').notNull(),
+    /** opening | adjustment */
+    kind: text('kind').notNull(),
+    /** Signed paisa, never zero. */
+    amountMinor: integer('amount_minor').notNull(),
+    /** A cash payment mode (kind cash) the money is counted under. */
+    modeId: text('mode_id')
+      .notNull()
+      .references(() => paymentModes.id),
+    note: text('note').notNull(),
+    /** posted | void */
+    status: text('status').notNull().default('posted'),
+    voidReason: text('void_reason'),
+    voidedBy: text('voided_by'),
+    voidedAt: text('voided_at'),
+    createdBy: text('created_by'),
+    ...syncCols(),
+  },
+  (t) => [
+    uniqueIndex('cash_adjustments_tenant_docno_uq').on(t.tenantId, t.docNo),
+    index('cash_adjustments_branch_date_idx').on(t.branchId, t.entryDate),
+  ],
+);

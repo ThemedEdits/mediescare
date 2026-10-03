@@ -6,15 +6,17 @@ import { useT } from '@/i18n/client';
 import { pkr } from '@/lib/format';
 import { printReport } from '../reports/print-report';
 import { KpiCards } from '../reports/report-table';
+import { CashEntries } from './cash-entries';
 import { monthRange, RangeBar } from './range-bar';
 
 interface CashFlow {
   range: { from: string; to: string };
   openingCashMinor: number;
   closingCashMinor: number;
-  cashIn: { salesMinor: number; totalMinor: number };
+  cashIn: { salesMinor: number; adjustmentsMinor: number; totalMinor: number };
   cashOut: {
     refundsMinor: number;
+    adjustmentsMinor: number;
     expensesMinor: number;
     supplierPaymentsMinor: number;
     totalMinor: number;
@@ -27,6 +29,7 @@ interface CashFlow {
     refundsMinor: number;
     expensesMinor: number;
     supplierPaymentsMinor: number;
+    adjustmentsMinor: number;
     netMinor: number;
   }[];
   expensesByCategory: { categoryId: string; name: string; amountMinor: number }[];
@@ -43,7 +46,7 @@ const money = (n: number) => <bdi dir="ltr">{pkr(n)}</bdi>;
 const th = 'px-3 py-2 text-end';
 
 /** Cash book: opening, cash in and out, closing, by payment mode, by category and day by day. */
-export function CashBookTab({ canExport }: { canExport: boolean }) {
+export function CashBookTab({ canExport, canAdjust }: { canExport: boolean; canAdjust: boolean }) {
   const t = useT();
   const errorText = useErrorText();
   const [range, setRange] = useState(monthRange());
@@ -109,6 +112,12 @@ export function CashBookTab({ canExport }: { canExport: boolean }) {
                     <td className="px-3 py-2">{t('accounts.cashBook.cashSales')}</td>
                     <td className={th}>{money(cf.cashIn.salesMinor)}</td>
                   </tr>
+                  {cf.cashIn.adjustmentsMinor > 0 ? (
+                    <tr className="border-t border-border">
+                      <td className="px-3 py-2">{t('accounts.cashBook.entriesIn')}</td>
+                      <td className={th}>{money(cf.cashIn.adjustmentsMinor)}</td>
+                    </tr>
+                  ) : null}
                   <tr className="border-t border-border">
                     <td className="px-3 py-2">{t('accounts.cashBook.cashRefunds')}</td>
                     <td className={th}>{money(cf.cashOut.refundsMinor)}</td>
@@ -121,6 +130,12 @@ export function CashBookTab({ canExport }: { canExport: boolean }) {
                     <td className="px-3 py-2">{t('accounts.cashBook.cashSupplier')}</td>
                     <td className={th}>{money(cf.cashOut.supplierPaymentsMinor)}</td>
                   </tr>
+                  {cf.cashOut.adjustmentsMinor > 0 ? (
+                    <tr className="border-t border-border">
+                      <td className="px-3 py-2">{t('accounts.cashBook.entriesOut')}</td>
+                      <td className={th}>{money(cf.cashOut.adjustmentsMinor)}</td>
+                    </tr>
+                  ) : null}
                 </tbody>
               </table>
               <p className="border-t border-border px-3 py-2 text-xs text-muted">
@@ -164,6 +179,7 @@ export function CashBookTab({ canExport }: { canExport: boolean }) {
                   <th className={th}>{t('accounts.cashBook.refunds')}</th>
                   <th className={th}>{t('accounts.cashBook.expenses')}</th>
                   <th className={th}>{t('accounts.cashBook.supplier')}</th>
+                  <th className={th}>{t('accounts.cashBook.entries')}</th>
                   <th className={th}>{t('reports.col.net')}</th>
                 </tr>
               </thead>
@@ -175,6 +191,7 @@ export function CashBookTab({ canExport }: { canExport: boolean }) {
                     <td className={th}>{money(m.refundsMinor)}</td>
                     <td className={th}>{money(m.expensesMinor)}</td>
                     <td className={th}>{money(m.supplierPaymentsMinor)}</td>
+                    <td className={th}>{money(m.adjustmentsMinor)}</td>
                     <td className={`${th} font-semibold`}>{money(m.netMinor)}</td>
                   </tr>
                 ))}
@@ -221,6 +238,7 @@ export function CashBookTab({ canExport }: { canExport: boolean }) {
           <p className="text-xs text-muted">{t('accounts.cashBook.note')}</p>
         </div>
       ) : null}
+      <CashEntries canAdjust={canAdjust} onChanged={data.reload} />
     </div>
   );
 }

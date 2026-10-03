@@ -61,3 +61,17 @@ No chart of accounts, no double-entry, no balance sheet, no trial balance, no ba
 ## Sync
 
 Tables `expense_categories` and `expenses` exist in both schemas (SQLite `0011`, Postgres `0009`) and every write adds outbox entries (`entityType` `expense_categories`, `expenses`). The sync pull appliers and the cloud store need to know these two entity types.
+
+## Cash book entries: opening balance and corrections
+
+Owner decision (2026-10-04): the cash book starts at zero, and the owner can set the opening cash with an entry.
+
+- **Opening balance:** one per branch, entered on the day cash tracking starts (Accounts > Cash book > "Add entry"). It cannot be negative. To change it, void it (with a reason) and enter a new one.
+- **Adjustment:** adds or removes cash (a count that did not match, money the owner puts in or takes out). A note saying what it is for is required.
+- Entries are numbered `CSH`, immutable once posted (database triggers) and voided with a reason, like expenses. Voided entries stay on record and do not count.
+- In the cash book an entry dated before the first day of the range is part of the **opening cash**; inside the range it shows as cash in (adds) or cash out (removes) and moves the closing cash. They are counted under the first active cash payment method.
+- Permission: `finance.ledger.create` (Accountant through `finance.*`, admins, and now Branch Manager).
+
+## Role migration
+
+Migration `0013_grant_branch_manager_finance` (SQLite) and `0011_grant_branch_manager_finance` (Postgres) give the built-in Branch Manager role `finance.expense.delete` (void expenses), `finance.expense.export` and `finance.ledger.create` on existing databases. It only adds rows, never touches custom roles or other roles, and is safe to run twice. New databases already get these from the role definition.

@@ -1157,6 +1157,85 @@ try {
       JSON.stringify((await admin.get('/api/expenses?status=void')).data).includes(exp.data.docNo),
   );
 
+  // --- cash book entries (opening balance and adjustments) and the Branch Manager role ---
+  const opening = await admin.post('/api/expenses/cash-adjustments', {
+    kind: 'opening',
+    amountMinor: 500_000,
+    note: 'smoke opening cash',
+  });
+  check(
+    'admin enters an opening cash balance of 5,000.00',
+    opening.status === 201 && /^SMK01-CSH-\d{6}$/.test(opening.data.docNo ?? ''),
+    JSON.stringify(opening.data).slice(0, 160),
+  );
+  check(
+    'a second opening balance is refused',
+    (
+      await admin.post('/api/expenses/cash-adjustments', {
+        kind: 'opening',
+        amountMinor: 1,
+        note: 'second one',
+      })
+    ).status === 409,
+  );
+  check(
+    'a cashier cannot make cash book entries',
+    (
+      await counter.post('/api/expenses/cash-adjustments', {
+        kind: 'adjustment',
+        amountMinor: 100,
+        note: 'not allowed',
+      })
+    ).status === 403,
+  );
+  const adj = await admin.post('/api/expenses/cash-adjustments', {
+    kind: 'adjustment',
+    amountMinor: -12_500,
+    note: 'smoke count was short',
+  });
+  check('admin records a correction that removes 125.00', adj.status === 201);
+  const cf2 = await admin.get('/api/expenses/cash-flow');
+  check(
+    'the cash book includes the entries',
+    cf2.status === 200 &&
+      cf2.data.cashIn.adjustmentsMinor >= 500_000 &&
+      cf2.data.cashOut.adjustmentsMinor >= 12_500,
+    JSON.stringify([cf2.data.cashIn, cf2.data.cashOut]).slice(0, 200),
+  );
+  const listAdj = await admin.get('/api/expenses/cash-adjustments');
+  check('the entries are listed', listAdj.status === 200 && listAdj.data.entries.length >= 2);
+  check(
+    'an entry can be voided with a reason',
+    (
+      await admin.post(`/api/expenses/cash-adjustments/${adj.data.id}/void`, {
+        reason: 'smoke void',
+      })
+    ).status === 200 &&
+      (await admin.post(`/api/expenses/cash-adjustments/${adj.data.id}/void`, { reason: 'again' }))
+        .status === 409,
+  );
+  const mgrExp = await manager.post('/api/expenses', {
+    categoryId: firstCat?.id,
+    amountMinor: 100_00,
+    modeId: mode('cash'),
+    note: 'smoke manager expense',
+  });
+  check('the Branch Manager records an expense', mgrExp.status === 201);
+  check(
+    'the Branch Manager can void an expense (finance.expense.delete)',
+    (await manager.post(`/api/expenses/${mgrExp.data.id}/void`, { reason: 'smoke manager void' }))
+      .status === 200,
+  );
+  const mgrAdj = await manager.post('/api/expenses/cash-adjustments', {
+    kind: 'adjustment',
+    amountMinor: 5_00,
+    note: 'smoke manager entry',
+  });
+  check(
+    'the Branch Manager can make a cash book entry (finance.ledger.create)',
+    mgrAdj.status === 201,
+  );
+
   // --- Urdu: every screen renders in Urdu, right to left, without errors ---
   check(
     'admin switches the display language to Urdu',

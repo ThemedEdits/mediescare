@@ -215,6 +215,7 @@ export const ROLE_DEFAULTS: Readonly<Record<RoleCode, RoleDefinition>> = {
       'finance.expense.create',
       'finance.expense.delete', // voids an expense (nothing is ever deleted)
       'finance.expense.export',
+      'finance.ledger.create', // cash book entries: opening balance and corrections
       'purchasing.supplier.view',
       'purchasing.grn.view',
       'purchasing.grn.create',

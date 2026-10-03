@@ -17,6 +17,7 @@ export default async function AccountsPage() {
         canManageCategories={allow('finance.expense_category.edit')}
         canCashBook={allow('reports.financial.view')}
         canCashBookExport={allow('reports.financial.export')}
+        canCashEntries={allow('finance.ledger.create')}
         canProfit={allow('reports.profit.view')}
         canProfitExport={allow('reports.profit.export')}
       />

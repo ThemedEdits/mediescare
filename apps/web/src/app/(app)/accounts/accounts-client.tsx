@@ -15,6 +15,7 @@ interface Props {
   canManageCategories: boolean;
   canCashBook: boolean;
   canCashBookExport: boolean;
+  canCashEntries: boolean;
   canProfit: boolean;
   canProfitExport: boolean;
 }
@@ -66,7 +67,9 @@ export function AccountsClient(props: Props) {
         />
       ) : null}
       {tab === 'categories' ? <CategoriesTab canManage={props.canManageCategories} /> : null}
-      {tab === 'cashBook' ? <CashBookTab canExport={props.canCashBookExport} /> : null}
+      {tab === 'cashBook' ? (
+        <CashBookTab canExport={props.canCashBookExport} canAdjust={props.canCashEntries} />
+      ) : null}
       {tab === 'profit' ? <ProfitTab canExport={props.canProfitExport} /> : null}
     </div>
   );

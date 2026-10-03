@@ -82,11 +82,38 @@
       "in": "In",
       "out": "Out",
       "closing": "Closing",
-      "note": "Opening cash is everything taken in cash minus everything paid out in cash before the first day. It starts from zero on the day the system was first used."
+      "note": "Opening cash is everything taken in cash minus everything paid out in cash before the first day. It starts from zero on the day the system was first used.",
+      "entriesIn": "Cash book entries (cash added)",
+      "entriesOut": "Cash book entries (cash removed)",
+      "entries": "Entries"
     },
     "profit": {
       "title": "Profit and loss",
       "note": "Net profit = revenue without tax (after returns) - cost of goods sold - expenses. Purchases of stock are not subtracted: they become cost when the goods are sold."
+    },
+    "entries": {
+      "title": "Cash book entries",
+      "hint": "Enter the opening balance once, on the day you start tracking cash. Use an adjustment to correct the cash or to record money the owner puts in or takes out.",
+      "add": "Add entry",
+      "number": "Number",
+      "type": "Type",
+      "amount": "Amount (PKR)",
+      "note": "Note",
+      "noteLabel": "What is it for?",
+      "kind": {
+        "opening": "Opening balance",
+        "adjustment": "Adjustment"
+      },
+      "direction": "Direction",
+      "addCash": "Add cash",
+      "removeCash": "Remove cash",
+      "dateHint": "Leave empty for today.",
+      "void": "Void",
+      "voidAction": "Void entry",
+      "voidTitle": "Void {number}",
+      "voidReason": "Reason",
+      "empty": "No cash book entries yet.",
+      "saveFailed": "Could not save the entry"
     }
   }
 }

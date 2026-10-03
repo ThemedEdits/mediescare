@@ -10,6 +10,7 @@ export const DOC_TYPES = [
   'REQ', // requisition
   'TRF', // transfer note
   'ADJ', // stock adjustment
+  'CSH', // cash book entry (opening balance or adjustment)
   'EXP', // expense voucher
   'PAY', // payment
   'SHF', // shift

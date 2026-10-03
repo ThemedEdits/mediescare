@@ -305,9 +305,10 @@ describe('cash book and profit on a hand-computed day', () => {
     dayOne();
     const cf = cashFlow(env.db, env.ctx(admin), range1);
     expect(cf.openingCashMinor).toBe(0);
-    expect(cf.cashIn).toEqual({ salesMinor: 100_000, totalMinor: 100_000 });
+    expect(cf.cashIn).toEqual({ salesMinor: 100_000, adjustmentsMinor: 0, totalMinor: 100_000 });
     expect(cf.cashOut).toEqual({
       refundsMinor: 2_500,
+      adjustmentsMinor: 0,
       expensesMinor: 23_000, // 3,000 from the till + 20,000 rent
       supplierPaymentsMinor: 40_000,
       totalMinor: 65_500,

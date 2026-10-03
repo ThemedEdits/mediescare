@@ -66,3 +66,34 @@ export const expenses = pgTable(
     index('expenses_shift_idx').on(t.shiftId),
   ],
 );
+
+export const cashAdjustments = pgTable(
+  'cash_adjustments',
+  {
+    id: uuid('id').primaryKey(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenants.id),
+    branchId: uuid('branch_id')
+      .notNull()
+      .references(() => branches.id),
+    docNo: text('doc_no').notNull(),
+    entryDate: text('entry_date').notNull(),
+    kind: text('kind').notNull(),
+    amountMinor: bigint('amount_minor', { mode: 'number' }).notNull(),
+    modeId: uuid('mode_id')
+      .notNull()
+      .references(() => paymentModes.id),
+    note: text('note').notNull(),
+    status: text('status').notNull().default('posted'),
+    voidReason: text('void_reason'),
+    voidedBy: text('voided_by'),
+    voidedAt: text('voided_at'),
+    createdBy: text('created_by'),
+    ...syncCols(),
+  },
+  (t) => [
+    uniqueIndex('cash_adjustments_tenant_docno_uq').on(t.tenantId, t.docNo),
+    index('cash_adjustments_branch_date_idx').on(t.branchId, t.entryDate),
+  ],
+);
