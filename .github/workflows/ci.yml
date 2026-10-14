@@ -18,7 +18,11 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
       - run: pnpm typecheck
+      # The 50k-item scale tests measure speed for real pharmacy PCs; shared CI runners are about 2.5x
+      # slower and vary, so they run locally (pnpm test, pnpm bench) and not here.
       - run: pnpm test
+        env:
+          SKIP_SCALE: '1'
       - run: pnpm --filter @mediescare/web build
         env:
           NEXT_TELEMETRY_DISABLED: '1'
