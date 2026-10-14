@@ -14,8 +14,7 @@
     "smoke": "node scripts/smoke-packaged.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:e2e": "playwright test",
-    "release": "node scripts/make-icons.mjs && node scripts/build.mjs && node scripts/prepare-web.mjs && electron-builder --config electron-builder.yml --win --publish always"
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@mediescare/config": "workspace:*",

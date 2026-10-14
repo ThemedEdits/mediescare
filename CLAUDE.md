@@ -176,7 +176,6 @@ pnpm test:e2e            # playwright
 pnpm lint && pnpm typecheck
 pnpm bench               # 100k-SKU benchmark (search, stock list, invoice save)
 pnpm verify:packaged     # build + package + packaged-app smoke test
-pnpm --filter @mediescare/desktop release   # CI only: build installer + publish GitHub Release (auto-update feed, docs/updates.md)
 ```
 
 ## 11. How to work (process)
