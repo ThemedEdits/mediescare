@@ -1,4 +1,5 @@
 import { isNull } from 'drizzle-orm';
+import { recordChange } from '../outbox';
 import {
   bootstrapHeadOffice,
   createEnrollmentCode,
@@ -77,7 +78,7 @@ function connect(env: TestEnv, result: EnrollResult): Side {
     tokens: provider,
     intervalMs: 1000,
     pull: {
-      entityTypes: ['items'],
+      entityTypes: ['items', 'users'],
       apply: (changes) => {
         pulled.push(...changes);
       },
@@ -190,6 +191,20 @@ async function main(): Promise<void> {
       retailRateUnitMicro: 100,
     });
     queueItemEdit(envB, 'live-item-br', 'insert', { name: 'Live Item (Branch)' });
+    // A user account made at Head Office (invented, with a fake hash): accounts reach every branch.
+    envA.db.transaction((tx) =>
+      recordChange(tx, envA.ctx(envA.setup.adminUserId), {
+        entityType: 'users',
+        entityId: 'live-user-ho',
+        op: 'insert',
+        payload: {
+          id: 'live-user-ho',
+          username: 'live.check',
+          fullName: 'Live Check',
+          passwordHash: 'x',
+        },
+      }),
+    );
     queueSales(envA, 60, 'live-ho-sale');
     queueSales(envB, 40, 'live-br-sale');
     const t0 = Date.now();
@@ -214,8 +229,14 @@ async function main(): Promise<void> {
       brGot.includes('live-item-ho') && !brGot.includes('live-item-br'),
     );
     check(
+      'a user account made at Head Office reaches the branch',
+      branch.pulled.some(
+        (c) => c.event.entityType === 'users' && c.event.entityId === 'live-user-ho',
+      ),
+    );
+    check(
       'sales are not sent to other branches',
-      [...ho.pulled, ...branch.pulled].every((c) => c.event.entityType === 'items'),
+      [...ho.pulled, ...branch.pulled].every((c) => c.event.entityType !== 'sales'),
     );
 
     // Token rotation, then the grace window: replaying the just-replaced refresh token works once.

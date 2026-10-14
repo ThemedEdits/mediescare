@@ -14,3 +14,4 @@ import './branches';
 import './lookups';
 import './items';
 import './transfers';
+import './users';

@@ -83,6 +83,7 @@ export interface RegisterOptions {
 export const APPLY_ORDER = {
   branches: 10,
   lookups: 20, // units, categories, manufacturers, payment modes
+  accounts: 15, // roles, users and their role and branch links (after branches)
   parties: 30, // suppliers
   items: 40,
   documents: 90, // transfers and other documents that point at items and branches

@@ -47,6 +47,11 @@ export const DEFAULT_MASTER_ENTITIES: readonly string[] = [
   'racks',
   'units',
   'payment_modes',
+  // Accounts reach every branch; branches apply them only from Head Office (ADR-0016).
+  'roles',
+  'users',
+  'user_roles',
+  'user_branches',
 ];
 
 /** Price-policy fields Head Office owns (sync-design.md §6). */

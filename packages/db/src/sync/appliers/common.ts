@@ -74,9 +74,10 @@ export function fromHeadOffice(tx: DbOrTx, env: ApplyEnv, change: PulledChange):
     .from(branches)
     .where(eq(branches.id, branchId))
     .get();
-  const answer = row?.isHeadOffice ?? false;
-  env.cache?.set(key, answer);
-  return answer;
+  // Remember only what the table says about a row that exists: an unknown branch may be inserted by a
+  // later event of this same batch (Head Office's own branch row arrives with its first events).
+  if (row) env.cache?.set(key, row.isHeadOffice);
+  return row?.isHeadOffice ?? false;
 }
 
 /** Throws `DependencyMissing` unless the row exists. Positive answers are memoised for the batch. */
