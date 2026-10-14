@@ -29,6 +29,6 @@ export const BRAND = {
  * Built-in address of the Mediescare cloud endpoint (the cloud-mode app that holds the Supabase
  * connection, docs/cloud-deploy.md). The Connect screens fill it in, so nobody has to type it. Only the
  * address lives here: the database password stays on the cloud host and never ships in the installer.
- * Empty until the cloud is deployed; then put its https address here and push.
+ * Change it here and push if the cloud moves to another address.
  */
-export const DEFAULT_CLOUD_URL = '';
+export const DEFAULT_CLOUD_URL = 'https://mediescare-1.vercel.app';

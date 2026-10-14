@@ -27,7 +27,7 @@ The repository is **public**. Releases are therefore downloadable by anyone, and
 
 - The owner's first request was to put the Supabase connection string (with the `postgres` password) into the app. **Rejected, and the owner agreed:** with a public repository and public releases, anyone could extract it and read, change or delete every branch's data. This is also the rule of ADR-0012 §6.
 - Instead, `DEFAULT_CLOUD_URL` in `packages/config/src/index.ts` is the address of the deployed cloud-mode app (docs/cloud-deploy.md). The "Connect to cloud" and "Join an existing organisation" forms are pre-filled with it. The database password stays on the cloud host only; branches keep using revocable device tokens.
-- It is empty until the cloud app is deployed. A guessed domain could belong to someone else and would receive bootstrap and enrollment codes.
+- Set to `https://mediescare-1.vercel.app` (deployed 2026-10-14, Vercel, Mumbai region). Never guess this value: a domain owned by someone else would receive bootstrap and enrollment codes.
 - The Supabase project used from 2026-10-14 is `wnxhubouuedzwgfptsta` in `ap-south-1` (Mumbai). Its direct host is IPv6-only, so `.env` and the cloud host use the Session pooler (`aws-0-ap-south-1.pooler.supabase.com`, user `postgres.<project-ref>`). A `@` in the password must be written `%40` in the URL.
 
 ### 3. Clear database (Super Admin)
