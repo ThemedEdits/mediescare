@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { CLEAR_DATABASE_PHRASE } from '@mediescare/core/permissions';
 import { api, Button, ErrorText, inputClass, Modal, useErrorText } from '@/components/ui';
 import { useT } from '@/i18n/client';
+import { PasswordInput } from '@/components/password-input';
 
 /**
  * Super Admin "Clear database". Asks twice: a warning to acknowledge, then the typed phrase and the
@@ -89,9 +90,8 @@ export function ClearDatabase() {
             </label>
             <label className="block">
               {t('settings.clearDb.password')}
-              <input
+              <PasswordInput
                 className={inputClass}
-                type="password"
                 value={password}
                 autoComplete="current-password"
                 onChange={(e) => setPassword(e.target.value)}

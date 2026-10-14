@@ -48,7 +48,9 @@
     "inactive": "Inactive",
     "create": "Create",
     "remove": "Remove",
-    "done": "Done"
+    "done": "Done",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password"
   },
   "errors": {
     "INSUFFICIENT_STOCK": "Not enough stock",

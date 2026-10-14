@@ -1,19 +1,32 @@
 import type { InputHTMLAttributes } from 'react';
+import { PasswordInput } from './password-input';
 
-export function Field({ label, error, ...input }: InputHTMLAttributes<HTMLInputElement> & { label: string; error?: string }) {
+const FIELD_INPUT =
+  'h-11 w-full rounded-[6px] border border-slate-400 bg-white px-3 text-base text-slate-900 focus:border-primary-600';
+
+export function Field({
+  label,
+  error,
+  ...input
+}: InputHTMLAttributes<HTMLInputElement> & { label: string; error?: string }) {
   return (
     <label className="block text-sm">
       <span className="mb-1 block font-medium text-slate-800">{label}</span>
-      <input
-        {...input}
-        className="h-11 w-full rounded-[6px] border border-slate-400 bg-white px-3 text-base text-slate-900 focus:border-primary-600"
-      />
+      {input.type === 'password' ? (
+        <PasswordInput {...{ ...input, type: undefined }} className={FIELD_INPUT} />
+      ) : (
+        <input {...input} className={FIELD_INPUT} />
+      )}
       {error ? <span className="mt-1 block text-danger">{error}</span> : null}
     </label>
   );
 }
 
-export function PrimaryButton({ children, disabled, ...rest }: React.ButtonHTMLAttributes<HTMLButtonElement>) {
+export function PrimaryButton({
+  children,
+  disabled,
+  ...rest
+}: React.ButtonHTMLAttributes<HTMLButtonElement>) {
   return (
     <button
       {...rest}

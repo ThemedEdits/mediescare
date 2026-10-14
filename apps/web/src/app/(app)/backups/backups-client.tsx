@@ -13,6 +13,7 @@ import {
   useAsync,
   useErrorText,
 } from '@/components/ui';
+import { PasswordInput } from '@/components/password-input';
 
 interface BackupRow {
   id: string;
@@ -290,9 +291,8 @@ function RotateDialog({ onClose, onKey }: { onClose: () => void; onKey: (key: st
         }}
       >
         <p className="text-sm text-muted">{t('backups.rotateHelp')}</p>
-        <input
+        <PasswordInput
           className={inputClass}
-          type="password"
           autoComplete="current-password"
           aria-label={t('backups.yourPassword')}
           value={password}

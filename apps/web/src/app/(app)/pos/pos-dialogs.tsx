@@ -12,6 +12,7 @@ import {
   type ReceiptPaymentInput,
 } from '@/lib/receipt';
 import type { Customer, Narcotic, OverrideNeed, SaleResult, Shift } from './pos-types';
+import { PasswordInput } from '@/components/password-input';
 
 function useAutoFocus<T extends HTMLElement>() {
   const ref = useRef<T>(null);
@@ -89,9 +90,8 @@ export function OverrideDialog({
         </label>
         <label className="block text-sm">
           {t('pos.override.pin')}
-          <input
+          <PasswordInput
             className={`${inputClass} font-mono tracking-widest`}
-            type="password"
             inputMode="numeric"
             maxLength={6}
             value={pin}

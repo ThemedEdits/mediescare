@@ -48,7 +48,9 @@
     "inactive": "غیر فعال",
     "create": "بنائیں",
     "remove": "ہٹائیں",
-    "done": "مکمل"
+    "done": "مکمل",
+    "showPassword": "پاس ورڈ دکھائیں",
+    "hidePassword": "پاس ورڈ چھپائیں"
   },
   "errors": {
     "INSUFFICIENT_STOCK": "اسٹاک کافی نہیں",

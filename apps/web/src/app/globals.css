@@ -18,6 +18,13 @@ html[dir='rtl'] {
   outline-offset: 2px;
 }
 
+/* Form fields: the focus outline sits on the field's own border, with no gap around it. */
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline-offset: 0;
+}
+
 /* 80 mm receipt: when printing, show only the receipt. */
 @media print {
   body * {

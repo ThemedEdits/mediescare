@@ -13,6 +13,7 @@ import {
   useErrorText,
 } from '@/components/ui';
 import { useT } from '@/i18n/client';
+import { PasswordInput } from '@/components/password-input';
 
 interface UserRow {
   id: string;
@@ -452,11 +453,10 @@ function PinDialog({
         }}
       >
         <p className="text-sm text-muted">{t('users.pinHelp')}</p>
-        <input
+        <PasswordInput
           aria-label={t('users.newPin')}
           inputMode="numeric"
           autoComplete="off"
-          type="password"
           maxLength={6}
           className={`${inputClass} text-center font-mono text-lg tracking-widest`}
           value={pin}

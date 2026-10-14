@@ -13,6 +13,7 @@ import {
   useErrorText,
 } from '@/components/ui';
 import { useT } from '@/i18n/client';
+import { PasswordInput } from '@/components/password-input';
 
 interface Status {
   enabled: boolean;
@@ -317,9 +318,8 @@ function ConnectForm({
       </label>
       <label className="block">
         <span className="mb-1 block text-xs font-medium">{t('settings.sync.bootstrapCode')}</span>
-        <input
+        <PasswordInput
           className={inputClass}
-          type="password"
           value={bootstrapCode}
           onChange={(e) => setBootstrapCode(e.target.value)}
           autoComplete="off"
