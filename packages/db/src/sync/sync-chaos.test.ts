@@ -178,7 +178,9 @@ describe('clock skew', () => {
     const rows = env.db.select().from(syncOutbox).all();
     queueSales(env, 1, 'after-fix');
     const last = env.db.select().from(syncOutbox).all().at(-1);
+    // Only the sales stamped by the skewed test clock: first-run setup rows carry real wall-clock time.
     const maxBefore = rows
+      .filter((x) => x.entityType === 'sales')
       .map((x) => x.hlc)
       .sort()
       .at(-1) as string;
