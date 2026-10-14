@@ -253,6 +253,14 @@ export const applyUser: EntityApplier = onlyFromHeadOffice((tx, change, env) => 
     }
   }
   const result = mergeUser(tx, change, env);
+  // A new password or PIN from Head Office is a fresh start: lift this PC's lock-out for the account,
+  // as a reset does at Head Office (the lock itself never travels).
+  const newValue = typeof result === 'string' ? undefined : result.newValue;
+  if (newValue && ('passwordHash' in newValue || 'pinHash' in newValue))
+    tx.update(users)
+      .set({ failedLogins: 0, lockedUntil: null })
+      .where(eq(users.id, change.event.entityId))
+      .run();
   if (renamed.length === 0) return result;
   const detail: ApplyDetail = typeof result === 'string' ? { outcome: result } : result;
   return { ...detail, outcome: 'conflict', conflicts: [...(detail.conflicts ?? []), ...renamed] };

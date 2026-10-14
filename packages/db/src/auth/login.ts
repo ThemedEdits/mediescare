@@ -34,7 +34,13 @@ export interface LoginInput {
 export interface LoginResult {
   token: string;
   sessionId: string;
-  user: { id: string; username: string; fullName: string; language: string; mustChangePassword: boolean };
+  user: {
+    id: string;
+    username: string;
+    fullName: string;
+    language: string;
+    mustChangePassword: boolean;
+  };
 }
 
 type Outcome =
@@ -46,21 +52,43 @@ type Outcome =
  * one synchronous transaction. Success and failure are both written to the audit chain.
  * Failure messages are identical for an unknown user and a wrong password.
  */
-export async function login(db: Db, ctx: WriteContext, input: LoginInput, sessionSecret: string): Promise<LoginResult> {
+export async function login(
+  db: Db,
+  ctx: WriteContext,
+  input: LoginInput,
+  sessionSecret: string,
+): Promise<LoginResult> {
   const user = db
     .select()
     .from(users)
-    .where(and(eq(users.tenantId, ctx.tenantId), eq(users.username, input.username), isNull(users.deletedAt)))
+    .where(
+      and(
+        eq(users.tenantId, ctx.tenantId),
+        eq(users.username, input.username),
+        isNull(users.deletedAt),
+      ),
+    )
     .get();
 
-  const passwordOk = await verifyPassword(user?.passwordHash ?? (await getDummyHash()), input.password);
+  const passwordOk = await verifyPassword(
+    user?.passwordHash ?? (await getDummyHash()),
+    input.password,
+  );
 
   const outcome = db.transaction((tx): Outcome => {
     const nowIso = isoNow(ctx);
     const now = new Date(nowIso);
     const audit = (action: string, userId: string | null, detail: unknown) =>
-      appendAudit(tx, { ...ctx, userId }, { action, entityType: 'user', entityId: userId, newValue: detail });
-    const invalid: Outcome = { kind: 'fail', code: 'INVALID_CREDENTIALS', message: 'Invalid username or password' };
+      appendAudit(
+        tx,
+        { ...ctx, userId },
+        { action, entityType: 'user', entityId: userId, newValue: detail },
+      );
+    const invalid: Outcome = {
+      kind: 'fail',
+      code: 'INVALID_CREDENTIALS',
+      message: 'Invalid username or password',
+    };
 
     if (!user) {
       audit('auth.login.failed', null, { reason: 'unknown_user' });
@@ -72,7 +100,7 @@ export async function login(db: Db, ctx: WriteContext, input: LoginInput, sessio
     }
     if (user.lockedUntil && new Date(user.lockedUntil) > now) {
       audit('auth.login.failed', user.id, { reason: 'locked' });
-      return { kind: 'fail', code: 'LOCKED', message: 'Too many failed attempts. Try again later' };
+      return { kind: 'fail', code: 'LOCKED', message: lockedMessage(user.lockedUntil, now) };
     }
     if (!passwordOk) {
       const failed = user.failedLogins + 1;
@@ -91,10 +119,21 @@ export async function login(db: Db, ctx: WriteContext, input: LoginInput, sessio
     }
 
     tx.update(users)
-      .set({ failedLogins: 0, lockedUntil: null, lastLoginAt: nowIso, updatedAt: nowIso, hlc: ctx.clock.tick() })
+      .set({
+        failedLogins: 0,
+        lockedUntil: null,
+        lastLoginAt: nowIso,
+        updatedAt: nowIso,
+        hlc: ctx.clock.tick(),
+      })
       .where(eq(users.id, user.id))
       .run();
-    const sessionId = createSession(tx, { userId: user.id, branchId: ctx.branchId, deviceId: ctx.deviceId, now });
+    const sessionId = createSession(tx, {
+      userId: user.id,
+      branchId: ctx.branchId,
+      deviceId: ctx.deviceId,
+      now,
+    });
     audit('auth.login.success', user.id, null);
     return {
       kind: 'ok',
@@ -110,6 +149,18 @@ export async function login(db: Db, ctx: WriteContext, input: LoginInput, sessio
   });
 
   if (outcome.kind === 'fail') throw new AuthError(outcome.code, outcome.message);
-  const token = await signSessionToken({ sid: outcome.sessionId, uid: outcome.user.id }, sessionSecret);
+  const token = await signSessionToken(
+    { sid: outcome.sessionId, uid: outcome.user.id },
+    sessionSecret,
+  );
   return { token, sessionId: outcome.sessionId, user: outcome.user };
+}
+
+/** "Too many failed attempts" with the minutes left, so the person knows how long to wait. */
+export function lockedMessage(lockedUntil: string, now: Date): string {
+  const minutes = Math.max(
+    1,
+    Math.ceil((new Date(lockedUntil).getTime() - now.getTime()) / 60_000),
+  );
+  return `Too many failed attempts. This account is locked on this computer for ${minutes} more minute${minutes === 1 ? '' : 's'}. An administrator can reset the password to unlock it now.`;
 }

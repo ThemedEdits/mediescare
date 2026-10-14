@@ -11,7 +11,14 @@ import { createRole } from '../../roles';
 import { rolePermissions, roles, users } from '../../schema/sqlite-all';
 import { createTestEnv, ADMIN_PASSWORD, SESSION_SECRET, type TestEnv } from '../../test-helpers';
 import { pushOutbox } from '../../syncWorker';
-import { createUser, resetPassword, setUserActive, setUserRoles } from '../../users';
+import {
+  changeOwnPassword,
+  createUser,
+  resetPassword,
+  setUserActive,
+  setUserBranches,
+  setUserRoles,
+} from '../../users';
 import { pullChanges } from '../pull';
 import { authOf } from '../test-support';
 import { applierFor, createJoinedBranchEnv, pullTypes } from './test-env';
@@ -171,5 +178,68 @@ describe('accounts made at a branch stay at that branch', () => {
     await sync();
     expect(userByName(ho, 'branchonly')).toBeUndefined();
     await expect(signIn(ho, 'branchonly', CASHIER_PASSWORD)).rejects.toThrow();
+  });
+});
+
+describe('the owner-reported sequence (2026-10-14)', () => {
+  it('branch joined as "arsalan11"; Head Office made its own "arsalan11", who changed the password', async () => {
+    // The branch PC was set up with this username before Head Office created the same one.
+    br.db
+      .update(users)
+      .set({ username: 'arsalan11' })
+      .where(eq(users.id, br.setup.adminUserId))
+      .run();
+    const actor = ho.ctx(ho.setup.adminUserId);
+    const { id, temporaryPassword } = await createUser(ho.db, actor, {
+      username: 'arsalan11',
+      fullName: 'Arsalan Test',
+      roleIds: [ho.roleId('cashier')],
+      branchIds: [ho.setup.branchId],
+    });
+    await sync();
+    ho.clock.ms += 60_000;
+    br.clock.ms += 60_000;
+    // First sign-in at Head Office: the temporary password is replaced.
+    const first = await signIn(ho, 'arsalan11', temporaryPassword as string);
+    await changeOwnPassword(ho.db, ho.ctx(id), {
+      userId: id,
+      currentSessionId: first.sessionId,
+      currentPassword: temporaryPassword as string,
+      newPassword: 'Head-Office-Pass-2026',
+    });
+    ho.clock.ms += 60_000;
+    setUserBranches(ho.db, actor, id, { branchIds: [], allBranches: true });
+    await sync();
+
+    const atBranch = await signIn(br, 'arsalan11', 'Head-Office-Pass-2026');
+    expect(atBranch.user.id).toBe(id);
+    const owner = await signIn(br, 'arsalan11-local', BRANCH_ADMIN_PASSWORD);
+    expect(owner.user.id).toBe(br.setup.adminUserId);
+  });
+});
+
+describe('lock-out at a branch', () => {
+  it('says how long to wait, and a password reset at Head Office unlocks the branch too', async () => {
+    const actor = ho.ctx(ho.setup.adminUserId);
+    const { id } = await createUser(ho.db, actor, {
+      username: 'locked1',
+      fullName: 'Locked User',
+      password: CASHIER_PASSWORD,
+      roleIds: [ho.roleId('cashier')],
+      branchIds: [br.setup.branchId],
+    });
+    await sync();
+    for (let i = 0; i < 5; i++)
+      await expect(signIn(br, 'locked1', 'wrong-Password-1')).rejects.toThrow();
+    await expect(signIn(br, 'locked1', CASHIER_PASSWORD)).rejects.toThrow(
+      /locked on this computer for 15 more minutes/,
+    );
+
+    ho.clock.ms += 60_000;
+    br.clock.ms += 60_000;
+    const { temporaryPassword } = await resetPassword(ho.db, actor, id);
+    await sync();
+    const ok = await signIn(br, 'locked1', temporaryPassword);
+    expect(ok.user.id).toBe(id);
   });
 });

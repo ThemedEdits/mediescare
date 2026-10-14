@@ -3,7 +3,7 @@ import type { Db } from '../client';
 import { appendAudit } from '../audit';
 import { isoNow, type WriteContext } from '../context';
 import { devices, users } from '../schema/sqlite';
-import { AuthError, LOCK_MS, MAX_FAILED_LOGINS, type LoginResult } from './login';
+import { AuthError, LOCK_MS, lockedMessage, MAX_FAILED_LOGINS, type LoginResult } from './login';
 import { hashPassword, verifyPassword } from './password';
 import { createSession, signSessionToken } from './session';
 
@@ -83,7 +83,7 @@ export async function loginWithPin(
     }
     if (user.lockedUntil && new Date(user.lockedUntil) > now) {
       audit('auth.pin_login.failed', user.id, { reason: 'locked' });
-      return { kind: 'fail', code: 'LOCKED', message: 'Too many failed attempts. Try again later' };
+      return { kind: 'fail', code: 'LOCKED', message: lockedMessage(user.lockedUntil, now) };
     }
     if (!pinOk) {
       const failed = user.failedLogins + 1;

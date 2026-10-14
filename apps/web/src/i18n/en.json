@@ -57,7 +57,8 @@
     "FORBIDDEN": "You do not have permission to do this",
     "VERSION_CONFLICT": "Someone else changed this record. Reload and try again",
     "UNAUTHENTICATED": "Please sign in again",
-    "INVALID": "Some of the details are not valid"
+    "INVALID": "Some of the details are not valid",
+    "LOCKED": "This account is temporarily locked after too many wrong passwords"
   },
   "language": {
     "label": "Language",
