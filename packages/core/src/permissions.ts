@@ -524,3 +524,6 @@ export function checkPriceOverride(limits: RoleLimits, reductionBp: number): Lim
     ? { ok: true }
     : { ok: false, reason: 'OVERRIDE_REQUIRED', requiredBp: reductionBp };
 }
+
+/** Words a Super Admin types to confirm "Clear database" (checked again on the server). */
+export const CLEAR_DATABASE_PHRASE = 'DELETE ALL DATA';

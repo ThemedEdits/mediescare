@@ -1,8 +1,11 @@
 import { join, resolve } from 'node:path';
 import { parseRuntimeMode, type RuntimeMode } from '@mediescare/config';
 import {
+  appendAudit,
   createBackup,
+  DATABASE_FILE,
   defaultMigrationsDir,
+  deleteDatabaseFiles,
   ensurePharmacyDefaults,
   refreshStatistics,
   getServerIdentity,
@@ -19,7 +22,7 @@ import {
   type WriteContext,
 } from '@mediescare/db';
 import { HybridLogicalClock } from '@mediescare/sync';
-import { startSyncIfConfigured } from './sync-runtime';
+import { resetSync, startSyncIfConfigured } from './sync-runtime';
 
 interface Runtime {
   mode: RuntimeMode;
@@ -67,7 +70,7 @@ export function getRuntime(): Runtime {
     /*turbopackIgnore: true*/ process.env.MEDIESCARE_BACKUP_DIR ?? join(dataDir, '..', 'backups'),
   );
   const dbKeyHex = requireEnv('MEDIESCARE_DB_KEY', 64);
-  const handle = openDatabase({ file: join(dataDir, 'mediescare.db'), keyHex: dbKeyHex });
+  const handle = openDatabase({ file: join(dataDir, DATABASE_FILE), keyHex: dbKeyHex });
   const migrationsDir = process.env.MEDIESCARE_MIGRATIONS_DIR ?? defaultMigrationsDir();
 
   // Safety copy before any schema change on an existing database (forward-only migrations).
@@ -122,6 +125,8 @@ function refreshStatisticsIfDue(runtime: Runtime): void {
 function startBackgroundJobs(runtime: Runtime): void {
   if (runtime.jobs || process.env.MEDIESCARE_DISABLE_JOBS === '1') return;
   const tick = () => {
+    // The database was cleared after this timer was set: the new runtime has its own jobs.
+    if (holder.__mediescareRuntime !== runtime) return;
     try {
       refreshStatisticsIfDue(runtime);
       if (!isInitialized(runtime.handle.db)) return;
@@ -144,6 +149,33 @@ function startBackgroundJobs(runtime: Runtime): void {
   runtime.jobs = setInterval(tick, 15 * 60 * 1000);
   runtime.jobs.unref();
   setTimeout(tick, 30_000).unref();
+}
+
+/**
+ * Clear the database (Super Admin "Clear database"). Takes a verified backup first, then stops the
+ * sync worker and background jobs, closes and deletes the database and the cloud login. The next
+ * request opens a fresh, empty database, so the app shows first-run setup without a restart.
+ * Returns the backup file name.
+ */
+export function clearDatabase(ctx: WriteContext): string {
+  const runtime = getRuntime();
+  // Recorded before the backup, so the backup itself shows who cleared the database and when.
+  runtime.handle.db.transaction((tx) =>
+    appendAudit(tx, ctx, { action: 'database.clear', entityType: 'database', entityId: 'local' }),
+  );
+  const backup = createBackup(runtime.handle, {
+    dir: runtime.backupDir,
+    kind: 'pre_reset',
+    dbKeyHex: runtime.dbKeyHex,
+    wrappedKey: readKeyring(runtime.dataDir),
+    ctx,
+  });
+  resetSync();
+  if (runtime.jobs) clearInterval(runtime.jobs);
+  holder.__mediescareRuntime = undefined;
+  runtime.handle.close();
+  deleteDatabaseFiles(runtime.dataDir);
+  return backup.file;
 }
 
 export function getDb(): Db {

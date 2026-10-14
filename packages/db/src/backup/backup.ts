@@ -20,7 +20,7 @@ import type { WriteContext } from '../context';
 import { backups } from '../schema/sqlite';
 import type { WrappedKey } from './recovery';
 
-export type BackupKind = 'scheduled' | 'manual' | 'pre_migration' | 'pre_restore';
+export type BackupKind = 'scheduled' | 'manual' | 'pre_migration' | 'pre_restore' | 'pre_reset';
 
 /** Small JSON file stored next to each backup. Holds what is needed to verify and to restore. */
 export interface BackupManifest {

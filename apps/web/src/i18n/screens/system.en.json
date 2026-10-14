@@ -17,7 +17,8 @@
       "scheduled": "Automatic",
       "manual": "Manual",
       "pre_migration": "Before update",
-      "pre_restore": "Before restore"
+      "pre_restore": "Before restore",
+      "pre_reset": "Before clearing database"
     },
     "verify": "Verify",
     "verified": "Backup verified: the file is intact and opens correctly.",
@@ -144,6 +145,23 @@
       "connect": "Connect",
       "connected": "Connected. Uploading your data in the background.",
       "connectFailed": "Could not connect"
+    },
+    "clearDb": {
+      "title": "Danger zone: clear database",
+      "hint": "Super Admin only. Deletes every record on this computer and starts first-run setup again. A backup is saved first.",
+      "button": "Clear database…",
+      "confirm1Title": "Clear the whole database?",
+      "confirm1Body": "This removes all data stored on this computer:",
+      "point1": "Items, stock, sales, purchases, customers, suppliers, users, shifts, accounts and settings.",
+      "point2": "This computer is disconnected from the cloud and paired terminals must pair again. The cloud copy is not deleted.",
+      "point3": "A backup is saved in the backups folder first; it can be restored from the Mediescare menu with the same recovery key.",
+      "continue": "I understand, continue",
+      "confirm2Title": "Final confirmation",
+      "typePhrase": "Type {phrase} to confirm",
+      "password": "Your password",
+      "confirm": "Clear database now",
+      "clearing": "Backing up and clearing…",
+      "failed": "Could not clear the database"
     }
   },
   "setupForm": {

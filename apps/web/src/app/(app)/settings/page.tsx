@@ -1,5 +1,7 @@
 import { can } from '@mediescare/core/permissions';
+import { isSuperAdmin } from '@mediescare/db';
 import { requirePage } from '@/server/page-auth';
+import { getDb } from '@/server/runtime';
 import { SettingsClient } from './settings-client';
 
 export const dynamic = 'force-dynamic';
@@ -13,6 +15,7 @@ export default async function SettingsPage() {
         canEdit={can(auth.access, 'admin.settings.edit')}
         canSync={can(auth.access, 'admin.sync.edit')}
         canPair={can(auth.access, 'admin.device.create')}
+        canClearDatabase={auth.method === 'password' && isSuperAdmin(getDb(), auth.userId)}
       />
     </main>
   );

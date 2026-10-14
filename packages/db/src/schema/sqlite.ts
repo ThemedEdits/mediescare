@@ -340,7 +340,7 @@ export const backups = sqliteTable('backups', {
   path: text('path').notNull(),
   sizeBytes: integer('size_bytes').notNull(),
   sha256: text('sha256').notNull(),
-  kind: text('kind').notNull(), // scheduled | manual | pre_migration | pre_restore
+  kind: text('kind').notNull(), // scheduled | manual | pre_migration | pre_restore | pre_reset
   createdAt: text('created_at').notNull(),
   verifiedAt: text('verified_at'),
 });

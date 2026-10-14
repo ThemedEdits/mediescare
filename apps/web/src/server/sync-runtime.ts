@@ -209,6 +209,15 @@ function stopSync(): void {
 }
 
 /**
+ * Forget the worker completely (database cleared): stop it and let the next database start sync
+ * again from its own saved credentials (none, after a clear).
+ */
+export function resetSync(): void {
+  stopSync();
+  holder().started = false;
+}
+
+/**
  * Cloud address and token source of the running sync worker, for features that talk to the cloud
  * on behalf of this PC (Head Office asking for a branch enrollment code). It is the worker's own
  * provider: the refresh token rotates on every refresh, so only one provider may ever use it.

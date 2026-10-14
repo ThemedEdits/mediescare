@@ -5,6 +5,7 @@ import { api, Button, ErrorText, inputClass, useErrorText } from '@/components/u
 import { useT } from '@/i18n/client';
 import { PrinterSettings } from './printer-settings';
 import { SyncPanel } from './sync-panel';
+import { ClearDatabase } from './clear-database';
 import { bpToPercent, percentToBp } from './percent';
 
 type Values = Record<string, string | number | boolean>;
@@ -34,11 +35,14 @@ export function SettingsClient({
   canEdit,
   canSync,
   canPair,
+  canClearDatabase,
 }: {
   branchName: string;
   canEdit: boolean;
   canSync: boolean;
   canPair: boolean;
+  /** Super Admin signed in with a password (not a PIN). The server checks again. */
+  canClearDatabase: boolean;
 }) {
   const t = useT();
   const errorText = useErrorText();
@@ -182,6 +186,8 @@ export function SettingsClient({
       <Section title={t('settings.syncSection')} hint={t('settings.syncSectionHint')}>
         <SyncPanel canSync={canSync} canPair={canPair} />
       </Section>
+
+      {canClearDatabase ? <ClearDatabase /> : null}
     </div>
   );
 }
