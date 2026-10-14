@@ -38,7 +38,7 @@ const check = (name, ok, detail = '') => {
   if (!ok) throw new Error(`Smoke test failed: ${name}`);
 };
 
-const env = { ...process.env, MEDIESCARE_USER_DATA: userData };
+const env = { ...process.env, MEDIESCARE_USER_DATA: userData, MEDIESCARE_DISABLE_UPDATES: '1' };
 delete env.ELECTRON_RUN_AS_NODE;
 const startedAt = Date.now();
 const app = spawn(exe, [], { env, stdio: 'ignore', windowsHide: false });

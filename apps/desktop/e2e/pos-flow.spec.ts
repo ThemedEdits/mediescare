@@ -32,7 +32,11 @@ test.beforeAll(async () => {
     join(userData, 'config.json'),
     JSON.stringify({ mode: 'single', port: 3450 + Math.floor(Math.random() * 40) }),
   );
-  const env = { ...process.env, MEDIESCARE_USER_DATA: userData } as Record<string, string>;
+  const env = {
+    ...process.env,
+    MEDIESCARE_USER_DATA: userData,
+    MEDIESCARE_DISABLE_UPDATES: '1',
+  } as Record<string, string>;
   delete env.ELECTRON_RUN_AS_NODE;
   app = await electron.launch({ executablePath: exe, env });
   page = await app.firstWindow();

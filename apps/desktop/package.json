@@ -9,12 +9,13 @@
     "build": "node scripts/make-icons.mjs && node scripts/build.mjs",
     "prepare:web": "node scripts/prepare-web.mjs",
     "dev": "node scripts/make-icons.mjs && node scripts/build.mjs && node scripts/dev.mjs",
-    "package": "node scripts/make-icons.mjs && node scripts/build.mjs && node scripts/prepare-web.mjs && electron-builder --config electron-builder.yml --win",
-    "package:dir": "node scripts/make-icons.mjs && node scripts/build.mjs && node scripts/prepare-web.mjs && electron-builder --config electron-builder.yml --win --dir",
+    "package": "node scripts/make-icons.mjs && node scripts/build.mjs && node scripts/prepare-web.mjs && electron-builder --config electron-builder.yml --win --publish never",
+    "package:dir": "node scripts/make-icons.mjs && node scripts/build.mjs && node scripts/prepare-web.mjs && electron-builder --config electron-builder.yml --win --dir --publish never",
     "smoke": "node scripts/smoke-packaged.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "release": "node scripts/make-icons.mjs && node scripts/build.mjs && node scripts/prepare-web.mjs && electron-builder --config electron-builder.yml --win --publish always"
   },
   "dependencies": {
     "@mediescare/config": "workspace:*",
@@ -26,6 +27,7 @@
     "@types/node": "^22.20.4",
     "electron": "44.5.0",
     "electron-builder": "^26.15.3",
+    "electron-updater": "^6.8.9",
     "esbuild": "^0.25.0",
     "typescript": "~5.9.3",
     "vitest": "^5.0.2"

@@ -37,3 +37,11 @@ nsis:
   createDesktopShortcut: true
   shortcutName: Mediescare
   artifactName: Mediescare-Setup-${version}.${ext}
+# Auto-update feed (electron-updater, see docs/updates.md). CI publishes every push to main as a
+# GitHub Release; installed apps read latest.yml from the newest release. The repository is public,
+# so the app needs no token to read it.
+publish:
+  provider: github
+  owner: ThemedEdits
+  repo: mediescare
+  releaseType: release

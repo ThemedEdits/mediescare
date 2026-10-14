@@ -12,6 +12,7 @@ import { electronSealer, registerPairingHandlers } from './pairing-ipc';
 import { openRestoreWindow } from './restore';
 import { offerFirewall, showServerAddress } from './server-dialogs';
 import { showTerminalOffline } from './terminal-offline';
+import { checkForUpdates, startAutoUpdates } from './updater';
 import { runWizard } from './wizard-ipc';
 import { buildAppMenu, createMainWindow, removeAppMenu, showFatal } from './window';
 
@@ -49,7 +50,15 @@ async function start(): Promise<void> {
   const userData = app.getPath('userData');
   // First run: the wizard. Closing it quits the app, so it always returns a config here.
   const config = loadConfig(userData) ?? (await runWizard(userData));
-  if (config) await boot(userData, config);
+  if (!config) return;
+  await boot(userData, config);
+  startAutoUpdates({
+    window: () => mainWindow,
+    beforeInstall: async () => {
+      stopAnnouncing?.();
+      await server?.stopAndWait();
+    },
+  });
 }
 
 async function boot(userData: string, config: DesktopConfig): Promise<void> {
@@ -90,6 +99,7 @@ async function bootLocal(userData: string, config: DesktopConfig): Promise<void>
     running = true;
     // Terminals hold no data, so only servers get the restore and backup-folder menu.
     buildAppMenu({
+      checkUpdates: () => void checkForUpdates(true),
       restore: () => openRestoreWindow(userData, server, mainWindow),
       openBackups: () => void shell.openPath(join(userData, 'backups')),
       ...(config.mode === 'branch-server'
@@ -145,6 +155,7 @@ async function bootTerminal(userData: string, config: DesktopConfig): Promise<vo
   registerPairingHandlers(userData, origin);
   running = true;
   buildAppMenu({
+    checkUpdates: () => void checkForUpdates(true),
     showServer: () =>
       void messageBox({
         type: 'info',

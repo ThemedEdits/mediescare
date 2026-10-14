@@ -1,4 +1,4 @@
-import { BrowserWindow, Menu, session, shell } from 'electron';
+import { app, BrowserWindow, Menu, session, shell } from 'electron';
 import { APP_NAME } from '@mediescare/config';
 import { iconPath, preloadPath } from './paths';
 
@@ -106,6 +106,8 @@ export interface MenuActions {
   /** Terminal: show the connected server, or pick another one and pair again. */
   showServer?: () => void;
   repair?: () => void;
+  /** Every mode: ask GitHub Releases for a newer version now. */
+  checkUpdates?: () => void;
 }
 
 export function buildAppMenu(items: MenuActions): void {
@@ -126,6 +128,14 @@ export function buildAppMenu(items: MenuActions): void {
   if (network.length) template.push({ label: 'Network', submenu: network });
 
   template.push(viewMenu);
+  if (items.checkUpdates)
+    template.push({
+      label: 'Help',
+      submenu: [
+        { label: 'Check for updates…', click: items.checkUpdates },
+        { label: `Version ${app.getVersion()}`, enabled: false },
+      ],
+    });
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
 

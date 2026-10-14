@@ -42,3 +42,33 @@ jobs:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
       - run: pnpm --filter @mediescare/desktop smoke
       - run: pnpm --filter @mediescare/desktop test:e2e
+
+  # Every push to main that passes the checks above becomes a GitHub Release. Installed apps see it
+  # within a few hours (or at once with Help > Check for updates) and offer to install it.
+  release:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: windows-latest
+    needs: [verify, package-smoke]
+    permissions:
+      contents: write
+    concurrency:
+      group: release
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Set release version
+        run: node scripts/ci-version.mjs
+      - run: pnpm --filter @mediescare/web build
+        env:
+          NEXT_TELEMETRY_DISABLED: '1'
+      - name: Build installer and publish GitHub Release
+        run: pnpm --filter @mediescare/desktop release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
