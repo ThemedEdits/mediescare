@@ -26,7 +26,7 @@ import { getServerIdentity } from '../identity';
 import { createTestEnv, type TestEnv } from '../test-helpers';
 import { pushOutbox } from '../syncWorker';
 import { createItemAt, rateOf } from './appliers/test-env';
-import { registerBranch } from './branch-registry';
+import { issueBranchEnrollment, registerBranch } from './branch-registry';
 import { joinOrganisation, JoinError, type JoinDeps, type JoinProgress } from './join-organisation';
 import { authOf } from './test-support';
 
@@ -277,6 +277,38 @@ describe('joining an existing organisation', () => {
       }),
     ).rejects.toThrow(/belongs to Head Office/);
     expect(isInitialized(live.db)).toBe(false);
+  });
+
+  it('joins under the branch id Head Office reserved in the enrollment code (no disagreement)', async () => {
+    let reservedId: string | undefined;
+    const issued = await issueBranchEnrollment(
+      ho.db,
+      ho.ctx(ho.setup.adminUserId),
+      { code: 'KHI02', name: 'Test Branch Two' },
+      {
+        cloudUrl: 'https://cloud.example.test',
+        provider: () => Promise.resolve('token'),
+        createCode: ((_p: unknown, input: { branchId?: string }) => {
+          reservedId = input.branchId;
+          return Promise.resolve({ code: 'CODE', expiresAt: '2026-10-06T09:00:00.000Z' });
+        }) as never,
+      },
+    );
+    await pushHeadOffice();
+    // The real cloud enrolls under the reserved id: `code.branch_id ?? newId()` (device-auth.ts).
+    const enrolled = enrollmentFor({
+      id: reservedId ?? newId(),
+      code: 'KHI02',
+      name: 'Test Branch Two',
+    });
+    const result = await joinOrganisation(depsFor(enrolled), {
+      cloudUrl: 'https://cloud.example.test',
+      code: 'CODE',
+      deviceName: 'PC',
+      admin: adminInput,
+    });
+    expect(result.branchId).toBe(issued.branch.id);
+    expect(isInitialized(live.db)).toBe(true);
   });
 
   it('refuses when Head Office and the cloud disagree about the branch record', async () => {

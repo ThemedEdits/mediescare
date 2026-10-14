@@ -75,6 +75,28 @@ describe('enrollment codes', () => {
     expect(JSON.stringify(audits)).not.toContain('SECRET-CODE-1');
   });
 
+  it('reserves the branch id Head Office created, so the branch PC joins under the same record', async () => {
+    const sent: { branchCode: string; branchId?: string }[] = [];
+    const createCode = ((_p: unknown, input: { branchCode: string; branchId?: string }) => {
+      sent.push(input);
+      return Promise.resolve({ code: 'SECRET-CODE-1', expiresAt: '2026-10-06T09:00:00.000Z' });
+    }) as never;
+    const first = await issueBranchEnrollment(
+      env.db,
+      ctx(),
+      { code: 'KHI02', name: 'Test Branch Two' },
+      cloud({ createCode }),
+    );
+    const again = await issueBranchEnrollment(
+      env.db,
+      ctx(),
+      { code: 'KHI02', name: 'Test Branch Two' },
+      cloud({ createCode }),
+    );
+    expect(sent.map((s) => s.branchId)).toEqual([first.branch.id, first.branch.id]);
+    expect(again.branch.id).toBe(first.branch.id);
+  });
+
   it('a second request for the same branch issues a new code without a second branch row', async () => {
     await issueBranchEnrollment(env.db, ctx(), { code: 'KHI02', name: 'Test Branch Two' }, cloud());
     const again = await issueBranchEnrollment(

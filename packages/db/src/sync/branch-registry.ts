@@ -165,6 +165,9 @@ export async function issueBranchEnrollment(
       cloudUrl: cloud.cloudUrl,
       branchCode: code,
       branchName: name,
+      // The branch PC must join under the id Head Office already gave this branch; otherwise the cloud
+      // invents a second id for the same code and the join fails ("Head Office and the cloud disagree").
+      branchId: branch.id,
       fetchImpl: cloud.fetchImpl,
     });
   } catch (error) {
