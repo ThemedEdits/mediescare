@@ -9,7 +9,9 @@ export type RuntimeMode = (typeof RUNTIME_MODES)[number];
 export function parseRuntimeMode(value: string | undefined): RuntimeMode {
   const mode = (value ?? 'single').trim();
   if ((RUNTIME_MODES as readonly string[]).includes(mode)) return mode as RuntimeMode;
-  throw new Error(`Invalid MEDIESCARE_MODE "${mode}". Expected one of: ${RUNTIME_MODES.join(', ')}`);
+  throw new Error(
+    `Invalid MEDIESCARE_MODE "${mode}". Expected one of: ${RUNTIME_MODES.join(', ')}`,
+  );
 }
 
 export const DEFAULT_PORT = 3210;
@@ -22,3 +24,11 @@ export const BRAND = {
   primary: '#3DA6DD',
   secondary: '#8FC33E',
 } as const;
+
+/**
+ * Built-in address of the Mediescare cloud endpoint (the cloud-mode app that holds the Supabase
+ * connection, docs/cloud-deploy.md). The Connect screens fill it in, so nobody has to type it. Only the
+ * address lives here: the database password stays on the cloud host and never ships in the installer.
+ * Empty until the cloud is deployed; then put its https address here and push.
+ */
+export const DEFAULT_CLOUD_URL = '';

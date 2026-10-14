@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, type FormEvent } from 'react';
+import { DEFAULT_CLOUD_URL } from '@mediescare/config';
 import { Field, PrimaryButton } from '@/components/field';
 import { useT } from '@/i18n/client';
 
@@ -107,6 +108,7 @@ export function JoinForm({ onDone }: { onDone: (recoveryKey: string, summary: st
       <Field
         label={t('setupForm.cloudAddress')}
         name="cloudUrl"
+        defaultValue={DEFAULT_CLOUD_URL}
         dir="ltr"
         placeholder="https://mediescare.example.com"
         inputMode="url"

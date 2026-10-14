@@ -52,6 +52,10 @@ It applies `packages/db/cloud/*.sql` (tenants, branches, devices, enrollment_cod
 5. Project Settings > Functions > **Function Region:** pick the region closest to your Supabase project (for example both in Frankfurt) to keep each database round trip short.
 6. Deploy, then open `https://<your-project>.vercel.app/api/health`. Expected: `{"status":"ok","app":"Mediescare","mode":"cloud",...}`. The address `/` shows a one-line landing page; every other path answers 404.
 
+### Build the address into the app
+
+After the deployment answers `/api/health`, put its address in `DEFAULT_CLOUD_URL` (`packages/config/src/index.ts`) and push. The next release pre-fills it in "Connect to cloud" and "Join an existing organisation", so nobody types it. Only the address goes there: the database URL and password stay on the cloud host ([ADR-0015](adr/0015-auto-updates-built-in-cloud-and-clear-database.md)).
+
 ## 5. Connect the Head Office PC
 
 On the Head Office PC: **Settings > Cloud sync > Connect to cloud.** Enter the cloud address (`https://<your-project>.vercel.app`), the bootstrap code and the organisation name, then Connect. The PC keeps its own branch, device and organisation ids (the cloud adopts them so the history already in its outbox is accepted), then uploads **everything written since the database was created** in batches of at most 500 events / 1 MB, with a progress bar. It can be interrupted (power cut, internet loss) at any time and continues where it stopped. Measured in-process against PGlite: 50,010 events in about 8 s; over the real internet each batch costs about eight database round trips plus one HTTP call, so budget roughly 1 s per 500 events (about 100 s for 50,000) on a healthy connection.

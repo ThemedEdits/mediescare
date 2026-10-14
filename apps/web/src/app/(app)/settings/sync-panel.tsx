@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { DEFAULT_CLOUD_URL } from '@mediescare/config';
 import {
   api,
   Badge,
@@ -265,7 +266,7 @@ function ConnectForm({
 }) {
   const t = useT();
   const errorText = useErrorText();
-  const [cloudUrl, setCloudUrl] = useState('');
+  const [cloudUrl, setCloudUrl] = useState(DEFAULT_CLOUD_URL);
   const [bootstrapCode, setBootstrapCode] = useState('');
   const [organisationName, setOrganisationName] = useState('');
   const [busy, setBusy] = useState(false);
