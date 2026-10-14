@@ -198,7 +198,7 @@ export class CloudAuthService {
       new DeviceAuthError(
         'ORGANISATION_EXISTS',
         409,
-        'This organisation already exists in the cloud. Use an enrollment code for a new branch.',
+        'An organisation with this name already exists in the cloud and belongs to a different Head Office database. To reconnect the original Head Office, restore its backup on this PC (Data > Restore from backup) and connect again. To start over, use a different organisation name. A new branch joins with an enrollment code instead.',
       );
     if (!input.identity?.tenantId || input.identity.tenantId !== tenant.id) throw exists();
     const ho = (

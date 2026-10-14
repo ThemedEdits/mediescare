@@ -153,7 +153,7 @@
       "confirm1Title": "Clear the whole database?",
       "confirm1Body": "This removes all data stored on this computer:",
       "point1": "Items, stock, sales, purchases, customers, suppliers, users, shifts, accounts and settings.",
-      "point2": "This computer is disconnected from the cloud and paired terminals must pair again. The cloud copy is not deleted.",
+      "point2": "This computer is disconnected from the cloud and paired terminals must pair again. The cloud copy is not deleted. If this is Head Office, a new database cannot reconnect to the same organisation: restore this backup to reconnect, or start a new organisation under a different name.",
       "point3": "A backup is saved in the backups folder first; it can be restored from the Mediescare menu with the same recovery key.",
       "continue": "I understand, continue",
       "confirm2Title": "Final confirmation",

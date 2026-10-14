@@ -41,6 +41,26 @@ export function BranchesClient({
   const list = useAsync(() => api<{ branches: BranchRow[] }>('/api/branches'));
   const [adding, setAdding] = useState(false);
   const [issued, setIssued] = useState<Issued | null>(null);
+  const errorText = useErrorText();
+  const [rowBusy, setRowBusy] = useState<string | null>(null);
+  const [rowError, setRowError] = useState<string | null>(null);
+
+  /** A new one-time code for a branch that already exists (its PC was not set up yet, or is replaced). */
+  async function newCode(b: BranchRow) {
+    setRowBusy(b.id);
+    setRowError(null);
+    try {
+      setIssued(
+        await api<Issued>('/api/branches/enrollment-codes', {
+          body: { code: b.code, name: b.name },
+        }),
+      );
+    } catch (err) {
+      setRowError(errorText(err, 'branches.createFailed'));
+    } finally {
+      setRowBusy(null);
+    }
+  }
 
   return (
     <>
@@ -58,6 +78,7 @@ export function BranchesClient({
         ) : null}
       </div>
       <ErrorText message={list.error} />
+      <ErrorText message={rowError} />
       <div className="overflow-x-auto rounded-[10px] border border-border">
         <table className="w-full text-sm">
           <thead className="bg-surface-2 text-start text-xs uppercase text-muted">
@@ -66,6 +87,7 @@ export function BranchesClient({
               <th className="px-4 py-3">{t('common.name')}</th>
               <th className="px-4 py-3">{t('branches.type')}</th>
               <th className="px-4 py-3">{t('common.status')}</th>
+              {canCreate ? <th className="px-4 py-3" /> : null}
             </tr>
           </thead>
           <tbody>
@@ -85,11 +107,25 @@ export function BranchesClient({
                     ? t(`branches.status.${b.status}`)
                     : b.status}
                 </td>
+                {canCreate ? (
+                  <td className="px-4 py-2 text-end">
+                    {b.isHeadOffice ? null : (
+                      <Button
+                        variant="outline"
+                        className="h-8 px-3"
+                        disabled={rowBusy !== null}
+                        onClick={() => void newCode(b)}
+                      >
+                        {rowBusy === b.id ? t('branches.creating') : t('branches.newCode')}
+                      </Button>
+                    )}
+                  </td>
+                ) : null}
               </tr>
             ))}
             {!list.data && !list.error ? (
               <tr>
-                <td colSpan={4} className="px-4 py-10 text-center text-muted">
+                <td colSpan={canCreate ? 5 : 4} className="px-4 py-10 text-center text-muted">
                   {t('common.loading')}
                 </td>
               </tr>

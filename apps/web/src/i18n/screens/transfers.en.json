@@ -225,6 +225,7 @@
     "step2After": ".",
     "step3": "Cloud address:",
     "step4": "Enter the code above, then your name, a username and a password.",
-    "step5": "Keep the PC online until the first copy of items and suppliers is finished."
+    "step5": "Keep the PC online until the first copy of items and suppliers is finished.",
+    "newCode": "New code"
   }
 }

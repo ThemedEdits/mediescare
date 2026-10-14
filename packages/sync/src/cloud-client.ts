@@ -68,7 +68,7 @@ function friendlyStatus(status: number, code: string | undefined): string {
   if (code === 'BOOTSTRAP_CODE_WRONG') return 'The bootstrap code is wrong';
   if (code === 'BOOTSTRAP_DISABLED') return 'This cloud has no bootstrap code configured';
   if (code === 'ORGANISATION_EXISTS')
-    return 'This organisation already exists in the cloud. Use an enrollment code for a new branch.';
+    return 'An organisation with this name already exists in the cloud and belongs to a different Head Office database. To reconnect the original Head Office, restore its backup on this PC (Data > Restore from backup) and connect again. To start over, use a different organisation name. A new branch joins with an enrollment code instead.';
   if (code === 'INVALID_CODE') return 'The enrollment code is wrong, expired or already used';
   if (code === 'RATE_LIMITED' || status === 429)
     return 'Too many attempts. Wait a minute and try again.';
